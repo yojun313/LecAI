@@ -8,8 +8,6 @@ from app.services.email_service import send_verification_email
 from app.db import users_col, sessions_col
 from app.db.prompt import default_system_prompt, default_user_prompt
 
-# 이메일 인증 코드는 임시 데이터이므로 메모리에 유지 (서버 재시작 시 초기화됨)
-# 운영 환경에서는 Redis나 MongoDB TTL Collection 사용을 권장
 verification_codes = {}
 
 class AuthManager:

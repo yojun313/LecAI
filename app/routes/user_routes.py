@@ -76,7 +76,6 @@ async def upload_profile_image(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # DB 직접 접근 대신 AuthManager 등을 사용하는 것이 좋으나 기존 로직 유지
     from app.db import users_col
     users_col.update_one({"username": user}, {"$set": {"profile_img": profile_url}})
 

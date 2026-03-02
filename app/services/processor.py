@@ -7,7 +7,7 @@ import zipfile
 import pdfkit
 import threading
 import concurrent.futures
-import time  # [추가] 대기 시간을 위해 필요
+import time 
 from pdf2image import convert_from_path
 from app.core.config import settings
 from app.services.job_manager import JobManager
@@ -185,7 +185,7 @@ def calculate_total_cost(model_id, total_usage, exchange_rate=1400):
 # Main Processing Logic
 # ==========================================
 
-def _process_job_internal(job_id: str, file_path: str, model_config: dict):
+def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner: str):
     """
     실제 파일 처리 로직 (실시간 비용 로그 추가)
     """
@@ -353,13 +353,15 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict):
         )
         
         # 압축 및 정리
-        shutil.make_archive(os.path.join(settings.RESULT_DIR, job_id), 'zip', result_base)
+        user_result_dir = os.path.join(settings.RESULT_DIR, owner)
+        os.makedirs(user_result_dir, exist_ok=True)
+        shutil.make_archive(os.path.join(user_result_dir, job_id), 'zip', result_base)
         
         # [Cleanup] 압축 후 원본 폴더 삭제
         if os.path.exists(result_base):
             shutil.rmtree(result_base)
             
-        JobManager.mark_completed(job_id, f"/static/results/{job_id}.zip")
+        JobManager.mark_completed(job_id, f"/static/results/{owner}/{job_id}.zip")
 
     except Exception as e:
         JobManager.mark_failed(job_id, str(e))
@@ -389,7 +391,7 @@ def process_file_task(job_id: str, file_path: str):
     if model_config['provider'] == 'local':
         print(f"[Queue] Job {job_id} is waiting for GPU lock...")
         with local_gpu_lock:
-            _process_job_internal(job_id, file_path, model_config)
+            _process_job_internal(job_id, file_path, model_config, owner)
     else:
         print(f"[Queue] Job {job_id} is starting immediately (API Mode).")
-        _process_job_internal(job_id, file_path, model_config)
+        _process_job_internal(job_id, file_path, model_config, owner)

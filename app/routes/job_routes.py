@@ -16,15 +16,12 @@ async def upload_file(
     file: UploadFile = File(...), 
     user: str = Depends(get_current_user)
 ):
-    # 파일 저장
     file_path = os.path.join(settings.UPLOAD_DIR, file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # 작업 생성
     job_id = JobManager.create_job(file.filename, user)
     
-    # 확장자 확인 및 분기 처리
     ext = os.path.splitext(file.filename)[1].lower()
     
     if ext in ['.mp3', '.wav', '.m4a', '.flac']:

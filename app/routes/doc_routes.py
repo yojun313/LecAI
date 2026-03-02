@@ -13,7 +13,6 @@ import os
 
 router = APIRouter()
 
-# 기존 api.py의 /docs/folders -> /api/docs/folders (Main에서 prefix 설정 예정)
 @router.get("/docs/folders")
 async def get_folders(user: str = Depends(get_current_user)):
     try:
@@ -37,11 +36,10 @@ async def rename_node(
 
 @router.put("/docs/move")
 async def move_node(
-    node_id: str = Body(...),                # JSON의 "node_id" 필드 (필수)
-    target_parent_id: Optional[str] = Body(None), # JSON의 "target_parent_id" 필드 (선택)
+    node_id: str = Body(...),                
+    target_parent_id: Optional[str] = Body(None), 
     user: str = Depends(get_current_user)
 ):
-    # 프론트에서 "root" 문자열을 보낼 경우 None으로 변환 처리 (안전장치)
     if target_parent_id == "root":
         target_parent_id = None
 
@@ -52,7 +50,6 @@ async def move_node(
     
     return {"status": "success"}
 
-# 기존 docs.py의 /api/docs/nodes -> Main에서 prefix 처리로 /api/docs/nodes 유지
 @router.get("/docs/nodes")
 async def get_nodes(parent_id: str = None, user: str = Depends(get_current_user)):
     if parent_id == "root":
@@ -105,16 +102,13 @@ async def get_content(doc_id: str, user: str = Depends(get_current_user)):
 
 @router.get("/docs/download/{doc_id}")
 async def download_doc(doc_id: str, user: str = Depends(get_current_user)):
-    # 1. 파일 압축 및 경로 가져오기
     zip_path = DocManager.get_zip_path(user, doc_id)
     
     if not zip_path or not os.path.exists(zip_path):
         raise HTTPException(status_code=404, detail="File not found")
     
-    # [수정된 부분] load_data() 대신 DB(docs_col)에서 직접 파일명 조회
     target = docs_col.find_one({"id": doc_id, "owner": user})
     
-    # 다운로드될 파일명 설정 (예: 강의자료.zip)
     display_name = f"{target['name']}.zip" if target else "document.zip"
     
     return FileResponse(
@@ -133,10 +127,9 @@ def get_job_history(user: str = Depends(get_current_user)):
 async def import_job_to_docs(
     job_id: str,
     parent_id: str = Form(None),
-    target_user: str = Form(None),  # [핵심 1] 프론트에서 보낸 target_user 받기
+    target_user: str = Form(None),
     user: str = Depends(get_current_user)
 ):
-    # 1. 작업(Job) 확인 (본인 작업인지 체크)
     job = JobManager.get_job(job_id)
     if not job or job["owner"] != user:
         raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다.")
@@ -144,21 +137,17 @@ async def import_job_to_docs(
     if job["status"] != "completed":
         raise HTTPException(status_code=400, detail="완료된 작업만 가져올 수 있습니다.")
     
-    # 2. 결과 파일 확인
-    zip_path = os.path.join(settings.RESULT_DIR, f"{job_id}.zip")
-    if not os.path.exists(zip_path):
-        raise HTTPException(status_code=404, detail="결과 파일이 존재하지 않습니다.")
+    zip_path = os.path.join(settings.RESULT_DIR, job["owner"], f"{job_id}.zip")
     
     try:
         if target_user and target_user.strip():
             final_owner = target_user.strip()
-            final_parent_id = None  # 남에게 보낼 때는 항상 최상위(Root) 폴더로
-            print(f"[Info] 문서 전송: {user} -> {final_owner}") # 서버 로그 확인용
+            final_parent_id = None  
+            print(f"[Info] 문서 전송: {user} -> {final_owner}")
         else:
             final_owner = user
             final_parent_id = None if parent_id == "root" else parent_id
 
-        # 문서 생성 (결정된 final_owner 이름으로 DB 저장)
         new_doc = DocManager.upload_zip_doc(
             owner=final_owner,
             file_path=zip_path,

@@ -91,11 +91,13 @@ def process_audio_task(job_id: str, file_path: str):
             with open(time_path, "w", encoding="utf-8") as f:
                 f.write(result.get("text_with_time", ""))
 
-            # 압축
             JobManager.update_progress(job_id, 90, 100, "결과물 압축 중...")
-            shutil.make_archive(os.path.join(settings.RESULT_DIR, job_id), 'zip', result_base)
-            
-            JobManager.mark_completed(job_id, f"/static/results/{job_id}.zip")
+            user_result_dir = os.path.join(settings.RESULT_DIR, owner)
+            os.makedirs(user_result_dir, exist_ok=True)
+           
+            shutil.make_archive(os.path.join(user_result_dir, job_id), 'zip', result_1base)
+                
+            JobManager.mark_completed(job_id, f"/static/results/{owner}/{job_id}.zip")
 
         except Exception as e:
             print(f"[AUDIO ERROR] {e}")
@@ -104,7 +106,7 @@ def process_audio_task(job_id: str, file_path: str):
             # 원본 임시 파일 삭제
             if os.path.exists(file_path):
                 os.remove(file_path)
-            # 결과 폴더(압축 전) 삭제
+            # 임시 결과 폴더 삭제
             result_dir = os.path.join(settings.RESULT_DIR, job_id)
             if os.path.exists(result_dir):
                 shutil.rmtree(result_dir)

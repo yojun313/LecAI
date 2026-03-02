@@ -55,7 +55,6 @@ async def settings_page(request: Request):
         "settings": user_settings
     })
 
-# 기존 docs.py의 뷰 라우트
 @router.get("/viewer")
 async def viewer_page(request: Request):
     session_id = request.cookies.get("session_id")

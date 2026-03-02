@@ -62,10 +62,9 @@ class JobManager:
 
     @staticmethod
     def get_jobs_by_user(username: str):
-        # MongoDB에서 사용자별 작업 조회 (생성일 역순 정렬)
         jobs = list(history_col.find(
             {"owner": username}, 
-            {"_id": 0}  # ObjectId 제외
+            {"_id": 0}  
         ).sort("created_at", -1))
         return jobs
     
@@ -92,7 +91,6 @@ class JobManager:
         
         update_query = {"$set": update_fields}
         
-        # 메시지가 있으면 logs 배열에 추가 ($push)
         if message:
             log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] {message}"
             update_query["$push"] = {"logs": log_entry}
@@ -137,16 +135,15 @@ class JobManager:
         if not job:
             return False
             
-        # DB에서 삭제
         history_col.delete_one({"id": job_id})
         
-        # 파일 시스템 정리
         try:
             result_path = os.path.join(settings.RESULT_DIR, job_id)
             if os.path.exists(result_path):
                 shutil.rmtree(result_path)
+             
+            zip_path = os.path.join(settings.RESULT_DIR, username, f"{job_id}.zip")
             
-            zip_path = os.path.join(settings.RESULT_DIR, f"{job_id}.zip")
             if os.path.exists(zip_path):
                 os.remove(zip_path)
             
@@ -160,14 +157,12 @@ class JobManager:
 
     @staticmethod
     def get_queue_position(job_id: str) -> int:
-        # 현재 작업 정보 조회
         current_job = history_col.find_one({"id": job_id})
         if not current_job:
             return 0
             
         target_created_at = current_job['created_at']
         
-        # 나보다 먼저 생성되었고(created_at < target), 아직 처리 중인(pending/processing) 작업 수 카운트
         count = history_col.count_documents({
             "created_at": {"$lt": target_created_at},
             "status": {"$in": ["pending", "processing"]}
