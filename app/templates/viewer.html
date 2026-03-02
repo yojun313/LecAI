@@ -597,7 +597,7 @@
             return content;
         }
 
-        async function openDoc(node, initialIndex = 0, parentName = 'root') {
+        async function openDoc(node, initialIndex = 0, parentName = 'root', initialZoom = 100) {
             const existingTab = openedTabs.find(tab => tab.id === node.id);
             if (existingTab) { switchTab(node.id); return; }
             try {
@@ -605,13 +605,8 @@
                 if (!res.ok) throw new Error("Load failed");
                 const data = await res.json();
                 
-                // 1. 콘텐츠 정제
                 const cleanContent = cleanUpContent(data.content);
-                
-                // 2. Markdown -> HTML 변환 (KaTeX가 자동으로 적용됨)
                 const htmlContent = marked.parse(cleanContent);
-                
-                // 3. 슬라이드 분리 (HTML 파싱)
                 const slides = parseSlidesFromHtml(htmlContent);
                 
                 let displayName = node.name;
@@ -620,11 +615,11 @@
                 const newTab = {
                     id: node.id, 
                     name: displayName, 
-                    content: cleanContent, // 원본 마크다운
-                    processedHtml: htmlContent, // 렌더링된 HTML
+                    content: cleanContent,
+                    processedHtml: htmlContent,
                     slides: slides,
                     currentIndex: initialIndex, 
-                    zoom: 100
+                    zoom: initialZoom // 전달받은 배율 적용 (기본값 100)
                 };
                 openedTabs.push(newTab);
                 renderTabBar();
@@ -738,7 +733,12 @@
         function getActiveTab() { return openedTabs.find(t => t.id === activeTabId); }
 
         function saveSession() {
-            const sessionData = openedTabs.map(t => ({ id: t.id, name: t.name, currentIndex: t.currentIndex || 0 }));
+            const sessionData = openedTabs.map(t => ({ 
+                id: t.id, 
+                name: t.name, 
+                currentIndex: t.currentIndex || 0,
+                zoom: t.zoom || 100  // 배율 정보 저장 추가
+            }));
             localStorage.setItem('viewer_tabs', JSON.stringify(sessionData));
             localStorage.setItem('viewer_active_id', activeTabId || '');
         }
@@ -750,10 +750,19 @@
                 try {
                     const savedTabs = JSON.parse(savedTabsJSON);
                     for (const tabMeta of savedTabs) {
-                        await openDoc({ id: tabMeta.id, name: tabMeta.name.split('/').pop() }, tabMeta.currentIndex || 0, 'root');
+                        // 저장된 zoom 값을 넘겨줌 (없으면 100)
+                        await openDoc(
+                            { id: tabMeta.id, name: tabMeta.name.split('/').pop() }, 
+                            tabMeta.currentIndex || 0, 
+                            'root', 
+                            tabMeta.zoom || 100 
+                        );
                     }
                     if (savedActiveId) switchTab(savedActiveId);
-                } catch (e) { localStorage.removeItem('viewer_tabs'); }
+                } catch (e) { 
+                    console.error(e);
+                    localStorage.removeItem('viewer_tabs'); 
+                }
             }
         }
 
@@ -817,9 +826,16 @@
         });
 
         function adjustFontSize(delta) {
-            const tab = getActiveTab(); if (!tab) return;
-            tab.zoom += delta; if (tab.zoom < 50) tab.zoom = 50; if (tab.zoom > 200) tab.zoom = 200;
+            const tab = getActiveTab(); 
+            if (!tab) return;
+            
+            tab.zoom += delta; 
+            
+            if (tab.zoom < 50) tab.zoom = 50; 
+            if (tab.zoom > 200) tab.zoom = 200;
+            
             applyFontSize();
+            saveSession();  
         }
         function applyFontSize() {
             const tab = getActiveTab(); if (!tab) return;
