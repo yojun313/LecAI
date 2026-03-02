@@ -50,20 +50,3 @@ python main.py
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ```
-
----
-
-## 3. Option B: Running with Docker (Recommended)
-
-Docker ensures that all system dependencies (LibreOffice, wkhtmltopdf, etc.) are correctly configured regardless of your host OS.
-
-### 1) Run with Docker Compose
-
-```bash
-# Build and start the container
-docker-compose up -d --build
-
-# Check logs to verify startup
-docker logs -f lecai
-
-```
