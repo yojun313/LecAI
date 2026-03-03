@@ -954,6 +954,37 @@
             } catch (err) { alert('서버 통신 오류'); }
         }
 
+        let lastWheelTime = 0;
+        const WHEEL_COOLDOWN = 800; // 슬라이드 전환 후 0.8초간 대기 (너무 빠른 넘김 방지)
+
+        document.getElementById('presentationView').addEventListener('wheel', (e) => {
+            // 1. 프레젠테이션 모드가 아니면 무시
+            if (viewMode !== 'presentation') return;
+
+            // 2. 수직 스크롤(텍스트 읽기) 중일 때는 무시
+            // (가로 움직임보다 세로 움직임이 크면 슬라이드를 넘기지 않음)
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) return;
+
+            // 3. 움직임이 너무 작으면 무시 (민감도 조절)
+            if (Math.abs(e.deltaX) < 5) return;
+
+            const now = Date.now();
+            // 4. 쿨다운 체크: 마지막 전환 후 일정 시간이 지났는지 확인
+            if (now - lastWheelTime < WHEEL_COOLDOWN) return;
+
+            // 5. 방향에 따라 슬라이드 이동
+            if (e.deltaX > 0) {
+                // 오른쪽으로 스크롤 -> 다음 슬라이드
+                nextSlideBtn.click();
+            } else {
+                // 왼쪽으로 스크롤 -> 이전 슬라이드
+                prevSlideBtn.click();
+            }
+
+            // 시간 갱신
+            lastWheelTime = now;
+        }, { passive: true });
+
         // ==========================================
         // 10. History Modal & Drag Move
         // ==========================================
