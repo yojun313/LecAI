@@ -858,11 +858,44 @@
         // 키보드 이벤트
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            if (e.code === 'KeyF' && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); toggleFullScreen(); return; }
-            if (e.code === 'KeyD' && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); toggleTheme(); return; }
+
+            if (e.code === 'KeyF' && !e.ctrlKey && !e.altKey && !e.metaKey) { 
+                e.preventDefault(); 
+                toggleFullScreen(); 
+                return; 
+            }
+            if (e.code === 'KeyD' && !e.ctrlKey && !e.altKey && !e.metaKey) { 
+                e.preventDefault(); 
+                toggleTheme(); 
+                return; 
+            }
+
+            if (viewMode === 'presentation') {
+                if (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd') {
+                    e.preventDefault(); // 브라우저 기본 확대 방지
+                    adjustFontSize(10);
+                    return;
+                }
+                if (e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract') {
+                    e.preventDefault(); // 브라우저 기본 축소 방지
+                    adjustFontSize(-10);
+                    return;
+                }
+            }
+
             if (viewMode !== 'presentation') return;
             if (e.code === 'ArrowLeft') prevSlideBtn.click();
             if (e.code === 'ArrowRight') nextSlideBtn.click();
+            if (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0') {
+                e.preventDefault();
+                const tab = getActiveTab();
+                if (tab) {
+                    tab.zoom = 100;
+                    applyFontSize();
+                    saveSession();
+                }
+            }
+            
         });
 
         function adjustFontSize(delta) {
