@@ -177,6 +177,9 @@
         .tree-children { display: none; margin-left: 0.5rem; border-left: 1px solid var(--border-color); }
         .tree-children.show { display: block; }
         .invisible { visibility: hidden; }
+        .sidebar-closed #resizer {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="bg-notion-bg text-notion-text font-sans h-screen flex overflow-hidden relative transition-colors duration-300">
@@ -189,7 +192,7 @@
         <p class="text-notion-muted text-lg">현재 폴더에 자동으로 업로드됩니다.</p>
     </div>
 
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-notion-sidebar border-r border-notion-border flex flex-col md:relative transform -translate-x-full md:translate-x-0 flex-shrink-0">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 bg-notion-sidebar border-r border-notion-border flex flex-col md:relative transform -translate-x-full md:translate-x-0 flex-shrink-0">
         <div class="p-4 flex justify-between items-center bg-notion-sidebar group">
             <h1 class="text-xl font-bold text-notion-text tracking-tight flex items-center truncate">
                 <i class="fas fa-book-open text-blue-500 mr-2.5"></i>Viewer
@@ -219,6 +222,7 @@
         </div>
         <div id="nodeList" class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5 custom-scrollbar"></div>
     </aside>
+    <div id="resizer" class="hidden md:block w-1 hover:w-1.5 active:w-1.5 bg-transparent hover:bg-blue-500/50 active:bg-blue-600 cursor-col-resize z-50 transition-colors flex-shrink-0"></div>
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden bg-notion-bg min-w-0">
         <header class="h-14 bg-notion-bg border-b border-notion-border flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-30">
@@ -456,6 +460,42 @@
             try { expandedFolderIds = new Set(JSON.parse(savedExpanded)); } catch(e) { console.error(e); }
         }
 
+        const resizer = document.getElementById('resizer');
+        const sidebarContent = document.getElementById('sidebar');
+
+        let isResizing = false;
+
+        // 저장된 사이드바 너비 불러오기
+        const savedWidth = localStorage.getItem('sidebarWidth');
+        if (savedWidth && window.innerWidth >= 768) {
+            sidebarContent.style.width = `${savedWidth}px`;
+        }
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.classList.add('select-none');
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            let newWidth = e.clientX;
+            if (newWidth < 160) newWidth = 160; 
+            if (newWidth > 600) newWidth = 600; 
+
+            sidebarContent.style.width = `${newWidth}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.classList.remove('select-none');
+                localStorage.setItem('sidebarWidth', sidebarContent.offsetWidth);
+            }
+        });
+
         loadTreeRoot();   
         restoreSession(); 
 
@@ -501,7 +541,6 @@
             contentDiv.className = `tree-content group ${node.id === activeFileId ? 'active' : ''}`;
             contentDiv.style.paddingLeft = `${0.5 + (depth * 0.8)}rem`;
             
-            // 드래그 앤 드롭
             contentDiv.draggable = true;
             contentDiv.ondragstart = (e) => handleDragStart(e, node.id);
             if (isFolder) {
@@ -509,16 +548,17 @@
                 contentDiv.ondragleave = (e) => handleDragLeave(e);
                 contentDiv.ondrop = (e) => handleDrop(e, node.id);
             }
-
+        
             contentDiv.onclick = () => handleNodeClick(contentDiv, node.id, node.type, node.name.replace(/'/g, "\\'"), parentName);
             
             let iconClass = isFolder ? 'fas fa-folder text-yellow-500' : 'fas fa-file-lines text-blue-400';
             if (isFolder && expandedFolderIds.has(node.id)) iconClass = 'fas fa-folder-open text-yellow-500';
-
+        
+            // title="${node.name}" 속성을 추가하여 호버 시 전체 이름 표시
             contentDiv.innerHTML = `
                 <span class="tree-arrow ${isFolder ? '' : 'invisible'}"><i class="fas fa-chevron-right"></i></span>
                 <i class="${iconClass} mr-2 w-4 text-center opacity-80 node-icon"></i>
-                <span class="truncate text-sm select-none flex-1 pointer-events-none">${node.name}</span>
+                <span class="truncate text-sm select-none flex-1 pointer-events-none" title="${node.name}">${node.name}</span>
                 
                 <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 ml-2" onclick="event.stopPropagation()">
                     <button onclick="renameNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-blue-400 p-1" title="이름 변경"><i class="fas fa-pen text-xs"></i></button>
