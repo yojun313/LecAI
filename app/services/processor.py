@@ -105,10 +105,10 @@ def describe_image(image_path: str, model_config: dict):
                 {"type": "image_url", "image_url": {"url": image_to_data_url(image_path)}}
             ]}
         ],
-        "max_completion_tokens": 3000,
+        "max_completion_tokens": 10000,
     }
 
-    max_retries = 3
+    max_retries = 2
     for attempt in range(max_retries):
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=180)
@@ -116,9 +116,11 @@ def describe_image(image_path: str, model_config: dict):
             if resp.status_code == 200:
                 result = resp.json()
                 content = result["choices"][0]["message"].get("content", "")
+                finish_reason = result["choices"][0].get("finish_reason")
                 
                 if not content or not content.strip():
                     print(f"[Empty Response] {filename} returned empty content. Retrying... ({attempt+1}/{max_retries})")
+                    print(f"Reason: {finish_reason}")
                     time.sleep(2)
                     continue
 

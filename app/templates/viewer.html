@@ -869,6 +869,13 @@
                 toggleTheme(); 
                 return; 
             }
+            if (e.code === 'KeyW' && !e.ctrlKey && !e.altKey && !e.metaKey) { 
+                e.preventDefault(); 
+                if (activeTabId) {
+                    closeTab(activeTabId);
+                }
+                return; 
+            }
 
             if (viewMode === 'presentation') {
                 if (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd') {
