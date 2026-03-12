@@ -640,6 +640,7 @@
         async function openDoc(node, initialIndex = 0, parentName = 'root', initialZoom = 100) {
             const existingTab = openedTabs.find(tab => tab.id === node.id);
             if (existingTab) { switchTab(node.id); return; }
+            
             try {
                 const res = await fetch(`/api/docs/content/${node.id}`); 
                 if (!res.ok) throw new Error("Load failed");
@@ -649,6 +650,14 @@
                 const htmlContent = marked.parse(cleanContent);
                 const slides = parseSlidesFromHtml(htmlContent);
                 
+                const fileStates = JSON.parse(localStorage.getItem('viewer_file_states') || '{}');
+                const savedState = fileStates[node.id] || {};
+                
+                const lastIndex = (initialIndex === 0 && savedState.currentIndex !== undefined) 
+                                  ? savedState.currentIndex : initialIndex;
+                const lastZoom = (initialZoom === 100 && savedState.zoom !== undefined) 
+                                 ? savedState.zoom : initialZoom;
+        
                 let displayName = node.name;
                 if (parentName && parentName !== 'root') displayName = `${parentName}/${node.name}`;
                 
@@ -658,9 +667,10 @@
                     content: cleanContent,
                     processedHtml: htmlContent,
                     slides: slides,
-                    currentIndex: initialIndex, 
-                    zoom: initialZoom // 전달받은 배율 적용 (기본값 100)
+                    currentIndex: lastIndex, 
+                    zoom: lastZoom           
                 };
+                
                 openedTabs.push(newTab);
                 renderTabBar();
                 switchTab(newTab.id);
@@ -777,10 +787,19 @@
                 id: t.id, 
                 name: t.name, 
                 currentIndex: t.currentIndex || 0,
-                zoom: t.zoom || 100  // 배율 정보 저장 추가
+                zoom: t.zoom || 100
             }));
             localStorage.setItem('viewer_tabs', JSON.stringify(sessionData));
             localStorage.setItem('viewer_active_id', activeTabId || '');
+        
+            const fileStates = JSON.parse(localStorage.getItem('viewer_file_states') || '{}');
+            openedTabs.forEach(t => {
+                fileStates[t.id] = {
+                    currentIndex: t.currentIndex,
+                    zoom: t.zoom
+                };
+            });
+            localStorage.setItem('viewer_file_states', JSON.stringify(fileStates));
         }
 
         async function restoreSession() {
@@ -848,11 +867,22 @@
             slideTextContainer.scrollTop = 0;
         }
         
-        prevSlideBtn.addEventListener('click', () => { 
-            const tab = getActiveTab(); if (tab && tab.currentIndex > 0) { tab.currentIndex--; renderCurrentSlide(); saveSession(); } 
-        });
         nextSlideBtn.addEventListener('click', () => { 
-            const tab = getActiveTab(); if (tab && tab.currentIndex < tab.slides.length - 1) { tab.currentIndex++; renderCurrentSlide(); saveSession(); } 
+            const tab = getActiveTab(); 
+            if (tab && tab.currentIndex < tab.slides.length - 1) { 
+                tab.currentIndex++; 
+                renderCurrentSlide(); 
+                saveSession(); 
+            } 
+        });
+
+        prevSlideBtn.addEventListener('click', () => { 
+            const tab = getActiveTab(); 
+            if (tab && tab.currentIndex > 0) { 
+                tab.currentIndex--; 
+                renderCurrentSlide(); 
+                saveSession(); 
+            } 
         });
         
         // 키보드 이벤트
