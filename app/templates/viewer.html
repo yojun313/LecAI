@@ -98,11 +98,39 @@
         #dragOverlay.active { opacity: 1; visibility: visible; pointer-events: auto; }
 
         /* Sidebar Styles */
-        #sidebar { transition: transform 0.3s ease, margin-left 0.3s ease; }
-        @media (min-width: 768px) {
-            .sidebar-closed #sidebar { margin-left: -18rem; }
-            .sidebar-closed #openSidebarBtn { display: flex !important; }
+
+        #sidebar { 
+            width: 260px; /* 사이드바 너비 고정 */
+            transition: margin-left 0.3s ease; 
+            position: relative; /* fixed 제거 */
+            transform: none !important; /* 모바일 강제 이동 해제 */
         }
+
+        /* 사이드바 닫혔을 때 (PC/모바일 공통) */
+        .sidebar-closed #sidebar { 
+            margin-left: -260px; 
+        }
+
+        /* Presentation Mode: 모바일에서도 가로 분할 유지 */
+        #presentationView.active { 
+            display: flex; 
+            flex-direction: row !important; /* 무조건 가로 배치 */
+        }
+
+        .split-image-container { 
+            width: 50% !important; 
+            height: 100% !important; 
+            border-right: 1px solid var(--border-color);
+        }
+
+        .split-text-container { 
+            width: 50% !important; 
+            height: 100% !important; 
+            padding: 2rem !important; 
+        }
+
+        /* 모바일 전용 오버레이 숨김 */
+        #sidebarOverlay { display: none !important; }
 
         /* Presentation Mode Styles */
         #presentationView { display: none; height: 100%; width: 100%; overflow: hidden; }
@@ -199,9 +227,6 @@
             </h1>
             <div class="flex items-center space-x-1">
                 <a href="/" class="hidden md:block text-xs bg-notion-hover px-2 py-1 rounded hover:bg-notion-hover transition">Dash</a>
-                <button id="hideSidebarBtn" class="hidden md:flex text-notion-muted hover:text-notion-text p-1 rounded hover:bg-notion-hover transition" title="사이드바 접기">
-                    <i class="fas fa-angles-left"></i>
-                </button>
                 <button id="closeSidebarBtn" class="md:hidden text-notion-muted hover:text-notion-text px-2"><i class="fas fa-times text-xl"></i></button>
             </div>
         </div>
@@ -231,6 +256,9 @@
             </button>
 
             <div class="flex-1 flex justify-end items-center space-x-2" id="toolbar" style="display: none;">
+                <button onclick="openShortcutModal()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded hover:bg-opacity-80 transition shadow-sm mr-2" title="단축키 안내">
+                    <i class="fas fa-keyboard"></i>
+                </button>
                 <button onclick="toggleTheme()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded hover:bg-opacity-80 transition shadow-sm mr-2" title="테마 변경">
                     <i id="themeIcon" class="fas fa-moon"></i>
                 </button>
@@ -301,7 +329,7 @@
         </button>
     </main>
 
-    <div id="historyModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-200">
+    <div id="historyModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-200">
         <div class="bg-notion-sidebar border border-notion-border w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[80vh] transform scale-95 transition-transform duration-200" id="historyModalContent">
             <div class="px-6 py-4 border-b border-notion-border flex justify-between items-center bg-notion-sidebar rounded-t-xl">
                 <h2 class="text-lg font-bold text-notion-text flex items-center">
@@ -324,6 +352,50 @@
                 <button onclick="closeHistoryModal()" class="px-4 py-2 bg-notion-hover hover:bg-opacity-80 text-sm text-notion-text rounded border border-notion-border">
                     닫기
                 </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="shortcutModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-200">
+        <div class="bg-notion-sidebar border border-notion-border w-full max-w-md rounded-xl shadow-2xl flex flex-col transform scale-95 transition-transform duration-200" id="shortcutModalContent">
+            <div class="px-6 py-4 border-b border-notion-border flex justify-between items-center bg-notion-sidebar rounded-t-xl">
+                <h2 class="text-lg font-bold text-notion-text flex items-center">
+                    <i class="fas fa-keyboard text-blue-400 mr-2"></i> 단축키 안내
+                </h2>
+                <button onclick="closeShortcutModal()" class="text-notion-muted hover:text-notion-text transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 bg-notion-bg space-y-4 text-sm">
+                <div class="grid grid-cols-2 gap-y-3">
+                    <div class="text-notion-muted">현재 탭 닫기</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">W</kbd></div>
+                    
+                    <div class="text-notion-muted">전체 화면</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">F</kbd></div>
+                    
+                    <div class="text-notion-muted">다크/라이트 모드</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">D</kbd></div>
+                    
+                    <div class="text-notion-muted">단축키 안내</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">?</kbd></div>
+                    
+                    <div class="col-span-2 border-t border-notion-border my-2 pt-2 font-bold text-blue-400">프레젠테이션 모드</div>
+                    
+                    <div class="text-notion-muted">이전 / 다음 슬라이드</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">←</kbd> <kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">→</kbd></div>
+                    
+                    <div class="text-notion-muted">글꼴 확대 / 축소</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">+</kbd> <kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">-</kbd></div>
+                    
+                    <div class="text-notion-muted">배율 초기화 (100%)</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">0</kbd></div>
+                </div>
+            </div>
+    
+            <div class="px-6 py-3 border-t border-notion-border bg-notion-sidebar rounded-b-xl text-right">
+                <button onclick="closeShortcutModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-sm text-white rounded">확인</button>
             </div>
         </div>
     </div>
@@ -888,7 +960,13 @@
         // 키보드 이벤트
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
+            
+            if (e.key === '?' || e.key === '/') {
+                e.preventDefault();
+                openShortcutModal();
+                return;
+            }
+            
             if (e.code === 'KeyF' && !e.ctrlKey && !e.altKey && !e.metaKey) { 
                 e.preventDefault(); 
                 toggleFullScreen(); 
@@ -993,7 +1071,6 @@
                 body.classList.remove('fullscreen-mode'); document.getElementById('fullscreenBtn').innerHTML = '<i class="fas fa-expand"></i>';
             }
         });
-        hideSidebarBtn.addEventListener('click', () => { body.classList.add('sidebar-closed'); localStorage.setItem('sidebarClosed', 'true'); });
         openSidebarBtn.addEventListener('click', () => {
             if (body.classList.contains('sidebar-closed')) { body.classList.remove('sidebar-closed'); localStorage.setItem('sidebarClosed', 'false'); } else toggleSidebar(true);
         });
@@ -1100,16 +1177,53 @@
         // ==========================================
         const historyModal = document.getElementById('historyModal');
         const historyList = document.getElementById('historyList');
+        
         function openHistoryModal() {
             historyModal.classList.remove('hidden');
-            setTimeout(() => { historyModal.classList.remove('opacity-0'); document.getElementById('historyModalContent').classList.remove('scale-95'); }, 10);
+            historyModal.classList.add('flex');
+            setTimeout(() => { 
+                historyModal.classList.remove('opacity-0'); 
+                document.getElementById('historyModalContent').classList.remove('scale-95'); 
+            }, 10);
             fetchHistory();
         }
+        
         function closeHistoryModal() {
-            historyModal.classList.add('opacity-0'); document.getElementById('historyModalContent').classList.add('scale-95');
-            setTimeout(() => { historyModal.classList.add('hidden'); }, 200);
+            historyModal.classList.add('opacity-0'); 
+            document.getElementById('historyModalContent').classList.add('scale-95');
+            setTimeout(() => { 
+                historyModal.classList.add('hidden'); 
+                historyModal.classList.remove('flex');
+            }, 200);
         }
+
         historyModal.addEventListener('click', (e) => { if (e.target === historyModal) closeHistoryModal(); });
+        
+        const shortcutModal = document.getElementById('shortcutModal');
+        const shortcutModalContent = document.getElementById('shortcutModalContent');
+
+        function openShortcutModal() {
+            if (!shortcutModal) return;
+            shortcutModal.classList.remove('hidden');
+            shortcutModal.classList.add('flex');
+            setTimeout(() => {
+                shortcutModal.classList.remove('opacity-0');
+                shortcutModalContent.classList.remove('scale-95');
+            }, 10);
+        }
+        
+        function closeShortcutModal() {
+            shortcutModal.classList.add('opacity-0');
+            shortcutModalContent.classList.add('scale-95');
+            setTimeout(() => {
+                shortcutModal.classList.add('hidden');
+                shortcutModal.classList.remove('flex');
+            }, 200);
+        }
+
+        shortcutModal.addEventListener('click', (e) => {
+            if (e.target === shortcutModal) closeShortcutModal();
+        });
 
         async function fetchHistory() {
             historyList.innerHTML = '<div class="text-center text-notion-muted py-8"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>로딩 중...</p></div>';
@@ -1157,6 +1271,27 @@
                 } else { const err = await res.json(); alert('이동 실패: ' + (err.detail || '오류')); }
             } catch (err) { alert('서버 통신 오류'); } finally { draggedNodeId = null; }
         }
+    
+        document.addEventListener('copy', (event) => {
+            const selection = window.getSelection();
+            if (selection.isCollapsed) return;
+        
+            const container = document.createElement('div');
+            for (let i = 0; i < selection.rangeCount; i++) {
+                container.appendChild(selection.getRangeAt(i).cloneContents());
+            }
+        
+            container.style.color = '#000000';
+            const allElements = container.querySelectorAll('*');
+            allElements.forEach(el => {
+                el.style.color = '#000000';
+                el.style.backgroundColor = 'transparent';
+            });
+        
+            event.clipboardData.setData('text/html', container.innerHTML);
+            event.clipboardData.setData('text/plain', selection.toString());
+            event.preventDefault();
+        });
     </script>
 </body>
 </html>

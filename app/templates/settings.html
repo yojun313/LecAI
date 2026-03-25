@@ -172,9 +172,16 @@
                             </div>
 
                             <div class="pt-4">
-                                <div class="flex justify-between items-center mb-3">
-                                    <label class="block text-sm font-bold text-gray-300">System Prompt (AI 페르소나)</label>
-                                    <button type="button" onclick="resetSystemPrompt()" class="text-xs text-gray-400 hover:text-white underline">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                                    <div class="flex items-center space-x-3">
+                                        <label class="block text-sm font-bold text-gray-300">System Prompt (AI 페르소나)</label>
+                                        <select onchange="applyTemplate('system', this.value)" class="text-xs bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 outline-none text-blue-400 focus:border-blue-500">
+                                            <option value="">템플릿 선택...</option>
+                                            <option value="default">강의 슬라이드 설명</option>
+                                            <option value="researcher">논문 분석</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" onclick="resetSystemPrompt()" class="text-xs text-gray-400 hover:text-white underline text-left">
                                         기본값으로 초기화
                                     </button>
                                 </div>
@@ -182,9 +189,16 @@
                                     class="w-full p-4 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-sm leading-relaxed transition resize-none mb-6"
                                     placeholder="AI의 역할과 제약조건을 설정하세요..."></textarea>
                             
-                                <div class="flex justify-between items-center mb-3">
-                                    <label class="block text-sm font-bold text-gray-300">User Prompt (슬라이드 분석 지침)</label>
-                                    <button type="button" onclick="resetUserPrompt()" class="text-xs text-gray-400 hover:text-white underline">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                                    <div class="flex items-center space-x-3">
+                                        <label class="block text-sm font-bold text-gray-300">User Prompt (슬라이드 분석 지침)</label>
+                                        <select onchange="applyTemplate('user', this.value)" class="text-xs bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 outline-none text-blue-400 focus:border-blue-500">
+                                            <option value="">템플릿 선택...</option>
+                                            <option value="default">강의 슬라이드 설명</option>
+                                            <option value="paper_detail">논문 분석</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" onclick="resetUserPrompt()" class="text-xs text-gray-400 hover:text-white underline text-left">
                                         기본값으로 초기화
                                     </button>
                                 </div>
@@ -372,36 +386,22 @@
     
         async function resetSystemPrompt() {
             const textArea = document.getElementById('customPrompt');
-            // 로딩 표시 (선택사항)
-            const originalText = textArea.value;
-            textArea.value = "기본 설정 불러오는 중...";
-            textArea.disabled = true;
-    
-            const data = await fetchDefaultPrompts();
-            
-            if (data && data.system_prompt) {
-                textArea.value = data.system_prompt;
-            } else {
-                textArea.value = originalText; // 실패 시 원복
+            if (confirm('시스템 프롬프트를 기본 전공 조교 설정으로 초기화하시겠습니까?')) {
+                textArea.value = PROMPT_TEMPLATES.system.default;
+                
+                textArea.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => textArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
             }
-            textArea.disabled = false;
         }
-    
+        
         async function resetUserPrompt() {
             const textArea = document.getElementById('customUserPrompt');
-            // 로딩 표시 (선택사항)
-            const originalText = textArea.value;
-            textArea.value = "기본 설정 불러오는 중...";
-            textArea.disabled = true;
-    
-            const data = await fetchDefaultPrompts();
-            
-            if (data && data.user_prompt) {
-                textArea.value = data.user_prompt;
-            } else {
-                textArea.value = originalText; // 실패 시 원복
+            if (confirm('사용자 프롬프트를 기본 분석 지침으로 초기화하시겠습니까?')) {
+                textArea.value = PROMPT_TEMPLATES.user.default;
+                
+                textArea.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => textArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
             }
-            textArea.disabled = false;
         }
 
         async function loadUsageInfo() {
@@ -412,6 +412,50 @@
             } catch (e) { console.error(e); }
         }
         loadUsageInfo();
+        const PROMPT_TEMPLATES = {
+            system: {
+                default: `당신은 전공 강의 자료를 분석하고 요약하는 전문 AI 조교입니다.
+        
+[출력 규칙]
+1. 반드시 Markdown 형식으로 작성할 것.
+2. 한국어를 사용하여 자연스럽게 설명할 것.
+3. 서론(인사말 등) 없이 본론(분석 내용)만 바로 작성할 것.
+4. 슬라이드의 내용을 정확하고 자세하게 설명할 것.
+5. 전공 내용과 관련 없는 요소(슬라이드 디자인, 로고, 텍스트 색상 등)는 설명에서 제외할 것.
+6. 영어로 된 슬라이드 문장은 문맥에 맞게 한국어로 번역하여 설명할 것.
+7. 수식 및 기호 표기 규칙 준수 (매우 중요):
+    * 모든 수학 공식, 변수명(예: $x$, $n$, $L$), 연산 기호는 반드시 LaTeX 문법을 사용하여 작성할 것.
+    * 문장 중간에 들어가는 수식은 $ ... $ (인라인 수식)을 사용할 것.
+    * 독립된 줄에 표현되는 긴 수식은 $$...$$ (블록 수식)을 사용할 것.
+    * 절대 수식을 인라인 코드(백틱 \`)나 코드 블록으로 감싸지 말 것.
+    * 아래첨자(_)나 위첨자(^) 사용 시, 대상이 명확하도록 중괄호{}를 적극적으로 사용할 것 (예: $x_{L}$, $2^{n/2}$).`,
+                researcher: `당신은 논문 분석 전문 연구원입니다. 제시된 논문의 페이지를 분석하여, 해당 페이지에 기술된 논문 내용을 상세히 설명하십시오. 특히 복잡한 알고리즘이나 수식은 수식의 각 항이 의미하는 바를 구체적으로 풀어서 설명해야 합니다. 연구의 맥락을 유지하면서 해당 페이지의 정보를 누락 없이 전달하는 것이 핵심입니다. 모든 수식은 반드시 LaTeX 문법($ ... $)을 사용하십시오.`
+            },
+            user: {
+                default: `파일명: "{filename}"
+이모티콘을 절대 쓰지 않고 이 페이지에 대해 자세히 설명하세요.
+제목은 "## {filename}" 형식을 사용하세요.`,
+                summary: `파일명: "{filename}"
+이 페이지의 핵심 요약(Abstract)을 작성하고, 본문에 등장하는 핵심 개념들을 $ ... $ 기호를 사용한 수식과 함께 설명하세요.`,
+                paper_detail: `파일명: "{filename}"
+이 페이지에 기술된 논문의 내용을 학술적인 관점에서 매우 상세하게 설명하세요. 특히 페이지에 등장하는 핵심 수식의 유도 과정이나 도식의 의미를 $ ... $ 기호를 사용하여 심층 분석하고, 이 내용이 전체 연구 흐름에서 어떤 역할을 담당하는지 서술하세요.`
+            
+            }
+        };
+        
+        function applyTemplate(type, templateKey) {
+            if (!templateKey) return;
+            
+            const textAreaId = type === 'system' ? 'customPrompt' : 'customUserPrompt';
+            const targetTextArea = document.getElementById(textAreaId);
+            
+            if (confirm('작성 중인 내용이 템플릿으로 교체됩니다. 계속하시겠습니까?')) {
+                targetTextArea.value = PROMPT_TEMPLATES[type][templateKey];
+                
+                targetTextArea.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => targetTextArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
+            }
+        }
     </script>
 </body>
 </html>
