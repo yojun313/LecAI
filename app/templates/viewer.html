@@ -102,8 +102,6 @@
         #sidebar { 
             width: 260px; /* 사이드바 너비 고정 */
             transition: margin-left 0.3s ease; 
-            position: relative; /* fixed 제거 */
-            transform: none !important; /* 모바일 강제 이동 해제 */
         }
 
         /* 사이드바 닫혔을 때 (PC/모바일 공통) */
@@ -1153,7 +1151,7 @@
             if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) return;
 
             // 3. 움직임이 너무 작으면 무시 (민감도 조절)
-            if (Math.abs(e.deltaX) < 5) return;
+            if (Math.abs(e.deltaX) < 15) return;
 
             const now = Date.now();
             // 4. 쿨다운 체크: 마지막 전환 후 일정 시간이 지났는지 확인
