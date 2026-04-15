@@ -586,7 +586,9 @@
 
         async function renderTreeNodes(nodes, container, depth, parentName) {
             nodes.sort((a, b) => {
-                if (a.type === b.type) return a.name.localeCompare(b.name);
+                if (a.type === b.type) {
+                    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                }
                 return a.type === 'folder' ? -1 : 1;
             });
             for (const node of nodes) {
@@ -609,6 +611,7 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = `tree-content group ${node.id === activeFileId ? 'active' : ''}`;
+            contentDiv.setAttribute('data-node-id', node.id);
             contentDiv.style.paddingLeft = `${0.5 + (depth * 0.8)}rem`;
             
             contentDiv.draggable = true;
@@ -647,6 +650,9 @@
         }
 
         async function handleNodeClick(el, id, type, name, parentName) {
+            // 클릭된 항목을 항상 활성화 표시 (폴더든 파일이든)
+            document.querySelectorAll('.tree-content').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
             if (type === 'folder') {
                 const arrow = el.querySelector('.tree-arrow');
                 const icon = el.querySelector('.node-icon');
@@ -672,8 +678,6 @@
                 }
                 localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds]));
             } else {
-                document.querySelectorAll('.tree-content').forEach(c => c.classList.remove('active'));
-                el.classList.add('active');
                 activeFileId = id;
                 openDoc({ id, name }, 0, parentName);
             }
@@ -722,11 +726,14 @@
                 
                 const fileStates = JSON.parse(localStorage.getItem('viewer_file_states') || '{}');
                 const savedState = fileStates[node.id] || {};
-                
+
                 const lastIndex = (initialIndex === 0 && savedState.currentIndex !== undefined) 
                                   ? savedState.currentIndex : initialIndex;
-                const lastZoom = (initialZoom === 100 && savedState.zoom !== undefined) 
-                                 ? savedState.zoom : initialZoom;
+                // 우선순위: 파일별 저장값 > restore에서 넘겨준 initialZoom > 전역 설정(로컬스토리지) > 100
+                const globalZoom = parseInt(localStorage.getItem('viewer_global_zoom')) || 100;
+                const lastZoom = (savedState.zoom !== undefined)
+                                 ? savedState.zoom
+                                 : (initialZoom !== 100 ? initialZoom : globalZoom);
         
                 let displayName = node.name;
                 if (parentName && parentName !== 'root') displayName = `${parentName}/${node.name}`;
@@ -828,7 +835,7 @@
         function switchTab(id) {
             activeTabId = id; activeFileId = id;
             document.querySelectorAll('.tree-content').forEach(c => c.classList.remove('active'));
-            const treeItem = document.querySelector(`.tree-content[onclick*="${id}"]`);
+            const treeItem = document.querySelector(`.tree-content[data-node-id="${id}"]`);
             if(treeItem) treeItem.classList.add('active');
             
             saveSession();
@@ -1001,27 +1008,29 @@
             if (e.code === 'ArrowRight') nextSlideBtn.click();
             if (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0') {
                 e.preventDefault();
-                const tab = getActiveTab();
-                if (tab) {
-                    tab.zoom = 100;
-                    applyFontSize();
-                    saveSession();
-                }
+                // 전체 탭의 줌을 100%로 초기화하고 전역 설정에 저장
+                openedTabs.forEach(t => t.zoom = 100);
+                localStorage.setItem('viewer_global_zoom', '100');
+                applyFontSize();
+                saveSession();
             }
             
         });
 
         function adjustFontSize(delta) {
-            const tab = getActiveTab(); 
+            const tab = getActiveTab();
             if (!tab) return;
-            
-            tab.zoom += delta; 
-            
-            if (tab.zoom < 50) tab.zoom = 50; 
-            if (tab.zoom > 200) tab.zoom = 200;
-            
+
+            let newZoom = tab.zoom + delta;
+            if (newZoom < 50) newZoom = 50;
+            if (newZoom > 200) newZoom = 200;
+
+            // 모든 열린 탭에 같은 배율 적용하여 파일 전환시에도 유지
+            openedTabs.forEach(t => t.zoom = newZoom);
+            localStorage.setItem('viewer_global_zoom', String(newZoom));
+
             applyFontSize();
-            saveSession();  
+            saveSession();
         }
         function applyFontSize() {
             const tab = getActiveTab(); if (!tab) return;
@@ -1106,8 +1115,25 @@
             catch(e){ alert('업로드 실패'); } finally{ btn.innerHTML=org; btn.disabled=false; }
         }
         async function createFolder() {
-            const name = prompt('새 폴더 이름 (Root에 생성):'); if(!name) return;
-            const formData = new FormData(); formData.append('name', name); formData.append('parent_id', 'root');
+            const name = prompt('새 폴더 이름:'); if(!name) return;
+            // 기본은 루트
+            let parentId = 'root';
+            const selected = document.querySelector('.tree-content.active');
+            if (selected) {
+                // 선택된 요소가 폴더인지 확인 (자신의 wrapper에 .tree-children이 있는지)
+                const maybeChildren = selected.parentElement.querySelector('.tree-children');
+                if (maybeChildren) {
+                    // 선택은 폴더 -> 그 안에 생성
+                    parentId = selected.getAttribute('data-node-id');
+                } else {
+                    // 선택은 파일 -> 가장 가까운 .tree-children 조상으로부터 폴더 id 추출
+                    const ancestorChildren = selected.closest('.tree-children');
+                    if (ancestorChildren && ancestorChildren.id && ancestorChildren.id.startsWith('children-')) {
+                        parentId = ancestorChildren.id.replace('children-', '');
+                    }
+                }
+            }
+            const formData = new FormData(); formData.append('name', name); formData.append('parent_id', parentId);
             await fetch('/api/docs/folder', {method:'POST',body:formData}); loadTreeRoot();
         }
         function downloadFile(e, id) { e.stopPropagation(); window.location.href = `/api/docs/download/${id}`; }
