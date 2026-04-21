@@ -710,6 +710,20 @@
         function updateClock() {
             document.getElementById('clock').textContent = new Date().toLocaleTimeString('ko-KR');
         }
+        
+        // 단축키: V -> Viewer, S -> Settings (입력 폼에 포커스된 경우 무시)
+        document.addEventListener('keydown', (e) => {
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+            if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (e.code === 'KeyV') {
+                    e.preventDefault(); window.location.href = '/viewer'; return;
+                }
+                if (e.code === 'KeyS') {
+                    e.preventDefault(); window.location.href = '/settings'; return;
+                }
+            }
+        });
     
     </script>
 </body>

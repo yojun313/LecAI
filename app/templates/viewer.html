@@ -378,7 +378,10 @@
                     
                     <div class="text-notion-muted">단축키 안내</div>
                     <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">?</kbd></div>
-                    
+
+                    <div class="text-notion-muted">대시보드 이동</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">H</kbd></div>
+
                     <div class="col-span-2 border-t border-notion-border my-2 pt-2 font-bold text-blue-400">프레젠테이션 모드</div>
                     
                     <div class="text-notion-muted">이전 / 다음 슬라이드</div>
@@ -965,7 +968,13 @@
         // 키보드 이벤트
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
+
+            if (e.code === 'KeyH' && !e.ctrlKey && !e.altKey && !e.metaKey) { 
+                e.preventDefault();
+                window.location.href = '/';
+                return;
+            }
+
             if (e.key === '?' || e.key === '/') {
                 e.preventDefault();
                 openShortcutModal();
