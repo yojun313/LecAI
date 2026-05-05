@@ -2,6 +2,10 @@
 
 The project relies on several system-level tools for file conversion, PDF processing, and audio transcription.
 
+![Dash](./static/imgs/dash.png)
+![Viewer](./static/imgs/viewer.png)
+![Setting](./static/imgs/setting.png)
+
 * **LibreOffice**: To convert PPT/PPTX slides to PDF.
 * **Poppler-utils**: For `pdf2image` to extract frames from PDF files.
 * **wkhtmltopdf**: Used by `pdfkit` to generate PDF reports from Markdown.
@@ -28,6 +32,7 @@ git clone https://github.com/yojun313/LecAI.git
 cd LecAI
 
 uv sync
+source .venv/bin/activate
 ```
 
 ### 3) Configuration
