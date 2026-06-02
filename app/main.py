@@ -8,10 +8,12 @@ import os
 
 app = FastAPI(title="LecAI")
 
+
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse(os.path.join("static", "favicon.ico"))
-    
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(view_routes.router)

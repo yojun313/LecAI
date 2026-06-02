@@ -1,4 +1,5 @@
 import warnings
+
 warnings.filterwarnings("ignore", module="paramiko")
 
 from pymongo import MongoClient
@@ -10,8 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 환경 변수 설정
-MONGO_HOST = os.getenv("MONGO_HOST") 
-MONGO_PORT = int(os.getenv("MONGO_PORT")) 
+MONGO_HOST = os.getenv("MONGO_HOST")
+MONGO_PORT = int(os.getenv("MONGO_PORT"))
 MONGO_USER = os.getenv("MONGO_USERNAME")
 MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
 MONGO_AUTH_DB = "admin"
@@ -26,8 +27,8 @@ client = MongoClient(
     f"@{connect_host}:{connect_port}/?authSource={MONGO_AUTH_DB}"
 )
 
-db = client['lec-ai']
-users_col = db['users']
-sessions_col = db['sessions']
-history_col = db['history']
-docs_col = db['docs']
+db = client["lec-ai"]
+users_col = db["users"]
+sessions_col = db["sessions"]
+history_col = db["history"]
+docs_col = db["docs"]

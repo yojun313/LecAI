@@ -7,7 +7,7 @@ import zipfile
 import pdfkit
 import threading
 import concurrent.futures
-import time 
+import time
 from pdf2image import convert_from_path
 from app.core.config import settings
 from app.services.job_manager import JobManager
@@ -30,36 +30,48 @@ PRICING_TABLE = {
 # Helper Functions
 # ==========================================
 
+
 def get_headers(api_key=None):
     if api_key:
-        return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    return {"Authorization": f"Bearer {settings.CUSTOM_TOKEN}", "Content-Type": "application/json"}
+        return {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+    return {
+        "Authorization": f"Bearer {settings.CUSTOM_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
 
 def get_target_model(user_settings):
     pref = user_settings.get("preferred_model", "local")
     user_key = user_settings.get("openai_api_key", "")
-    
-    system_prompt = user_settings.get("custom_prompt", "") 
+
+    system_prompt = user_settings.get("custom_prompt", "")
     user_prompt_template = user_settings.get("custom_user_prompt", "")
 
     config = {
-        "model_id": "gpt-4o", 
+        "model_id": "gpt-4o",
         "base_url": settings.CUSTOM_BASE_URL,
         "api_key": None,
         "provider": "local",
         "system_prompt": system_prompt,
-        "user_prompt_template": user_prompt_template
+        "user_prompt_template": user_prompt_template,
     }
 
     if pref.startswith("gpt"):
         if not user_key:
-            raise ValueError("OpenAI 모델이 선택되었으나 API Key가 설정되지 않았습니다.")
-        config.update({
-            "provider": "openai",
-            "model_id": pref,
-            "base_url": "https://api.openai.com/v1",
-            "api_key": user_key
-        })
+            raise ValueError(
+                "OpenAI 모델이 선택되었으나 API Key가 설정되지 않았습니다."
+            )
+        config.update(
+            {
+                "provider": "openai",
+                "model_id": pref,
+                "base_url": "https://api.openai.com/v1",
+                "api_key": user_key,
+            }
+        )
     else:
         try:
             url = f"{settings.CUSTOM_BASE_URL}/models"
@@ -73,10 +85,11 @@ def get_target_model(user_settings):
 
     return config
 
+
 def describe_image(image_path: str, model_config: dict):
     filename = os.path.basename(image_path)
     url = f"{model_config['base_url']}/chat/completions"
-    headers = get_headers(model_config['api_key'])
+    headers = get_headers(model_config["api_key"])
 
     def image_to_data_url(path):
         with open(path, "rb") as f:
@@ -85,25 +98,31 @@ def describe_image(image_path: str, model_config: dict):
         ext = os.path.splitext(path)[1].lower()
         mime = "image/png" if ext == ".png" else "image/jpeg"
         return f"data:{mime};base64,{encoded}"
-   
+
     system_instruction = model_config.get("system_prompt", default_system_prompt)
     if not system_instruction.strip():
         system_instruction = default_system_prompt
-    
+
     user_template = model_config.get("user_prompt_template", "")
     if not user_template or not user_template.strip():
         user_template = default_user_prompt
-        
+
     user_instruction = user_template.replace("{filename}", filename)
 
     payload = {
-        "model": model_config['model_id'],
+        "model": model_config["model_id"],
         "messages": [
             {"role": "system", "content": system_instruction.strip()},
-            {"role": "user", "content": [
-                {"type": "text", "text": user_instruction.strip()},
-                {"type": "image_url", "image_url": {"url": image_to_data_url(image_path)}}
-            ]}
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_instruction.strip()},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_to_data_url(image_path)},
+                    },
+                ],
+            },
         ],
         "max_completion_tokens": 10000,
     }
@@ -112,46 +131,54 @@ def describe_image(image_path: str, model_config: dict):
     for attempt in range(max_retries):
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=180)
-            
+
             if resp.status_code == 200:
                 result = resp.json()
                 content = result["choices"][0]["message"].get("content", "")
                 finish_reason = result["choices"][0].get("finish_reason")
-                
+
                 if not content or not content.strip():
-                    print(f"[Empty Response] {filename} returned empty content. Retrying... ({attempt+1}/{max_retries})")
+                    print(
+                        f"[Empty Response] {filename} returned empty content. Retrying... ({attempt + 1}/{max_retries})"
+                    )
                     print(f"Reason: {finish_reason}")
                     time.sleep(2)
                     continue
 
                 usage_info = {"prompt": 0, "cached": 0, "completion": 0}
                 try:
-                    usage = result.get('usage', {})
-                    usage_info["prompt"] = usage.get('prompt_tokens', 0)
-                    usage_info["completion"] = usage.get('completion_tokens', 0)
-                    usage_info["cached"] = usage.get('prompt_tokens_details', {}).get('cached_tokens', 0)
+                    usage = result.get("usage", {})
+                    usage_info["prompt"] = usage.get("prompt_tokens", 0)
+                    usage_info["completion"] = usage.get("completion_tokens", 0)
+                    usage_info["cached"] = usage.get("prompt_tokens_details", {}).get(
+                        "cached_tokens", 0
+                    )
                 except:
                     pass
                 return content, usage_info
 
             elif resp.status_code == 429:
                 wait_time = (attempt + 1) * 5
-                print(f"[Rate Limit] 429 Error on {filename}. Waiting {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                print(
+                    f"[Rate Limit] 429 Error on {filename}. Waiting {wait_time}s... (Attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(wait_time)
                 continue
-            
+
             else:
                 print(f"[API Error] {resp.status_code}: {resp.text}")
                 if resp.status_code >= 500:
                     time.sleep(3)
                     continue
-                raise RuntimeError(f"OpenAI API Error: {resp.status_code} - {resp.text}")
+                raise RuntimeError(
+                    f"OpenAI API Error: {resp.status_code} - {resp.text}"
+                )
 
         except requests.exceptions.Timeout:
             print(f"[Timeout] {filename} timed out. Retrying...")
             time.sleep(3)
             continue
-            
+
         except Exception as e:
             print(f"[Exception] {str(e)}")
             if attempt == max_retries - 1:
@@ -160,32 +187,47 @@ def describe_image(image_path: str, model_config: dict):
 
     raise RuntimeError(f"Failed to process {filename} after {max_retries} attempts.")
 
+
 def convert_ppt_to_pdf(ppt_path: str, output_dir: str):
     subprocess.run(
-        ["soffice", "--headless", "--convert-to", "pdf", "--outdir", output_dir, ppt_path],
-        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        [
+            "soffice",
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            output_dir,
+            ppt_path,
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     base = os.path.splitext(os.path.basename(ppt_path))[0]
     return os.path.join(output_dir, f"{base}.pdf")
 
+
 def calculate_total_cost(model_id, total_usage, exchange_rate=1400):
     matched_model = next((m for m in PRICING_TABLE if m in model_id), "default")
-    if matched_model == "default": return 0.0, 0
-    
+    if matched_model == "default":
+        return 0.0, 0
+
     rates = PRICING_TABLE[matched_model]
-    regular_input = total_usage['prompt'] - total_usage['cached']
-    
+    regular_input = total_usage["prompt"] - total_usage["cached"]
+
     usd_cost = (
-        (regular_input * rates['input']) +
-        (total_usage['cached'] * rates['cached']) +
-        (total_usage['completion'] * rates['output'])
+        (regular_input * rates["input"])
+        + (total_usage["cached"] * rates["cached"])
+        + (total_usage["completion"] * rates["output"])
     ) / 1000000
-    
+
     return round(usd_cost, 4), int(usd_cost * exchange_rate)
+
 
 # ==========================================
 # Main Processing Logic
 # ==========================================
+
 
 def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner: str):
     """
@@ -193,23 +235,27 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
     """
     work_dir = os.path.join(settings.UPLOAD_DIR, job_id)
     os.makedirs(work_dir, exist_ok=True)
-    
+
     try:
         JobManager.start_processing(job_id)
-        
+
         # 1. 이미지 변환 (PDF/PPT -> Images)
         images = []
         ext = os.path.splitext(file_path)[1].lower()
-        
+
         if ext == ".pdf":
             raw_images = convert_from_path(file_path, fmt="png", dpi=150)
             for i, img in enumerate(raw_images):
-                p = os.path.join(work_dir, f"page_{i+1:03d}.png"); img.save(p); images.append(p)
+                p = os.path.join(work_dir, f"page_{i + 1:03d}.png")
+                img.save(p)
+                images.append(p)
         elif ext in [".ppt", ".pptx"]:
             pdf_path = convert_ppt_to_pdf(file_path, work_dir)
             raw_images = convert_from_path(pdf_path, fmt="png", dpi=150)
             for i, img in enumerate(raw_images):
-                p = os.path.join(work_dir, f"page_{i+1:03d}.png"); img.save(p); images.append(p)
+                p = os.path.join(work_dir, f"page_{i + 1:03d}.png")
+                img.save(p)
+                images.append(p)
 
         result_base = os.path.join(settings.RESULT_DIR, job_id)
         result_images_dir = os.path.join(result_base, "images")
@@ -217,10 +263,10 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
 
         total_pages = len(images)
         cumulative_usage = {"prompt": 0, "cached": 0, "completion": 0}
-        results_map = {} 
-        
+        results_map = {}
+
         # 2. LLM 분석 (병렬 vs 순차)
-        if model_config['provider'] == 'openai':
+        if model_config["provider"] == "openai":
             max_workers = 3
             completed_count = 0
             progress_lock = threading.Lock()
@@ -231,9 +277,11 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
                 content, usage = describe_image(img_path, model_config)
                 return idx, content, usage, img_filename
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
                 future_to_idx = {
-                    executor.submit(process_single_slide, idx, img_path): idx 
+                    executor.submit(process_single_slide, idx, img_path): idx
                     for idx, img_path in enumerate(images, 1)
                 }
 
@@ -241,54 +289,61 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
                     try:
                         idx, content, usage, filename = future.result()
                         results_map[idx] = (filename, content)
-                        
+
                         with progress_lock:
                             # 사용량 누적
                             for k in cumulative_usage:
                                 cumulative_usage[k] += usage[k]
                             completed_count += 1
-                            
+
                             # 실시간 비용 계산
-                            usd_val, krw_val = calculate_total_cost(model_config['model_id'], cumulative_usage)
-                            cur_tokens = cumulative_usage['prompt'] + cumulative_usage['completion']
-                            
+                            usd_val, krw_val = calculate_total_cost(
+                                model_config["model_id"], cumulative_usage
+                            )
+                            cur_tokens = (
+                                cumulative_usage["prompt"]
+                                + cumulative_usage["completion"]
+                            )
+
                             # 로그 메시지에 비용 정보 포함
                             log_msg = (
                                 f"분석 중 ({completed_count}/{total_pages}) | "
                                 f"누적 토큰: {cur_tokens:,} | "
                                 f"예상 비용: ${usd_val:.3f} (₩{krw_val:,})"
                             )
-                            
+
                             JobManager.update_progress(
                                 job_id, completed_count, total_pages, log_msg
                             )
-                            
+
                     except Exception as e:
                         print(f"[FINAL ERROR] Slide processing failed: {e}")
                         failed_idx = future_to_idx[future]
-                        results_map[failed_idx] = ("error.png", f"**[분석 실패]** 오류가 발생했습니다: {str(e)}")
+                        results_map[failed_idx] = (
+                            "error.png",
+                            f"**[분석 실패]** 오류가 발생했습니다: {str(e)}",
+                        )
 
         else:
             # Local LLM: 순차 처리
             for idx, img_path in enumerate(images, 1):
                 img_filename = os.path.basename(img_path)
                 shutil.copy2(img_path, os.path.join(result_images_dir, img_filename))
-                
+
                 content, usage = describe_image(img_path, model_config)
-                
+
                 # 사용량 누적
                 for k in cumulative_usage:
                     cumulative_usage[k] += usage[k]
-                
+
                 results_map[idx] = (img_filename, content)
 
-                usd_val, krw_val = calculate_total_cost(model_config['model_id'], cumulative_usage)
-                cur_tokens = cumulative_usage['prompt'] + cumulative_usage['completion']
-                
-                log_msg = (
-                    f"분석 중 ({idx}/{total_pages}) | "
-                    f"누적 토큰: {cur_tokens:,}"
+                usd_val, krw_val = calculate_total_cost(
+                    model_config["model_id"], cumulative_usage
                 )
+                cur_tokens = cumulative_usage["prompt"] + cumulative_usage["completion"]
+
+                log_msg = f"분석 중 ({idx}/{total_pages}) | 누적 토큰: {cur_tokens:,}"
 
                 JobManager.update_progress(job_id, idx, total_pages, log_msg)
 
@@ -297,30 +352,38 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
         sorted_indices = sorted(results_map.keys())
         for idx in sorted_indices:
             fname, text = results_map[idx]
-            md_content += f"## Slide {idx}\n\n![{fname}](./images/{fname})\n\n{text}\n\n---\n\n"
+            md_content += (
+                f"## Slide {idx}\n\n![{fname}](./images/{fname})\n\n{text}\n\n---\n\n"
+            )
 
         # 4. 최종 완료 처리
-        if model_config['provider'] == 'openai':
-            usd_val, krw_val = calculate_total_cost(model_config['model_id'], cumulative_usage)
+        if model_config["provider"] == "openai":
+            usd_val, krw_val = calculate_total_cost(
+                model_config["model_id"], cumulative_usage
+            )
             job = JobManager.get_job(job_id)
             if job:
-                AuthManager.update_user_cumulative_usage(job['owner'], usd_val)
+                AuthManager.update_user_cumulative_usage(job["owner"], usd_val)
             final_log = f"작업 완료! 총 비용: ${usd_val} (약 ₩{krw_val:,}) | 총 토큰: {cumulative_usage['prompt'] + cumulative_usage['completion']}"
         else:
             final_log = f"작업 완료! 총 토큰: {cumulative_usage['prompt'] + cumulative_usage['completion']}"
         JobManager.update_progress(job_id, total_pages, total_pages, final_log)
-        
+
         # Markdown 저장
         md_file = os.path.join(result_base, "result.md")
-        with open(md_file, "w", encoding="utf-8") as f: f.write(md_content)
-        
+        with open(md_file, "w", encoding="utf-8") as f:
+            f.write(md_content)
+
         # PDF 생성
         import markdown
+
         raw_html = markdown.markdown(md_content)
-        
+
         # 절대 경로 변환 (wkhtmltopdf 에러 방지)
-        abs_image_dir = os.path.abspath(os.path.join(result_base, "images")).replace("\\", "/")
-        pdf_html_body = raw_html.replace('./images', f'file://{abs_image_dir}')
+        abs_image_dir = os.path.abspath(os.path.join(result_base, "images")).replace(
+            "\\", "/"
+        )
+        pdf_html_body = raw_html.replace("./images", f"file://{abs_image_dir}")
 
         full_html = f"""
         <!DOCTYPE html>
@@ -343,46 +406,47 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
 
         pdf_options = {
             "quiet": "",
-            "enable-local-file-access": "", # 필수
+            "enable-local-file-access": "",  # 필수
             "encoding": "UTF-8",
-            "no-outline": None
+            "no-outline": None,
         }
 
         pdfkit.from_string(
-            full_html, 
-            os.path.join(result_base, "result.pdf"), 
-            options=pdf_options
+            full_html, os.path.join(result_base, "result.pdf"), options=pdf_options
         )
-        
+
         # 압축 및 정리
         user_result_dir = os.path.join(settings.RESULT_DIR, owner)
         os.makedirs(user_result_dir, exist_ok=True)
-        shutil.make_archive(os.path.join(user_result_dir, job_id), 'zip', result_base)
-        
+        shutil.make_archive(os.path.join(user_result_dir, job_id), "zip", result_base)
+
         # [Cleanup] 압축 후 원본 폴더 삭제
         if os.path.exists(result_base):
             shutil.rmtree(result_base)
-            
+
         JobManager.mark_completed(job_id, f"/static/results/{owner}/{job_id}.zip")
 
     except Exception as e:
         JobManager.mark_failed(job_id, str(e))
     finally:
         # [Cleanup] 임시 작업 폴더 및 업로드 원본 삭제
-        if os.path.exists(work_dir): shutil.rmtree(work_dir)
-        if os.path.exists(file_path): os.remove(file_path)
-        
+        if os.path.exists(work_dir):
+            shutil.rmtree(work_dir)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
 
 def process_file_task(job_id: str, file_path: str):
     """
     Celery나 BackgroundTasks에서 호출되는 진입점
     """
     job = JobManager.get_job(job_id)
-    if not job: return
-    
+    if not job:
+        return
+
     owner = job.get("owner")
     user_settings = AuthManager.get_user_settings(owner)
-    
+
     try:
         model_config = get_target_model(user_settings)
     except Exception as e:
@@ -390,7 +454,7 @@ def process_file_task(job_id: str, file_path: str):
         return
 
     # 모델 타입에 따라 Lock 사용 여부 결정
-    if model_config['provider'] == 'local':
+    if model_config["provider"] == "local":
         print(f"[Queue] Job {job_id} is waiting for GPU lock...")
         with local_gpu_lock:
             _process_job_internal(job_id, file_path, model_config, owner)
