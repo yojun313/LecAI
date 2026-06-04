@@ -32,53 +32,58 @@
     <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
 
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-gray-800 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
-        <div class="p-6 flex justify-between items-start">
-            <div class="flex flex-col items-center w-full mb-4">
-                <div class="w-20 h-20 rounded-full border-2 border-blue-500 overflow-hidden mb-3 bg-gray-800">
+        <div class="p-5 border-b border-gray-800 relative">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-4">
+                LecAI
+            </h1>
+            <div class="flex items-center space-x-3 bg-gray-800/50 p-2 rounded-lg">
+                <div class="w-10 h-10 rounded-full border border-blue-500 overflow-hidden bg-gray-800 flex-shrink-0">
                     <img id="sidebarAvatar" src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
                 </div>
-                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                    LecAI
-                </h1>
-                <p class="text-sm text-gray-400 mt-2">User: <span class="text-white font-bold">{{ username }}</span></p>
+                <div class="min-w-0">
+                    <p class="text-xs text-gray-400">Welcome,</p>
+                    <p class="text-sm font-bold text-white truncate">{{ username }}</p>
+                </div>
             </div>
-            <button id="closeSidebarBtn" class="md:hidden text-gray-400 hover:text-white mt-1">
-                <i class="fas fa-times text-xl"></i>
+            <button id="closeSidebarBtn" class="absolute top-5 right-5 md:hidden text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
             </button>
         </div>
-        <nav class="flex-1 px-4 space-y-2">
-            <a href="/" class="flex items-center px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
-                <i class="fas fa-columns w-6"></i>
-                <span class="ml-3">Dashboard</span>
+
+        <nav class="flex-1 px-3 py-4 space-y-1">
+            <a href="/" class="flex items-center px-3 py-2.5 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
+                <i class="fas fa-columns w-6 text-center"></i>
+                <span class="ml-2 font-medium">Dashboard</span>
             </a>
-            <a href="/viewer" class="flex items-center px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
-                <i class="fas fa-book-open w-6"></i>
-                <span class="ml-3">Viewer</span>
+            <a href="/viewer" class="flex items-center px-3 py-2.5 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
+                <i class="fas fa-book-open w-6 text-center"></i>
+                <span class="ml-2 font-medium">Viewer</span>
             </a>
-            <a href="/settings" class="flex items-center px-4 py-3 bg-gray-800 text-blue-400 rounded-lg shadow-sm shadow-blue-900/10">
-                <i class="fas fa-cog w-6"></i>
-                <span class="ml-3 font-medium">Settings</span>
+            <a href="/settings" class="flex items-center px-3 py-2.5 bg-blue-600/10 text-blue-400 rounded-lg border border-blue-600/20">
+                <i class="fas fa-cog w-6 text-center"></i>
+                <span class="ml-2 font-medium">Settings</span>
             </a>
-            <div class="pt-10">
-                <a href="/logout" class="flex items-center px-4 py-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg transition">
-                    <i class="fas fa-sign-out-alt w-6"></i>
-                    <span class="ml-3 font-medium">Logout</span>
-                </a>
-            </div>
         </nav>
+
+        <div class="p-4 border-t border-gray-800">
+            <a href="/logout" class="flex items-center px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition text-sm">
+                <i class="fas fa-sign-out-alt w-6 text-center"></i>
+                <span class="ml-2">Logout</span>
+            </a>
+        </div>
     </aside>
 
     <main class="flex-1 flex flex-col min-w-0">
-        <header class="h-16 bg-card border-b border-gray-800 flex items-center justify-between px-4 md:px-8 flex-shrink-0">
+        <header class="h-14 bg-card border-b border-gray-800 flex items-center justify-between px-4 md:px-6 flex-shrink-0">
             <div class="flex items-center">
-                <button id="openSidebarBtn" class="md:hidden mr-4 text-gray-300 hover:text-white focus:outline-none">
-                    <i class="fas fa-bars text-xl"></i>
+                <button id="openSidebarBtn" class="md:hidden mr-3 text-gray-300 hover:text-white">
+                    <i class="fas fa-bars text-lg"></i>
                 </button>
-                <h2 class="text-lg font-semibold text-gray-200">Settings</h2>
+                <h2 class="text-base font-semibold text-gray-200"><i class="fas fa-cog mr-2 text-blue-500"></i>Settings</h2>
             </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-sm text-gray-400 hidden sm:block" id="clock">00:00:00</span>
-                <div class="w-8 h-8 rounded-full overflow-hidden border border-gray-700 bg-gray-800">
+            <div class="flex items-center space-x-3">
+                <div class="text-xs font-mono text-gray-500" id="clock">00:00:00</div>
+                <div class="w-7 h-7 rounded-full overflow-hidden border border-gray-700 bg-gray-800">
                     <img id="headerAvatar" src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
                 </div>
             </div>
@@ -247,7 +252,7 @@
     </main>
 
     <script>
-        // 사이드바 토글 로직
+        // 사이드바 토글
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
         const openSidebarBtn = document.getElementById('openSidebarBtn');
@@ -275,7 +280,7 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // --- 프로필 사진 처리 ---
+        // 프로필 사진
         const profileInput = document.getElementById('profileInput');
         const profilePreview = document.getElementById('profilePreview');
         const uploadProfileBtn = document.getElementById('uploadProfileBtn');
@@ -303,7 +308,6 @@
                 const res = await fetch('/api/user/profile-image', { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
-                    // 모든 프로필 이미지 요소 업데이트
                     document.getElementById('headerAvatar').src = data.url;
                     document.getElementById('sidebarAvatar').src = data.url;
                     document.getElementById('profilePreview').src = data.url;
@@ -317,7 +321,7 @@
             }
         });
 
-        // --- 기존 설정 로드 및 저장 ---
+        // 설정 로드 및 저장
         const currentModel = "{{ settings.preferred_model }}";
         const currentKey = "{{ settings.openai_api_key }}";
         const currentPrompt = {{ settings.custom_prompt | tojson | safe }};
@@ -336,25 +340,15 @@
 
         document.getElementById('settingsForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            // 1. 기본 폼 데이터 생성 (model, api_key 등)
             const formData = new FormData(e.target);
-            
-            // 2. 프로필 이미지 파일이 선택되어 있다면 추가 (중요!)
             const profileInput = document.getElementById('profileInput');
             if (profileInput.files[0]) {
                 formData.append('profile_img', profileInput.files[0]);
             }
-            
             try {
-                const res = await fetch('/api/settings', {
-                    method: 'POST',
-                    body: formData // 파일이 포함된 multipart/form-data 전송
-                });
-                
+                const res = await fetch('/api/settings', { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
-                    // 이미지가 변경되었다면 화면 즉시 업데이트
                     if (data.profile_url) {
                         document.getElementById('headerAvatar').src = data.profile_url;
                         document.getElementById('sidebarAvatar').src = data.profile_url;
@@ -368,42 +362,6 @@
             }
         });
 
-        async function fetchDefaultPrompts() {
-            try {
-                // 라우터 주소에 맞게 요청 (prefix가 있다면 /api/settings... 등으로 수정 필요)
-                const response = await fetch('/api/settings/default_prompts');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (e) {
-                console.error("기본값을 불러오는 중 오류 발생:", e);
-                alert("서버에서 기본 설정을 불러오지 못했습니다.");
-                return null;
-            }
-        }
-    
-        async function resetSystemPrompt() {
-            const textArea = document.getElementById('customPrompt');
-            if (confirm('시스템 프롬프트를 기본 전공 조교 설정으로 초기화하시겠습니까?')) {
-                textArea.value = PROMPT_TEMPLATES.system.default;
-                
-                textArea.classList.add('ring-2', 'ring-blue-500');
-                setTimeout(() => textArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
-            }
-        }
-        
-        async function resetUserPrompt() {
-            const textArea = document.getElementById('customUserPrompt');
-            if (confirm('사용자 프롬프트를 기본 분석 지침으로 초기화하시겠습니까?')) {
-                textArea.value = PROMPT_TEMPLATES.user.default;
-                
-                textArea.classList.add('ring-2', 'ring-blue-500');
-                setTimeout(() => textArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
-            }
-        }
-
         async function loadUsageInfo() {
             try {
                 const res = await fetch('/api/settings/usage');
@@ -412,6 +370,7 @@
             } catch (e) { console.error(e); }
         }
         loadUsageInfo();
+
         const PROMPT_TEMPLATES = {
             system: {
                 default: `당신은 전공 강의 자료를 분석하고 요약하는 전문 AI 조교입니다.
@@ -439,23 +398,47 @@
 이 페이지의 핵심 요약(Abstract)을 작성하고, 본문에 등장하는 핵심 개념들을 $ ... $ 기호를 사용한 수식과 함께 설명하세요.`,
                 paper_detail: `파일명: "{filename}"
 이 페이지에 기술된 논문의 내용을 학술적인 관점에서 매우 상세하게 설명하세요. 특히 페이지에 등장하는 핵심 수식의 유도 과정이나 도식의 의미를 $ ... $ 기호를 사용하여 심층 분석하고, 이 내용이 전체 연구 흐름에서 어떤 역할을 담당하는지 서술하세요.`
-            
             }
         };
         
         function applyTemplate(type, templateKey) {
             if (!templateKey) return;
-            
             const textAreaId = type === 'system' ? 'customPrompt' : 'customUserPrompt';
             const targetTextArea = document.getElementById(textAreaId);
-            
             if (confirm('작성 중인 내용이 템플릿으로 교체됩니다. 계속하시겠습니까?')) {
                 targetTextArea.value = PROMPT_TEMPLATES[type][templateKey];
-                
                 targetTextArea.classList.add('ring-2', 'ring-blue-500');
                 setTimeout(() => targetTextArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
             }
         }
+
+        async function resetSystemPrompt() {
+            const textArea = document.getElementById('customPrompt');
+            if (confirm('시스템 프롬프트를 기본 전공 조교 설정으로 초기화하시겠습니까?')) {
+                textArea.value = PROMPT_TEMPLATES.system.default;
+                textArea.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => textArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
+            }
+        }
+        
+        async function resetUserPrompt() {
+            const textArea = document.getElementById('customUserPrompt');
+            if (confirm('사용자 프롬프트를 기본 분석 지침으로 초기화하시겠습니까?')) {
+                textArea.value = PROMPT_TEMPLATES.user.default;
+                textArea.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => textArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
+            }
+        }
+
+        // 단축키
+        document.addEventListener('keydown', (e) => {
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+            if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (e.code === 'KeyV') { e.preventDefault(); window.location.href = '/viewer'; return; }
+                if (e.code === 'KeyD') { e.preventDefault(); window.location.href = '/'; return; }
+            }
+        });
     </script>
 </body>
 </html>
