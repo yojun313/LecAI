@@ -11,71 +11,97 @@
             theme: {
                 extend: {
                     colors: {
-                        dark: '#0f172a',
-                        card: '#1e293b',
-                        sidebar: '#111827'
+                        dark: '#05070f',
+                        card: '#0f1424',
+                        sidebar: '#0a0e1a'
                     }
                 }
             }
         }
     </script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        
+        ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.35); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.55); }
+
+        body {
+            background: radial-gradient(circle at 10% 10%, rgba(59,130,246,0.20), transparent 35%),
+                        radial-gradient(circle at 90% 0%, rgba(168,85,247,0.18), transparent 40%),
+                        radial-gradient(circle at 50% 100%, rgba(16,185,129,0.10), transparent 45%),
+                        #05070f;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-soft {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
         .folder-item.selected {
-            border-color: #3b82f6;
-            background-color: rgba(59, 130, 246, 0.1);
+            border-color: rgba(96,165,250,0.6);
+            background-color: rgba(59, 130, 246, 0.12);
         }
         .folder-item { padding-left: var(--depth-padding); }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #111827; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 4px; }
     </style>
 </head>
 <body class="bg-dark text-white font-sans h-screen flex overflow-hidden">
 
-    <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
 
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-gray-800 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
-        <div class="p-5 border-b border-gray-800">
-            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-4">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 glass-strong border-r border-white/10 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
+        <div class="p-5 border-b border-white/10 relative">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 mb-4 tracking-tight">
                 LecAI
             </h1>
-            <div class="flex items-center space-x-3 bg-gray-800/50 p-2 rounded-lg">
-                <div class="w-10 h-10 rounded-full border border-blue-500 overflow-hidden bg-gray-800 flex-shrink-0">
+            <div class="flex items-center space-x-3 glass-soft p-2 rounded-xl">
+                <div class="w-10 h-10 rounded-full border border-blue-400/40 overflow-hidden bg-gray-800 flex-shrink-0 shadow-lg">
                     <img src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
                 </div>
                 <div class="min-w-0">
-                    <p class="text-xs text-gray-400">Welcome,</p>
+                    <p class="text-xs text-white/40">Welcome,</p>
                     <p class="text-sm font-bold text-white truncate">{{ username }}</p>
                 </div>
             </div>
-            <button id="closeSidebarBtn" class="absolute top-5 right-5 md:hidden text-gray-400 hover:text-white">
+            <button id="closeSidebarBtn" class="absolute top-5 right-5 md:hidden text-white/40 hover:text-white transition">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
         <nav class="flex-1 px-3 py-4 space-y-1">
-            <a href="/" class="flex items-center px-3 py-2.5 bg-blue-600/10 text-blue-400 rounded-lg border border-blue-600/20">
+            <a href="/" class="flex items-center px-3 py-2.5 bg-blue-500/15 text-blue-300 rounded-xl border border-blue-400/25 shadow-inner">
                 <i class="fas fa-columns w-6 text-center"></i>
-                <span class="ml-2 font-medium">Dashboard</span>
+                <span class="ml-2 font-medium text-sm">Dashboard</span>
             </a>
-            <a href="/viewer" class="flex items-center px-3 py-2.5 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
+            <a href="/viewer" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
                 <i class="fas fa-book-open w-6 text-center"></i>
-                <span class="ml-2 font-medium">Viewer</span>
+                <span class="ml-2 font-medium text-sm">Viewer</span>
             </a>
-            <a href="/settings" class="flex items-center px-3 py-2.5 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
+            <a href="/settings" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
                 <i class="fas fa-cog w-6 text-center"></i>
-                <span class="ml-2 font-medium">Settings</span>
+                <span class="ml-2 font-medium text-sm">Settings</span>
             </a>
         </nav>
 
-        <div class="p-4 border-t border-gray-800">
-            <a href="/logout" class="flex items-center px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition text-sm">
+        <div class="p-4 border-t border-white/10">
+            <a href="/logout" class="flex items-center px-3 py-2 text-red-300/90 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition text-sm">
                 <i class="fas fa-sign-out-alt w-6 text-center"></i>
                 <span class="ml-2">Logout</span>
             </a>
@@ -83,54 +109,54 @@
     </aside>
 
     <main class="flex-1 flex flex-col min-w-0 h-full relative">
-        <header class="h-14 bg-card border-b border-gray-800 flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+        <header class="h-14 glass border-b border-white/10 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-20">
             <div class="flex items-center">
-                <button id="openSidebarBtn" class="md:hidden mr-3 text-gray-300 hover:text-white">
+                <button id="openSidebarBtn" class="md:hidden mr-3 text-white/60 hover:text-white transition">
                     <i class="fas fa-bars text-lg"></i>
                 </button>
-                <h2 class="text-base font-semibold text-gray-200"><i class="fas fa-home mr-2 text-blue-500"></i>Dashboard</h2>
+                <h2 class="text-base font-semibold text-white/90"><i class="fas fa-home mr-2 text-blue-400"></i>Dashboard</h2>
             </div>
-            <div class="text-xs font-mono text-gray-500" id="clock">00:00:00</div>
+            <div class="text-xs font-mono text-white/35" id="clock">00:00:00</div>
         </header>
 
         <div class="flex-1 overflow-hidden p-4 md:p-6">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
-                
+
                 <div class="lg:col-span-4 flex flex-col space-y-4 overflow-y-auto custom-scrollbar">
-                    
-                    <div class="bg-card border border-gray-700 rounded-xl p-5 shadow-lg relative group transition hover:border-blue-500/50">
+
+                    <div class="glass rounded-2xl p-5 shadow-xl relative group transition hover:border-blue-400/40">
                         <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center">
+                            <h3 class="text-xs font-bold text-white/50 uppercase tracking-wider flex items-center">
                                 <i class="fas fa-brain mr-2 text-purple-400"></i> Analysis Model
                             </h3>
-                            <a href="/settings" class="text-[10px] text-gray-500 hover:text-white transition"><i class="fas fa-cog"></i> 설정</a>
+                            <a href="/settings" class="text-[10px] text-white/40 hover:text-white transition"><i class="fas fa-cog"></i> 설정</a>
                         </div>
                         <div class="relative">
-                            <select id="quickModelSelect" class="w-full bg-gray-800 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 appearance-none cursor-pointer hover:bg-gray-700 transition">
-                                <option value="local">Local Server (Free)</option>
-                                <option value="gpt-5.2">OpenAI GPT-5.2 (High-Perf)</option>
-                                <option value="gpt-5-mini">OpenAI GPT-5-mini (Cheap)</option>
+                            <select id="quickModelSelect" class="w-full glass-soft border border-white/10 text-white text-sm rounded-xl focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400/60 block p-2.5 appearance-none cursor-pointer hover:bg-white/5 transition outline-none">
+                                <option class="bg-[#0f1424]" value="local">Local Server (Free)</option>
+                                <option class="bg-[#0f1424]" value="gpt-5.2">OpenAI GPT-5.2 (High-Perf)</option>
+                                <option class="bg-[#0f1424]" value="gpt-5-mini">OpenAI GPT-5-mini (Cheap)</option>
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white/40">
                                 <i class="fas fa-chevron-down text-xs"></i>
                             </div>
                         </div>
-                        <p class="text-[10px] text-gray-500 mt-2 ml-1">
+                        <p class="text-[10px] text-white/35 mt-2 ml-1">
                             * 선택한 모델은 다음 업로드부터 적용됩니다.
                         </p>
                     </div>
 
-                    <div id="drop-zone" class="flex-1 min-h-[200px] bg-card border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center p-6 text-center transition hover:border-blue-500 hover:bg-gray-800/50 cursor-pointer group relative overflow-hidden">
+                    <div id="drop-zone" class="flex-1 min-h-[200px] glass border-2 border-dashed border-white/15 rounded-2xl flex flex-col items-center justify-center p-6 text-center transition hover:border-blue-400/60 hover:bg-blue-500/5 cursor-pointer group relative overflow-hidden">
                         <input type="file" id="file-input" class="hidden" multiple accept=".ppt,.pptx,.pdf,.zip,.mp3,.wav,.m4a">
-                        
+
                         <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                        
+
                         <div class="relative z-10 transform group-hover:-translate-y-1 transition duration-300">
-                            <div class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-600 group-hover:text-white transition shadow-xl">
-                                <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 group-hover:text-white"></i>
+                            <div class="w-16 h-16 glass-strong rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-600/40 group-hover:border-blue-400/50 transition shadow-xl">
+                                <i class="fas fa-cloud-upload-alt text-2xl text-white/60 group-hover:text-white transition"></i>
                             </div>
-                            <h3 class="text-lg font-bold text-gray-200 mb-1">파일 업로드</h3>
-                            <p class="text-xs text-gray-400 leading-relaxed max-w-[200px] mx-auto">
+                            <h3 class="text-lg font-bold text-white/90 mb-1">파일 업로드</h3>
+                            <p class="text-xs text-white/40 leading-relaxed max-w-[200px] mx-auto">
                                 강의 자료(PDF, PPT) 또는<br>녹음 파일(MP3)을 드래그하세요.
                             </p>
                         </div>
@@ -138,20 +164,20 @@
 
                 </div>
 
-                <div class="lg:col-span-8 flex flex-col h-full bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden">
-                    <div class="p-4 border-b border-gray-800 bg-card/50 flex justify-between items-center sticky top-0 z-10 backdrop-blur-sm">
-                        <h3 class="font-bold text-sm text-gray-200 flex items-center">
+                <div class="lg:col-span-8 flex flex-col h-full glass rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-white/10 glass-strong flex justify-between items-center sticky top-0 z-10">
+                        <h3 class="font-bold text-sm text-white/90 flex items-center">
                             <i class="fas fa-list-ul mr-2 text-blue-400"></i> Recent Jobs
                         </h3>
-                        <button onclick="fetchJobs()" class="text-xs text-gray-500 hover:text-white transition" title="새로고침">
+                        <button onclick="fetchJobs()" class="text-xs text-white/40 hover:text-white transition" title="새로고침">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                     </div>
-                    
+
                     <div class="flex-1 overflow-y-auto p-4 custom-scrollbar" id="job-scroll-area">
                         <div id="job-container" class="space-y-3">
-                            <div class="text-center text-gray-500 py-20 flex flex-col items-center justify-center h-full" id="empty-state">
-                                <i class="far fa-folder-open text-4xl mb-3 opacity-30"></i>
+                            <div class="text-center text-white/30 py-20 flex flex-col items-center justify-center h-full" id="empty-state">
+                                <i class="far fa-folder-open text-4xl mb-3 opacity-40"></i>
                                 <p class="text-sm">작업 내역이 없습니다.</p>
                             </div>
                         </div>
@@ -160,43 +186,43 @@
 
             </div>
         </div>
-        <footer class="border-t border-gray-800 bg-card/30 py-2 text-center text-[10px] text-gray-500">
+        <footer class="border-t border-white/10 glass py-2 text-center text-[10px] text-white/35">
             <p>
-                Made by 
-                <a href="https://github.com/yojun313" target="_blank" class="hover:text-blue-400 transition font-medium inline-flex items-center gap-1">
+                Made by
+                <a href="https://github.com/yojun313" target="_blank" class="hover:text-blue-300 transition font-medium inline-flex items-center gap-1">
                     <i class="fab fa-github"></i> github.com/yojun313
                 </a>
             </p>
         </footer>
     </main>
 
-    <div id="folderModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-card border border-gray-700 w-full max-w-md rounded-xl shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0" id="folderModalContent">
-            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+    <div id="folderModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center backdrop-blur-md">
+        <div class="glass-strong w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0" id="folderModalContent">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center glass-soft">
                 <h3 class="font-bold text-sm text-white"><i class="fas fa-file-import mr-2 text-blue-400"></i>문서함으로 보내기</h3>
-                <button onclick="closeFolderModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                <button onclick="closeFolderModal()" class="text-white/40 hover:text-white transition"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-5">
-                
-                <div class="flex items-center justify-between mb-4 bg-gray-800/50 p-2 rounded border border-gray-700">
-                    <label class="flex items-center space-x-2 text-xs text-gray-300 cursor-pointer">
-                        <input type="checkbox" id="sendToOtherCheck" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-0">
+
+                <div class="flex items-center justify-between mb-4 glass-soft p-2 rounded-xl">
+                    <label class="flex items-center space-x-2 text-xs text-white/70 cursor-pointer">
+                        <input type="checkbox" id="sendToOtherCheck" class="rounded bg-white/10 border-white/20 text-blue-500 focus:ring-0">
                         <span>다른 계정으로 전송</span>
                     </label>
                 </div>
 
                 <div id="myFolderSection">
-                    <p class="text-xs text-gray-400 mb-2">저장할 내 폴더 선택:</p>
-                    <div id="folder-list" class="h-48 overflow-y-auto custom-scrollbar border border-gray-700 rounded-lg bg-gray-900/50 mb-4"></div>
+                    <p class="text-xs text-white/40 mb-2">저장할 내 폴더 선택:</p>
+                    <div id="folder-list" class="h-48 overflow-y-auto custom-scrollbar border border-white/10 rounded-xl glass-soft mb-4"></div>
                 </div>
 
                 <div id="otherUserSection" class="hidden mb-4">
-                    <p class="text-xs text-gray-400 mb-2">받을 사람의 아이디 (상대방의 Root 폴더에 저장됨):</p>
-                    <input type="text" id="targetUserInput" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none" placeholder="예: user123">
+                    <p class="text-xs text-white/40 mb-2">받을 사람의 아이디 (상대방의 Root 폴더에 저장됨):</p>
+                    <input type="text" id="targetUserInput" class="w-full glass-soft border border-white/10 rounded-xl p-2 text-sm text-white placeholder-white/25 focus:border-blue-400/60 focus:outline-none" placeholder="예: user123">
                 </div>
 
                 <input type="hidden" id="selected-job-id">
-                <button id="confirmImportBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg transition text-sm flex items-center justify-center shadow-lg">
+                <button id="confirmImportBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-2.5 rounded-xl transition text-sm flex items-center justify-center shadow-lg shadow-blue-900/30">
                     <span>저장하기</span>
                 </button>
             </div>
@@ -204,42 +230,42 @@
     </div>
 
     <template id="job-card-template">
-        <div class="bg-card border border-gray-700 rounded-lg p-4 shadow-sm relative transition hover:border-gray-600 group">
-            <button class="delete-btn absolute top-3 right-3 text-gray-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100 z-10 cursor-pointer p-1">
+        <div class="glass rounded-xl p-4 shadow-sm relative transition hover:border-white/25 group">
+            <button class="delete-btn absolute top-3 right-3 text-white/30 hover:text-red-400 transition opacity-0 group-hover:opacity-100 z-10 cursor-pointer p-1">
                 <i class="fas fa-trash-alt"></i>
             </button>
             <div class="flex items-start">
-                <div class="icon-box w-10 h-10 rounded bg-gray-800 flex items-center justify-center flex-shrink-0 text-lg mr-3 shadow-inner"></div>
+                <div class="icon-box w-10 h-10 rounded-lg glass-soft flex items-center justify-center flex-shrink-0 text-lg mr-3"></div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between mb-1 pr-6">
-                        <h4 class="font-bold text-gray-200 text-sm truncate filename">Filename.pptx</h4>
-                        <div class="status-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-700 text-gray-300 ml-2 flex-shrink-0">
+                        <h4 class="font-bold text-white/90 text-sm truncate filename">Filename.pptx</h4>
+                        <div class="status-badge px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-white/10 text-white/60 ml-2 flex-shrink-0">
                             Pending
                         </div>
                     </div>
-                    <div class="w-full bg-gray-800 rounded-full h-1.5 mb-1.5 overflow-hidden">
-                        <div class="progress-bar bg-blue-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    <div class="w-full bg-white/10 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                        <div class="progress-bar bg-blue-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
-                    <div class="flex justify-between text-[10px] text-gray-500">
+                    <div class="flex justify-between text-[10px] text-white/40">
                         <span class="progress-text truncate max-w-[70%]">준비 중...</span>
                         <span class="percent-text font-mono">0%</span>
                     </div>
-                    
-                    <div class="flex items-center space-x-2 mt-3 pt-2 border-t border-gray-800/50">
-                         <button class="text-[10px] text-gray-500 hover:text-white toggle-log-btn bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded transition border border-gray-700">
+
+                    <div class="flex items-center space-x-2 mt-3 pt-2 border-t border-white/10">
+                         <button class="text-[10px] text-white/40 hover:text-white toggle-log-btn glass-soft hover:bg-white/10 px-2 py-1 rounded-lg transition border border-white/10">
                             <i class="fas fa-terminal mr-1"></i> Log
                         </button>
                         <div class="flex-1"></div>
-                        <a href="#" target="_blank" class="download-btn hidden text-[10px] bg-gray-800 hover:bg-gray-700 hover:text-blue-300 text-gray-300 px-2 py-1 rounded transition border border-gray-700">
+                        <a href="#" target="_blank" class="download-btn hidden text-[10px] glass-soft hover:bg-white/10 hover:text-blue-300 text-white/70 px-2 py-1 rounded-lg transition border border-white/10">
                             <i class="fas fa-download mr-1"></i> Download
                         </a>
-                        <button class="add-to-viewer-btn hidden text-[10px] bg-blue-600/90 hover:bg-blue-500 text-white px-3 py-1 rounded font-bold transition shadow-md">
+                        <button class="add-to-viewer-btn hidden text-[10px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-3 py-1 rounded-lg font-bold transition shadow-md">
                             Viewer로 보내기 <i class="fas fa-arrow-right ml-1"></i>
                         </button>
                     </div>
                 </div>
             </div>
-            <div class="log-area hidden mt-3 bg-black rounded p-2 h-24 overflow-y-auto text-[10px] font-mono text-green-400 border border-gray-800 shadow-inner custom-scrollbar"></div>
+            <div class="log-area hidden mt-3 bg-black/40 rounded-lg p-2 h-24 overflow-y-auto text-[10px] font-mono text-emerald-400 border border-white/10 custom-scrollbar"></div>
         </div>
     </template>
 
@@ -263,17 +289,18 @@
         // Init Sequence
         updateClock();
         setInterval(updateClock, 1000);
-        fetchJobs(); 
-        startPolling(); 
-        
+        fetchJobs();
+        startPolling();
+
         // --- 1. Model Selection Logic ---
         const initialModel = "{{ settings.preferred_model }}";
         if(quickModelSelect && initialModel) quickModelSelect.value = initialModel;
 
         if(quickModelSelect) {
+            let lastConfirmedModel = quickModelSelect.value;
+
             quickModelSelect.addEventListener('change', async (e) => {
                 const newModel = e.target.value;
-                const previousModel = initialModel; // 실패 시 되돌리기 위해 저장
 
                 quickModelSelect.disabled = true;
                 quickModelSelect.classList.add('opacity-50');
@@ -286,25 +313,26 @@
                     });
 
                     if (res.ok) {
+                        lastConfirmedModel = newModel;
                         // 성공 시 초록색 테두리 효과
-                        quickModelSelect.classList.remove('border-gray-600');
-                        quickModelSelect.classList.add('border-green-500');
+                        quickModelSelect.classList.remove('border-white/10');
+                        quickModelSelect.classList.add('border-emerald-500');
                         setTimeout(() => {
-                            quickModelSelect.classList.remove('border-green-500');
-                            quickModelSelect.classList.add('border-gray-600');
+                            quickModelSelect.classList.remove('border-emerald-500');
+                            quickModelSelect.classList.add('border-white/10');
                         }, 1000);
                     } else {
-                        // [추가됨] 실패 시(API 키 없음 등) 에러 메시지 출력
+                        // 실패 시(API 키 없음 등) 에러 메시지 출력
                         const errorData = await res.json();
                         alert(errorData.detail || '모델 설정 변경 실패');
-                        
-                        // 선택값을 다시 원래대로(또는 local로) 되돌림
-                        quickModelSelect.value = "local"; 
+
+                        // 실패 시 마지막으로 성공했던 값으로 되돌림 (무조건 local로 되돌리지 않음)
+                        quickModelSelect.value = lastConfirmedModel;
                     }
                 } catch (err) {
                     console.error(err);
                     alert('서버 통신 오류');
-                    quickModelSelect.value = "local";
+                    quickModelSelect.value = lastConfirmedModel;
                 } finally {
                     quickModelSelect.disabled = false;
                     quickModelSelect.classList.remove('opacity-50');
@@ -331,9 +359,9 @@
         // --- 3. Drag & Drop Logic ---
         if(dropZone) {
             dropZone.addEventListener('click', () => fileInput.click());
-            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-gray-800/50'); });
-            dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-blue-500', 'bg-gray-800/50'); });
-            dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-gray-800/50'); handleFiles(e.dataTransfer.files); });
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-400', 'bg-blue-500/5'); });
+            dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-blue-400', 'bg-blue-500/5'); });
+            dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-400', 'bg-blue-500/5'); handleFiles(e.dataTransfer.files); });
         }
         if(fileInput) {
             fileInput.addEventListener('change', (e) => { handleFiles(e.target.files); fileInput.value = ''; });
@@ -347,7 +375,7 @@
         async function uploadSingleFile(file) {
             const tempId = `temp-${Date.now()}`;
             const tempJob = { id: tempId, filename: file.name, status: 'uploading', progress: 0, logs: ['전송 시작...'] };
-            
+
             const card = createCard(tempJob);
             jobContainer.prepend(card);
             if(emptyState) emptyState.classList.add('hidden');
@@ -355,10 +383,10 @@
 
             const formData = new FormData();
             formData.append('file', file);
-            
+
             try {
                 await fetch('/api/upload', { method: 'POST', body: formData });
-                card.remove(); 
+                card.remove();
                 fetchJobs();
             } catch (err) {
                 updateCardData(card, { ...tempJob, status: 'failed', logs: ['업로드 실패'] });
@@ -366,11 +394,11 @@
         }
 
         // --- 4. Job Management Logic (FIXED & ROBUST) ---
-        function startPolling() { 
-            if (!isPolling) { 
-                isPolling = true; 
-                setInterval(fetchJobs, 2000); 
-            } 
+        function startPolling() {
+            if (!isPolling) {
+                isPolling = true;
+                setInterval(fetchJobs, 2000);
+            }
         }
 
         async function fetchJobs() {
@@ -384,10 +412,9 @@
 
         function updateDashboard(jobs) {
             const existingIds = new Set();
-            
-            // "잘 되는 코드"의 단순한 로직을 그대로 사용
+
             jobs.forEach((job, index) => {
-                const jobId = job.id; // getJobId 헬퍼 대신 직접 접근
+                const jobId = job.id;
                 if (!jobId) return;
 
                 const cardId = `job-${jobId}`;
@@ -397,17 +424,15 @@
 
                 if (!card) {
                     card = createCard(job);
-                    
+
                     if (index === 0) {
                         jobContainer.prepend(card);
                     } else {
-                        // 이전 아이템 찾기 (순서 보장)
                         const prevId = jobs[index-1].id;
                         const prevCard = document.getElementById(`job-${prevId}`);
                         if (prevCard) {
                             prevCard.after(card);
                         } else {
-                            // 이전 카드를 못 찾으면 그냥 컨테이너에 추가
                             jobContainer.appendChild(card);
                         }
                     }
@@ -415,15 +440,13 @@
                 updateCardData(card, job);
             });
 
-            // 사라진 작업 삭제
             const allCards = jobContainer.querySelectorAll('div[id^="job-"]');
-            allCards.forEach(card => { 
+            allCards.forEach(card => {
                 if (!existingIds.has(card.id) && !card.id.includes('temp-')) {
-                    card.remove(); 
+                    card.remove();
                 }
             });
 
-            // 빈 상태 처리 (정확하게 job 카드 개수만 체크)
             const remainingJobs = jobContainer.querySelectorAll('div[id^="job-"], div[id^="temp-"]');
             if (remainingJobs.length === 0) {
                 if(emptyState) emptyState.classList.remove('hidden');
@@ -433,16 +456,15 @@
         }
 
         function createCard(job) {
-            // Template Logic 복구 (잘 되는 버전 방식)
             const clone = template.content.cloneNode(true);
             const cardDiv = clone.querySelector('div');
-            cardDiv.id = `job-${job.id}`; // job.id 직접 사용
+            cardDiv.id = `job-${job.id}`;
 
             cardDiv.querySelector('.filename').textContent = job.filename || "Unknown";
-            
+
             const iconBox = cardDiv.querySelector('.icon-box');
             const lowerName = (job.filename || "").toLowerCase();
-            
+
             if (lowerName.endsWith('.pdf')) {
                 iconBox.innerHTML = '<i class="fas fa-file-pdf text-red-400"></i>';
             } else if (lowerName.endsWith('.zip')) {
@@ -453,10 +475,9 @@
                 iconBox.innerHTML = '<i class="fas fa-file-powerpoint text-orange-400"></i>';
             }
 
-            // Events
-            cardDiv.querySelector('.toggle-log-btn').addEventListener('click', (e) => { 
+            cardDiv.querySelector('.toggle-log-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                cardDiv.querySelector('.log-area').classList.toggle('hidden'); 
+                cardDiv.querySelector('.log-area').classList.toggle('hidden');
             });
 
             const deleteBtn = cardDiv.querySelector('.delete-btn');
@@ -485,15 +506,15 @@
             const logArea = card.querySelector('.log-area');
 
             if (job.status === 'completed') {
-                badge.className = 'status-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-500/20 text-green-400 border border-green-500/30 ml-2 flex-shrink-0';
+                badge.className = 'status-badge px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 ml-2 flex-shrink-0';
                 badge.textContent = 'Done';
-                progressBar.className = 'progress-bar bg-green-500 h-full rounded-full transition-all duration-500';
-                
+                progressBar.className = 'progress-bar bg-emerald-500 h-full rounded-full transition-all duration-500';
+
                 if(downloadBtn) {
                     downloadBtn.classList.remove('hidden');
                     downloadBtn.href = job.result_url;
                 }
-                
+
                 if(addToViewerBtn) {
                     addToViewerBtn.classList.remove('hidden');
                     addToViewerBtn.onclick = (e) => {
@@ -503,17 +524,17 @@
                 }
 
             } else if (job.status === 'pending') {
-                badge.className = 'status-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 ml-2 flex-shrink-0';
+                badge.className = 'status-badge px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/15 text-amber-300 border border-amber-500/30 ml-2 flex-shrink-0';
                 badge.textContent = 'Wait';
-                progressBar.className = 'progress-bar bg-yellow-600 h-full rounded-full transition-all duration-500 animate-pulse';
+                progressBar.className = 'progress-bar bg-amber-500 h-full rounded-full transition-all duration-500 animate-pulse';
 
             } else if (job.status === 'processing') {
-                badge.className = 'status-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 ml-2 flex-shrink-0';
+                badge.className = 'status-badge px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-500/15 text-blue-300 border border-blue-500/30 ml-2 flex-shrink-0';
                 badge.textContent = 'Run';
-                progressBar.className = 'progress-bar bg-blue-600 h-full rounded-full transition-all duration-500';
+                progressBar.className = 'progress-bar bg-blue-500 h-full rounded-full transition-all duration-500';
 
             } else if (job.status === 'failed') {
-                badge.className = 'status-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30 ml-2 flex-shrink-0';
+                badge.className = 'status-badge px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-500/15 text-red-300 border border-red-500/30 ml-2 flex-shrink-0';
                 badge.textContent = 'Fail';
                 progressBar.className = 'progress-bar bg-red-500 h-full rounded-full transition-all duration-500';
             }
@@ -525,7 +546,7 @@
             if (job.logs && job.logs.length > 0) {
                 const lastLog = job.logs[job.logs.length - 1];
                 progressText.textContent = lastLog.includes(']') ? lastLog.substring(lastLog.indexOf(']') + 1).trim() : lastLog;
-                
+
                 if (logArea && logArea.childElementCount !== job.logs.length) {
                     logArea.innerHTML = job.logs.map(l => `<p>${l}</p>`).join('');
                     logArea.scrollTop = logArea.scrollHeight;
@@ -548,15 +569,14 @@
                 } else {
                     myFolderSection.classList.remove('hidden');
                     otherUserSection.classList.add('hidden');
-                    targetUserInput.value = ''; // 초기화
+                    targetUserInput.value = '';
                 }
             });
         }
 
         async function openFolderModal(jobId) {
             document.getElementById('selected-job-id').value = jobId;
-            
-            // UI 초기화 (항상 '내 폴더' 모드로 시작)
+
             if(sendToOtherCheck) {
                 sendToOtherCheck.checked = false;
                 myFolderSection.classList.remove('hidden');
@@ -567,10 +587,10 @@
             const modal = document.getElementById('folderModal');
             const content = document.getElementById('folderModalContent');
             const listContainer = document.getElementById('folder-list');
-            
-            listContainer.innerHTML = '<div class="text-center py-4 text-gray-500 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>폴더 목록 로드 중...</div>';
+
+            listContainer.innerHTML = '<div class="text-center py-4 text-white/40 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>폴더 목록 로드 중...</div>';
             modal.classList.remove('hidden');
-            
+
             setTimeout(() => {
                 content.classList.remove('scale-95', 'opacity-0');
                 content.classList.add('scale-100', 'opacity-100');
@@ -587,13 +607,11 @@
             }
         }
 
-        // [수정] 전송 버튼 클릭 로직
         document.getElementById('confirmImportBtn').addEventListener('click', async () => {
              const jobId = document.getElementById('selected-job-id').value;
              const btn = document.getElementById('confirmImportBtn');
              const originalContent = btn.innerHTML;
-             
-             // 타겟 유저 확인
+
              let targetUser = null;
              if (sendToOtherCheck && sendToOtherCheck.checked) {
                  targetUser = targetUserInput.value.trim();
@@ -605,28 +623,28 @@
 
              btn.disabled = true;
              btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 처리 중...';
-             
+
              const formData = new FormData();
              formData.append('parent_id', selectedFolderId);
              if (targetUser) {
                  formData.append('target_user', targetUser);
              }
-             
+
              try {
                 const res = await fetch(`/api/docs/import/${jobId}`, { method: 'POST', body: formData });
-                if(res.ok) { 
-                    closeFolderModal(); 
+                if(res.ok) {
+                    closeFolderModal();
                     const msg = targetUser ? `${targetUser}님에게 전송되었습니다.` : '내 문서함에 저장되었습니다.';
-                    alert(msg); 
-                } else { 
-                    const e = await res.json(); 
-                    alert('오류: ' + (e.detail || '알 수 없는 오류')); 
+                    alert(msg);
+                } else {
+                    const e = await res.json();
+                    alert('오류: ' + (e.detail || '알 수 없는 오류'));
                 }
-             } catch(e) { 
-                 alert('서버 통신 오류'); 
-             } finally { 
-                 btn.disabled = false; 
-                 btn.innerHTML = originalContent; 
+             } catch(e) {
+                 alert('서버 통신 오류');
+             } finally {
+                 btn.disabled = false;
+                 btn.innerHTML = originalContent;
              }
         });
 
@@ -643,10 +661,10 @@
         function renderFolderList(folders) {
             const container = document.getElementById('folder-list');
             container.innerHTML = '';
-            
+
             const root = createFolderItem({
-                id: 'root', 
-                name: '{{ username }}/', 
+                id: 'root',
+                name: '{{ username }}/',
                 children: []
             }, 0);
             container.appendChild(root);
@@ -655,7 +673,7 @@
             const frag = document.createDocumentFragment();
             renderRecursive(tree, frag, 1);
             container.appendChild(frag);
-            
+
             selectFolder('root');
         }
 
@@ -680,15 +698,15 @@
 
         function createFolderItem(node, depth) {
             const d = document.createElement('div');
-            d.className = 'folder-item p-2 rounded hover:bg-gray-800 cursor-pointer flex items-center text-xs mb-1 transition border border-transparent';
+            d.className = 'folder-item p-2 rounded-lg hover:bg-white/5 cursor-pointer flex items-center text-xs mb-1 transition border border-transparent';
             d.style.paddingLeft = `${0.5 + (depth * 1.0)}rem`;
             d.dataset.id = node.id;
-            
+
             d.innerHTML = `
                 <i class="fas fa-folder text-yellow-500 mr-2 opacity-80"></i>
-                <span class="text-gray-300 truncate">${node.name}</span>
+                <span class="text-white/70 truncate">${node.name}</span>
             `;
-            
+
             d.onclick = () => selectFolder(node.id);
             return d;
         }
@@ -699,18 +717,18 @@
                 if(el.dataset.id === String(id)) {
                     el.classList.add('selected', 'bg-blue-500/10', 'border-blue-500/30');
                     const span = el.querySelector('span');
-                    if(span) span.classList.add('text-blue-400', 'font-bold');
+                    if(span) span.classList.add('text-blue-300', 'font-bold');
                 } else {
                     el.classList.remove('selected', 'bg-blue-500/10', 'border-blue-500/30');
                     const span = el.querySelector('span');
-                    if(span) span.classList.remove('text-blue-400', 'font-bold');
+                    if(span) span.classList.remove('text-blue-300', 'font-bold');
                 }
             });
         }
         function updateClock() {
             document.getElementById('clock').textContent = new Date().toLocaleTimeString('ko-KR');
         }
-        
+
         // 단축키: V -> Viewer, S -> Settings (입력 폼에 포커스된 경우 무시)
         document.addEventListener('keydown', (e) => {
             const tag = e.target && e.target.tagName;
@@ -724,7 +742,7 @@
                 }
             }
         });
-    
+
     </script>
 </body>
 </html>

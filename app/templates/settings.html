@@ -11,62 +11,97 @@
             theme: {
                 extend: {
                     colors: {
-                        dark: '#0f172a',
-                        card: '#1e293b',
-                        sidebar: '#111827'
+                        dark: '#05070f',
+                        card: '#0f1424',
+                        sidebar: '#0a0e1a'
                     }
                 }
             }
         }
     </script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #111827; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.5); }
+
+        body {
+            background: radial-gradient(circle at 10% 10%, rgba(59,130,246,0.20), transparent 35%),
+                        radial-gradient(circle at 90% 0%, rgba(168,85,247,0.18), transparent 40%),
+                        radial-gradient(circle at 50% 100%, rgba(16,185,129,0.10), transparent 45%),
+                        #05070f;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-soft {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+        .glass-input {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            transition: all 0.2s ease;
+        }
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.07);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        }
     </style>
 </head>
 <body class="bg-dark text-white font-sans h-screen flex overflow-hidden">
 
-    <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
 
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-gray-800 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
-        <div class="p-5 border-b border-gray-800 relative">
-            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-4">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 glass-strong border-r border-white/10 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
+        <div class="p-5 border-b border-white/10 relative">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 mb-4 tracking-tight">
                 LecAI
             </h1>
-            <div class="flex items-center space-x-3 bg-gray-800/50 p-2 rounded-lg">
-                <div class="w-10 h-10 rounded-full border border-blue-500 overflow-hidden bg-gray-800 flex-shrink-0">
+            <div class="flex items-center space-x-3 glass-soft p-2 rounded-xl">
+                <div class="w-10 h-10 rounded-full border border-blue-400/40 overflow-hidden bg-gray-800 flex-shrink-0 shadow-lg">
                     <img id="sidebarAvatar" src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
                 </div>
                 <div class="min-w-0">
-                    <p class="text-xs text-gray-400">Welcome,</p>
+                    <p class="text-xs text-white/40">Welcome,</p>
                     <p class="text-sm font-bold text-white truncate">{{ username }}</p>
                 </div>
             </div>
-            <button id="closeSidebarBtn" class="absolute top-5 right-5 md:hidden text-gray-400 hover:text-white">
+            <button id="closeSidebarBtn" class="absolute top-5 right-5 md:hidden text-white/40 hover:text-white transition">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
         <nav class="flex-1 px-3 py-4 space-y-1">
-            <a href="/" class="flex items-center px-3 py-2.5 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
+            <a href="/" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
                 <i class="fas fa-columns w-6 text-center"></i>
-                <span class="ml-2 font-medium">Dashboard</span>
+                <span class="ml-2 font-medium text-sm">Dashboard</span>
             </a>
-            <a href="/viewer" class="flex items-center px-3 py-2.5 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
+            <a href="/viewer" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
                 <i class="fas fa-book-open w-6 text-center"></i>
-                <span class="ml-2 font-medium">Viewer</span>
+                <span class="ml-2 font-medium text-sm">Viewer</span>
             </a>
-            <a href="/settings" class="flex items-center px-3 py-2.5 bg-blue-600/10 text-blue-400 rounded-lg border border-blue-600/20">
+            <a href="/settings" class="flex items-center px-3 py-2.5 bg-blue-500/15 text-blue-300 rounded-xl border border-blue-400/25 shadow-inner">
                 <i class="fas fa-cog w-6 text-center"></i>
-                <span class="ml-2 font-medium">Settings</span>
+                <span class="ml-2 font-medium text-sm">Settings</span>
             </a>
         </nav>
 
-        <div class="p-4 border-t border-gray-800">
-            <a href="/logout" class="flex items-center px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition text-sm">
+        <div class="p-4 border-t border-white/10">
+            <a href="/logout" class="flex items-center px-3 py-2 text-red-300/90 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition text-sm">
                 <i class="fas fa-sign-out-alt w-6 text-center"></i>
                 <span class="ml-2">Logout</span>
             </a>
@@ -74,72 +109,72 @@
     </aside>
 
     <main class="flex-1 flex flex-col min-w-0">
-        <header class="h-14 bg-card border-b border-gray-800 flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+        <header class="h-14 glass border-b border-white/10 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-20">
             <div class="flex items-center">
-                <button id="openSidebarBtn" class="md:hidden mr-3 text-gray-300 hover:text-white">
+                <button id="openSidebarBtn" class="md:hidden mr-3 text-white/60 hover:text-white transition">
                     <i class="fas fa-bars text-lg"></i>
                 </button>
-                <h2 class="text-base font-semibold text-gray-200"><i class="fas fa-cog mr-2 text-blue-500"></i>Settings</h2>
+                <h2 class="text-base font-semibold text-white/90"><i class="fas fa-cog mr-2 text-blue-400"></i>Settings</h2>
             </div>
             <div class="flex items-center space-x-3">
-                <div class="text-xs font-mono text-gray-500" id="clock">00:00:00</div>
-                <div class="w-7 h-7 rounded-full overflow-hidden border border-gray-700 bg-gray-800">
+                <div class="text-xs font-mono text-white/35" id="clock">00:00:00</div>
+                <div class="w-7 h-7 rounded-full overflow-hidden border border-white/15 bg-gray-800">
                     <img id="headerAvatar" src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
                 </div>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-950">
+        <div class="flex-1 overflow-y-auto p-4 md:p-8">
             <div class="max-w-5xl mx-auto">
                 <header class="mb-8">
                     <h2 class="text-3xl font-bold text-white">사용자 설정</h2>
-                    <p class="text-gray-400 mt-1">계정 설정 및 AI 모델의 동작 방식을 개인화합니다.</p>
+                    <p class="text-white/40 mt-1">계정 설정 및 AI 모델의 동작 방식을 개인화합니다.</p>
                 </header>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                    <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 flex items-center justify-between transition hover:border-blue-500/30">
+                    <div class="glass p-6 rounded-2xl flex items-center justify-between transition hover:border-blue-400/30 shadow-xl">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">LecAI 누적 사용 요금</p>
-                            <h3 class="text-3xl font-mono font-bold text-blue-400" id="totalUsageText">$0.0000</h3>
+                            <p class="text-xs text-white/40 uppercase font-bold mb-1">LecAI 누적 사용 요금</p>
+                            <h3 class="text-3xl font-mono font-bold text-blue-300" id="totalUsageText">$0.0000</h3>
                         </div>
                         <div class="bg-blue-500/10 p-4 rounded-xl">
-                            <i class="fas fa-file-invoice-dollar text-3xl text-blue-500"></i>
+                            <i class="fas fa-file-invoice-dollar text-3xl text-blue-400"></i>
                         </div>
                     </div>
-                
-                    <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 flex items-center justify-between transition hover:border-green-500/30">
+
+                    <div class="glass p-6 rounded-2xl flex items-center justify-between transition hover:border-emerald-400/30 shadow-xl">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">OpenAI 공식 잔액</p>
-                            <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" 
-                               class="inline-flex items-center mt-2 text-blue-400 hover:underline font-bold">
+                            <p class="text-xs text-white/40 uppercase font-bold mb-1">OpenAI 공식 잔액</p>
+                            <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank"
+                               class="inline-flex items-center mt-2 text-blue-300 hover:text-blue-200 hover:underline font-bold">
                                 결제 대시보드 <i class="fas fa-external-link-alt ml-2 text-xs"></i>
                             </a>
                         </div>
-                        <div class="bg-green-500/10 p-4 rounded-xl">
-                            <i class="fas fa-wallet text-3xl text-green-500"></i>
+                        <div class="bg-emerald-500/10 p-4 rounded-xl">
+                            <i class="fas fa-wallet text-3xl text-emerald-400"></i>
                         </div>
                     </div>
                 </div>
 
-                <section class="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden mb-8 shadow-sm">
-                    <div class="p-6 border-b border-gray-800 bg-gray-900/50 flex items-center space-x-3">
-                        <i class="fas fa-user-circle text-purple-500"></i>
+                <section class="glass rounded-2xl overflow-hidden mb-8 shadow-xl">
+                    <div class="p-6 border-b border-white/10 glass-soft flex items-center space-x-3">
+                        <i class="fas fa-user-circle text-purple-400"></i>
                         <h3 class="text-lg font-bold">사용자 프로필 설정</h3>
                     </div>
                     <div class="p-8 flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-10">
                         <div class="relative group">
-                            <div class="w-32 h-32 rounded-full border-4 border-gray-800 overflow-hidden bg-gray-800 shadow-2xl transition group-hover:border-blue-500/50">
+                            <div class="w-32 h-32 rounded-full border-4 border-white/10 overflow-hidden bg-gray-800 shadow-2xl transition group-hover:border-blue-400/40">
                                 <img id="profilePreview" src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
                             </div>
-                            <label for="profileInput" class="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition cursor-pointer rounded-full">
+                            <label for="profileInput" class="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition cursor-pointer rounded-full">
                                 <i class="fas fa-camera text-2xl text-white"></i>
                             </label>
                             <input type="file" id="profileInput" class="hidden" accept="image/*">
                         </div>
                         <div class="flex-1 text-center md:text-left">
                             <h4 class="text-xl font-bold mb-1">{{ username }}</h4>
-                            <p class="text-gray-400 text-sm mb-5">프로필 사진을 변경하려면 이미지를 클릭하세요. (JPG, PNG 지원)</p>
-                            <button id="uploadProfileBtn" class="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition border border-gray-700 active:scale-95">
+                            <p class="text-white/40 text-sm mb-5">프로필 사진을 변경하려면 이미지를 클릭하세요. (JPG, PNG 지원)</p>
+                            <button id="uploadProfileBtn" class="glass-soft hover:bg-white/10 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition active:scale-95">
                                 <i class="fas fa-upload mr-2"></i> 변경사항 적용
                             </button>
                         </div>
@@ -147,102 +182,102 @@
                 </section>
 
                 <form id="settingsForm" class="space-y-8">
-                    
-                    <section class="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden shadow-sm">
-                        <div class="p-6 border-b border-gray-800 bg-gray-900/50 flex items-center space-x-3">
-                            <i class="fas fa-robot text-blue-500"></i>
+
+                    <section class="glass rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-6 border-b border-white/10 glass-soft flex items-center space-x-3">
+                            <i class="fas fa-robot text-blue-400"></i>
                             <h3 class="text-lg font-bold">분석 모델 및 API 설정</h3>
                         </div>
                         <div class="p-8 space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div>
-                                    <label class="block text-sm font-bold text-gray-300 mb-2">PPT/PDF 분석 모델</label>
-                                    <select name="model" id="modelSelect" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none transition cursor-pointer">
-                                        <option value="local">Local Server (무료/대기열 있음)</option>
-                                        <option value="gpt-5.2">OpenAI - GPT-5.2 (High-Perf)</option>
-                                        <option value="gpt-5-mini">OpenAI - GPT-5-mini (Cheap)</option>
+                                    <label class="block text-sm font-bold text-white/70 mb-2">PPT/PDF 분석 모델</label>
+                                    <select name="model" id="modelSelect" class="w-full p-3 rounded-xl glass-input outline-none transition cursor-pointer">
+                                        <option class="bg-[#0f1424]" value="local">Local Server (무료/대기열 있음)</option>
+                                        <option class="bg-[#0f1424]" value="gpt-5.2">OpenAI - GPT-5.2 (High-Perf)</option>
+                                        <option class="bg-[#0f1424]" value="gpt-5-mini">OpenAI - GPT-5-mini (Cheap)</option>
                                     </select>
                                 </div>
 
                                 <div id="apiKeySection" class="hidden">
                                     <div class="flex justify-between items-center mb-2">
-                                        <label class="block text-sm font-bold text-gray-300">OpenAI API Key</label>
-                                        <a href="/guide/openai" target="_blank" class="text-xs text-blue-400 hover:underline flex items-center">
+                                        <label class="block text-sm font-bold text-white/70">OpenAI API Key</label>
+                                        <a href="/guide/openai" target="_blank" class="text-xs text-blue-300 hover:underline flex items-center">
                                             <i class="far fa-question-circle mr-1"></i> 발급 방법
                                         </a>
                                     </div>
-                                    <input type="password" name="api_key" id="apiKeyInput" placeholder="sk-..." 
-                                           class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none transition font-mono text-sm">
+                                    <input type="password" name="api_key" id="apiKeyInput" placeholder="sk-..."
+                                           class="w-full p-3 rounded-xl glass-input outline-none transition font-mono text-sm">
                                 </div>
                             </div>
 
                             <div class="pt-4">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                                     <div class="flex items-center space-x-3">
-                                        <label class="block text-sm font-bold text-gray-300">System Prompt (AI 페르소나)</label>
-                                        <select onchange="applyTemplate('system', this.value)" class="text-xs bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 outline-none text-blue-400 focus:border-blue-500">
-                                            <option value="">템플릿 선택...</option>
-                                            <option value="default">강의 슬라이드 설명</option>
-                                            <option value="researcher">논문 분석</option>
+                                        <label class="block text-sm font-bold text-white/70">System Prompt (AI 페르소나)</label>
+                                        <select onchange="applyTemplate('system', this.value)" class="text-xs glass-input rounded-lg px-2 py-1 outline-none text-blue-300">
+                                            <option class="bg-[#0f1424]" value="">템플릿 선택...</option>
+                                            <option class="bg-[#0f1424]" value="default">강의 슬라이드 설명</option>
+                                            <option class="bg-[#0f1424]" value="researcher">논문 분석</option>
                                         </select>
                                     </div>
-                                    <button type="button" onclick="resetSystemPrompt()" class="text-xs text-gray-400 hover:text-white underline text-left">
+                                    <button type="button" onclick="resetSystemPrompt()" class="text-xs text-white/40 hover:text-white underline text-left">
                                         기본값으로 초기화
                                     </button>
                                 </div>
-                                <textarea name="custom_prompt" id="customPrompt" rows="4" 
-                                    class="w-full p-4 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-sm leading-relaxed transition resize-none mb-6"
+                                <textarea name="custom_prompt" id="customPrompt" rows="4"
+                                    class="w-full p-4 rounded-xl glass-input outline-none text-sm leading-relaxed transition resize-none mb-6"
                                     placeholder="AI의 역할과 제약조건을 설정하세요..."></textarea>
-                            
+
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                                     <div class="flex items-center space-x-3">
-                                        <label class="block text-sm font-bold text-gray-300">User Prompt (슬라이드 분석 지침)</label>
-                                        <select onchange="applyTemplate('user', this.value)" class="text-xs bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 outline-none text-blue-400 focus:border-blue-500">
-                                            <option value="">템플릿 선택...</option>
-                                            <option value="default">강의 슬라이드 설명</option>
-                                            <option value="paper_detail">논문 분석</option>
+                                        <label class="block text-sm font-bold text-white/70">User Prompt (슬라이드 분석 지침)</label>
+                                        <select onchange="applyTemplate('user', this.value)" class="text-xs glass-input rounded-lg px-2 py-1 outline-none text-blue-300">
+                                            <option class="bg-[#0f1424]" value="">템플릿 선택...</option>
+                                            <option class="bg-[#0f1424]" value="default">강의 슬라이드 설명</option>
+                                            <option class="bg-[#0f1424]" value="paper_detail">논문 분석</option>
                                         </select>
                                     </div>
-                                    <button type="button" onclick="resetUserPrompt()" class="text-xs text-gray-400 hover:text-white underline text-left">
+                                    <button type="button" onclick="resetUserPrompt()" class="text-xs text-white/40 hover:text-white underline text-left">
                                         기본값으로 초기화
                                     </button>
                                 </div>
-                                <p class="text-xs text-gray-500 mb-2">
-                                    <span class="bg-gray-800 px-1 py-0.5 rounded text-blue-300 font-mono">{filename}</span> 이라고 적으면 실제 파일명으로 자동 변경됩니다.
+                                <p class="text-xs text-white/35 mb-2">
+                                    <span class="glass-soft px-1 py-0.5 rounded text-blue-300 font-mono">{filename}</span> 이라고 적으면 실제 파일명으로 자동 변경됩니다.
                                 </p>
-                                <textarea name="custom_user_prompt" id="customUserPrompt" rows="4" 
-                                    class="w-full p-4 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-sm leading-relaxed transition resize-none"
+                                <textarea name="custom_user_prompt" id="customUserPrompt" rows="4"
+                                    class="w-full p-4 rounded-xl glass-input outline-none text-sm leading-relaxed transition resize-none"
                                     placeholder="각 슬라이드 이미지를 보고 AI에게 시킬 구체적인 명령을 입력하세요..."></textarea>
                             </div>
                         </div>
                     </section>
 
-                    <section class="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden shadow-sm">
-                        <div class="p-6 border-b border-gray-800 bg-gray-900/50 flex items-center space-x-3">
-                            <i class="fas fa-microphone-alt text-green-500"></i>
+                    <section class="glass rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-6 border-b border-white/10 glass-soft flex items-center space-x-3">
+                            <i class="fas fa-microphone-alt text-emerald-400"></i>
                             <h3 class="text-lg font-bold">오디오 요약 (STT) 설정</h3>
                         </div>
                         <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
-                                <label class="block text-sm font-bold text-gray-300 mb-2">정확도 모드</label>
-                                <select name="audio_model" id="audioModelSelect" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-green-500 outline-none transition cursor-pointer">
-                                    <option value="1">Level 1 (빠른 처리)</option>
-                                    <option value="2" selected>Level 2 (표준 균형)</option>
-                                    <option value="3">Level 3 (정밀 분석)</option>
+                                <label class="block text-sm font-bold text-white/70 mb-2">정확도 모드</label>
+                                <select name="audio_model" id="audioModelSelect" class="w-full p-3 rounded-xl glass-input outline-none transition cursor-pointer">
+                                    <option class="bg-[#0f1424]" value="1">Level 1 (빠른 처리)</option>
+                                    <option class="bg-[#0f1424]" value="2" selected>Level 2 (표준 균형)</option>
+                                    <option class="bg-[#0f1424]" value="3">Level 3 (정밀 분석)</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-300 mb-2">기본 언어</label>
-                                <select name="audio_lang" id="audioLangSelect" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-green-500 outline-none transition cursor-pointer">
-                                    <option value="ko">한국어 (Korean)</option>
-                                    <option value="en">영어 (English)</option>
+                                <label class="block text-sm font-bold text-white/70 mb-2">기본 언어</label>
+                                <select name="audio_lang" id="audioLangSelect" class="w-full p-3 rounded-xl glass-input outline-none transition cursor-pointer">
+                                    <option class="bg-[#0f1424]" value="ko">한국어 (Korean)</option>
+                                    <option class="bg-[#0f1424]" value="en">영어 (English)</option>
                                 </select>
                             </div>
                         </div>
                     </section>
 
                     <div class="flex justify-end pt-4 pb-12">
-                        <button type="submit" class="w-full md:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition transform active:scale-95 shadow-lg shadow-blue-900/20">
+                        <button type="submit" class="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-bold transition transform active:scale-95 shadow-lg shadow-blue-900/30">
                             <i class="fas fa-save mr-2"></i> 모든 설정 저장하기
                         </button>
                     </div>
@@ -297,13 +332,13 @@
         uploadProfileBtn.addEventListener('click', async () => {
             const file = profileInput.files[0];
             if (!file) { alert('선택된 사진이 없습니다.'); return; }
-            
+
             uploadProfileBtn.disabled = true;
             uploadProfileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 업로드 중...';
-            
+
             const formData = new FormData();
             formData.append('file', file);
-            
+
             try {
                 const res = await fetch('/api/user/profile-image', { method: 'POST', body: formData });
                 if (res.ok) {
@@ -326,12 +361,12 @@
         const currentKey = "{{ settings.openai_api_key }}";
         const currentPrompt = {{ settings.custom_prompt | tojson | safe }};
         const currentUserPrompt = {{ settings.custom_user_prompt | tojson | safe }};
-        
+
         document.getElementById('modelSelect').value = currentModel || 'local';
         document.getElementById('apiKeyInput').value = currentKey || '';
         document.getElementById('customPrompt').value = currentPrompt;
         document.getElementById('customUserPrompt').value = currentUserPrompt;
-        
+
         const toggleApi = () => {
             document.getElementById('apiKeySection').classList.toggle('hidden', !document.getElementById('modelSelect').value.startsWith('gpt'));
         };
@@ -374,7 +409,7 @@
         const PROMPT_TEMPLATES = {
             system: {
                 default: `당신은 전공 강의 자료를 분석하고 요약하는 전문 AI 조교입니다.
-        
+
 [출력 규칙]
 1. 반드시 Markdown 형식으로 작성할 것.
 2. 한국어를 사용하여 자연스럽게 설명할 것.
@@ -400,7 +435,7 @@
 이 페이지에 기술된 논문의 내용을 학술적인 관점에서 매우 상세하게 설명하세요. 특히 페이지에 등장하는 핵심 수식의 유도 과정이나 도식의 의미를 $ ... $ 기호를 사용하여 심층 분석하고, 이 내용이 전체 연구 흐름에서 어떤 역할을 담당하는지 서술하세요.`
             }
         };
-        
+
         function applyTemplate(type, templateKey) {
             if (!templateKey) return;
             const textAreaId = type === 'system' ? 'customPrompt' : 'customUserPrompt';
@@ -420,7 +455,7 @@
                 setTimeout(() => textArea.classList.remove('ring-2', 'ring-blue-500'), 1000);
             }
         }
-        
+
         async function resetUserPrompt() {
             const textArea = document.getElementById('customUserPrompt');
             if (confirm('사용자 프롬프트를 기본 분석 지침으로 초기화하시겠습니까?')) {

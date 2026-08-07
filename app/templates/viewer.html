@@ -57,28 +57,62 @@
     </script>
     <style>
         :root {
-            /* 라이트 모드 (Notion 스타일) */
-            --bg-primary: #ffffff;
-            --bg-secondary: #f7f7f5;
-            --bg-hover: #e0e0e0;
-            --border-color: #e0e0e0;
-            --text-primary: #37352f;
-            --text-muted: #9b9a97;
+            /* 라이트 모드 (글래스모피즘) */
+            --bg-primary: #f4f5fb;
+            --bg-secondary: #ffffff;
+            --bg-hover: #eef0f9;
+            --border-color: rgba(15, 23, 42, 0.10);
+            --text-primary: #1e2233;
+            --text-muted: #6b7189;
+            --glass-bg: rgba(255, 255, 255, 0.55);
+            --glass-bg-strong: rgba(255, 255, 255, 0.72);
+            --glass-border: rgba(15, 23, 42, 0.08);
+            --glass-shadow: 0 8px 32px rgba(30, 41, 59, 0.10);
+            --app-bg:
+                radial-gradient(circle at 10% 10%, rgba(99,102,241,0.14), transparent 35%),
+                radial-gradient(circle at 90% 0%, rgba(236,72,153,0.10), transparent 40%),
+                radial-gradient(circle at 50% 100%, rgba(16,185,129,0.10), transparent 45%),
+                #eef0f9;
         }
-        
+
         html.dark {
-            /* 다크 모드 (기존 색상) */
-            --bg-primary: #191919;
-            --bg-secondary: #202020;
-            --bg-hover: #2c2c2c;
-            --border-color: #333333;
-            --text-primary: #e5e5e5;
-            --text-muted: #a0a0a0;
+            /* 다크 모드 (글래스모피즘) */
+            --bg-primary: #0c0e16;
+            --bg-secondary: #11141f;
+            --bg-hover: #1b1f2e;
+            --border-color: rgba(255, 255, 255, 0.09);
+            --text-primary: #e8e9ee;
+            --text-muted: #8f93a8;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-bg-strong: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.10);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+            --app-bg:
+                radial-gradient(circle at 10% 10%, rgba(59,130,246,0.16), transparent 35%),
+                radial-gradient(circle at 90% 0%, rgba(168,85,247,0.14), transparent 40%),
+                radial-gradient(circle at 50% 100%, rgba(16,185,129,0.08), transparent 45%),
+                #05070f;
         }
 
         /* 공통 트랜지션 */
         body, aside, header, div, span, button, i, .tab-item {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body { background: var(--app-bg); }
+
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-color: var(--glass-border);
+            box-shadow: var(--glass-shadow);
+        }
+        .glass-strong {
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-color: var(--glass-border);
         }
 
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -136,9 +170,11 @@
         
         .split-image-container {
             width: 50%; height: 100%;
-            background-color: var(--bg-secondary);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             display: flex; align-items: center; justify-content: center;
-            padding: 1rem; 
+            padding: 1rem;
             border-right: 1px solid var(--border-color);
             position: relative;
         }
@@ -147,7 +183,7 @@
             overflow-y: auto;
             padding: 3rem 4rem;
             padding-bottom: 8rem;
-            background-color: var(--bg-primary);
+            background-color: transparent;
         }
         .split-text-container > article > *:first-child { margin-top: 0 !important; }
 
@@ -163,7 +199,7 @@
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
             color: var(--text-muted);
-            background-color: var(--bg-secondary);
+            background-color: transparent;
             border-right: 1px solid var(--border-color);
             cursor: pointer;
             user-select: none;
@@ -172,7 +208,7 @@
         }
         .tab-item:hover { background-color: var(--bg-hover); }
         .tab-item.active {
-            background-color: var(--bg-primary);
+            background: var(--glass-bg-strong);
             color: var(--text-primary);
             border-top: 2px solid #3b82f6;
         }
@@ -186,15 +222,39 @@
         body.fullscreen-mode #exitFullscreenBtn { display: flex !important; }
         body.fullscreen-mode main { height: 100vh !important; }
 
+        /* 전체 화면에서는 화려한 그라디언트/유리효과 대신 단색 배경만 사용 */
+        body.fullscreen-mode {
+            --app-bg: #ffffff;
+            --glass-bg: #ffffff;
+            --glass-bg-strong: #ffffff;
+            --glass-border: rgba(15, 23, 42, 0.10);
+            --glass-shadow: none;
+            background: #ffffff !important;
+        }
+        html.dark body.fullscreen-mode {
+            --app-bg: #000000;
+            --glass-bg: #000000;
+            --glass-bg-strong: #000000;
+            --glass-border: rgba(255, 255, 255, 0.12);
+            background: #000000 !important;
+        }
+        body.fullscreen-mode .glass,
+        body.fullscreen-mode .glass-strong,
+        body.fullscreen-mode .split-image-container,
+        body.fullscreen-mode .split-text-container {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
         /* Tree View Styles */
         .tree-node { user-select: none; }
         .tree-content {
-            display: flex; align-items: center; padding: 0.25rem 0.5rem; cursor: pointer;
-            color: var(--text-primary); /* 수정됨 */
-            transition: background-color 0.2s; border-radius: 4px;
+            display: flex; align-items: center; padding: 0.3rem 0.5rem; cursor: pointer;
+            color: var(--text-primary);
+            transition: background-color 0.2s; border-radius: 8px;
         }
         .tree-content:hover { background-color: var(--bg-hover); }
-        .tree-content.active { background-color: var(--bg-hover); color: #3b82f6; }
+        .tree-content.active { background: rgba(59,130,246,0.14); color: #60a5fa; }
         .tree-arrow {
             width: 1rem; height: 1rem; display: flex; align-items: center; justify-content: center;
             margin-right: 0.25rem; transition: transform 0.2s ease; font-size: 0.7rem; color: var(--text-muted);
@@ -208,9 +268,9 @@
         }
     </style>
 </head>
-<body class="bg-notion-bg text-notion-text font-sans h-screen flex overflow-hidden relative transition-colors duration-300">
+<body class="text-notion-text font-sans h-screen flex overflow-hidden relative transition-colors duration-300">
 
-    <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
 
     <div id="dragOverlay" class="fixed inset-0 bg-black/80 flex flex-col items-center justify-center text-white backdrop-blur-sm border-4 border-dashed border-blue-500/50 m-4 rounded-xl">
         <i class="fas fa-cloud-upload-alt text-7xl mb-6 animate-bounce text-blue-400"></i>
@@ -218,24 +278,24 @@
         <p class="text-notion-muted text-lg">현재 폴더에 자동으로 업로드됩니다.</p>
     </div>
 
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 bg-notion-sidebar border-r border-notion-border flex flex-col md:relative transform -translate-x-full md:translate-x-0 flex-shrink-0">
-        <div class="p-4 flex justify-between items-center bg-notion-sidebar group">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 glass-strong border-r flex flex-col md:relative transform -translate-x-full md:translate-x-0 flex-shrink-0">
+        <div class="p-4 flex justify-between items-center group">
             <h1 class="text-xl font-bold text-notion-text tracking-tight flex items-center truncate">
                 <i class="fas fa-book-open text-blue-500 mr-2.5"></i>Viewer
             </h1>
             <div class="flex items-center space-x-1">
-                <a href="/" class="hidden md:block text-xs bg-notion-hover px-2 py-1 rounded hover:bg-notion-hover transition">Dash</a>
+                <a href="/" class="hidden md:block text-xs bg-notion-hover px-2 py-1 rounded-lg hover:bg-notion-hover transition">Dash</a>
                 <button id="closeSidebarBtn" class="md:hidden text-notion-muted hover:text-notion-text px-2"><i class="fas fa-times text-xl"></i></button>
             </div>
         </div>
         <div class="px-2 pb-2 flex space-x-1">
-            <button onclick="createFolder()" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded border border-notion-border transition" title="새 폴더">
+            <button onclick="createFolder()" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded-lg border border-notion-border transition" title="새 폴더">
                 <i class="fas fa-folder-plus"></i>
             </button>
-            <button onclick="openHistoryModal()" class="flex-1 bg-notion-hover hover:bg-opacity-80 text-sm py-1.5 rounded border border-notion-border text-notion-text transition">
+            <button onclick="openHistoryModal()" class="flex-1 bg-notion-hover hover:bg-opacity-80 text-sm py-1.5 rounded-lg border border-notion-border text-notion-text transition">
                 <i class="fas fa-history mr-1 text-purple-400"></i> 불러오기
             </button>
-            <button onclick="document.getElementById('zipInput').click()" class="flex-1 bg-blue-600/90 hover:bg-blue-600 text-white text-sm py-1.5 rounded shadow-md" id="uploadBtn">
+            <button onclick="document.getElementById('zipInput').click()" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-sm py-1.5 rounded-lg shadow-md" id="uploadBtn">
                 <i class="fas fa-upload mr-1"></i> 업로드
             </button>
             <input type="file" id="zipInput" class="hidden" accept=".zip">
@@ -247,24 +307,24 @@
     </aside>
     <div id="resizer" class="hidden md:block w-1 hover:w-1.5 active:w-1.5 bg-transparent hover:bg-blue-500/50 active:bg-blue-600 cursor-col-resize z-50 transition-colors flex-shrink-0"></div>
 
-    <main class="flex-1 flex flex-col h-full relative overflow-hidden bg-notion-bg min-w-0">
-        <header class="h-14 bg-notion-bg border-b border-notion-border flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-30">
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden min-w-0">
+        <header class="h-14 glass border-b flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-30">
             <button id="openSidebarBtn" class="text-notion-muted hover:text-notion-text mr-4 flex items-center">
                 <i class="fas fa-bars text-xl"></i>
             </button>
 
             <div class="flex-1 flex justify-end items-center space-x-2" id="toolbar" style="display: none;">
-                <button onclick="openShortcutModal()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded hover:bg-opacity-80 transition shadow-sm mr-2" title="단축키 안내">
+                <button onclick="openShortcutModal()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded-lg hover:bg-opacity-80 transition shadow-sm mr-2" title="단축키 안내">
                     <i class="fas fa-keyboard"></i>
                 </button>
-                <button onclick="toggleTheme()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded hover:bg-opacity-80 transition shadow-sm mr-2" title="테마 변경">
+                <button onclick="toggleTheme()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded-lg hover:bg-opacity-80 transition shadow-sm mr-2" title="테마 변경">
                     <i id="themeIcon" class="fas fa-moon"></i>
                 </button>
-                <button id="copyImageBtn" onclick="copySlideImage()" class="hidden items-center justify-center w-8 h-8 mr-2 text-notion-muted hover:text-blue-400 bg-notion-hover border border-notion-border rounded transition" title="슬라이드 이미지 복사">
+                <button id="copyImageBtn" onclick="copySlideImage()" class="hidden items-center justify-center w-8 h-8 mr-2 text-notion-muted hover:text-blue-400 bg-notion-hover border border-notion-border rounded-lg transition" title="슬라이드 이미지 복사">
                     <i class="far fa-copy" id="copyIcon"></i>
                 </button>
 
-                <div id="zoomControls" class="flex items-center bg-notion-hover rounded border border-notion-border mr-2 transition-opacity duration-200">
+                <div id="zoomControls" class="flex items-center bg-notion-hover rounded-lg border border-notion-border mr-2 transition-opacity duration-200">
                     <button onclick="adjustFontSize(-10)" class="px-3 py-1.5 text-notion-muted hover:text-notion-text hover:bg-opacity-80 border-r border-notion-border transition rounded-l" title="축소">
                         <i class="fas fa-minus text-xs"></i>
                     </button>
@@ -274,17 +334,17 @@
                     </button>
                 </div>
                 
-                <button id="fullscreenBtn" onclick="toggleFullScreen()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded hover:bg-opacity-80 transition shadow-sm mr-2" title="전체 화면">
+                <button id="fullscreenBtn" onclick="toggleFullScreen()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded-lg hover:bg-opacity-80 transition shadow-sm mr-2" title="전체 화면">
                     <i class="fas fa-expand"></i>
                 </button>
 
-                <button id="viewModeBtn" class="text-notion-text bg-notion-hover border border-notion-border px-3 py-1.5 rounded text-sm flex items-center gap-2 hover:bg-opacity-80 transition shadow-sm">
+                <button id="viewModeBtn" class="text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition shadow-md">
                     <i class="fas fa-desktop"></i> <span>프레젠테이션 모드</span>
                 </button>
             </div>
         </header>
-        
-        <div id="tabBar" class="flex items-center bg-notion-sidebar border-b border-notion-border overflow-x-auto custom-scrollbar h-10 hidden flex-shrink-0">
+
+        <div id="tabBar" class="flex items-center glass border-b overflow-x-auto custom-scrollbar h-10 hidden flex-shrink-0">
         </div>
 
         <div id="emptyView" class="flex-1 flex flex-col items-center justify-center text-notion-muted select-none p-4 text-center">
@@ -308,7 +368,7 @@
                 <article id="slideText" class="prose prose-lg max-w-none dark:prose-invert"></article>
             </div>
             
-            <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-notion-sidebar border border-notion-border rounded-full shadow-2xl px-6 py-3 flex items-center space-x-8 z-50">
+            <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 glass-strong rounded-full shadow-2xl px-6 py-3 flex items-center space-x-8 z-50">
                 <button id="prevSlideBtn" class="text-notion-text hover:text-blue-400 disabled:opacity-20 transition-all">
                     <i class="fas fa-chevron-left text-xl"></i>
                 </button>
@@ -327,9 +387,9 @@
         </button>
     </main>
 
-    <div id="historyModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-200">
-        <div class="bg-notion-sidebar border border-notion-border w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[80vh] transform scale-95 transition-transform duration-200" id="historyModalContent">
-            <div class="px-6 py-4 border-b border-notion-border flex justify-between items-center bg-notion-sidebar rounded-t-xl">
+    <div id="historyModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-200">
+        <div class="glass-strong w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[80vh] transform scale-95 transition-transform duration-200" id="historyModalContent">
+            <div class="px-6 py-4 border-b border-notion-border flex justify-between items-center rounded-t-2xl">
                 <h2 class="text-lg font-bold text-notion-text flex items-center">
                     <i class="fas fa-history text-purple-400 mr-2"></i> 작업 내역 불러오기
                 </h2>
@@ -337,26 +397,26 @@
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            
-            <div class="flex-1 overflow-y-auto p-2 custom-scrollbar bg-notion-bg" id="historyList">
+
+            <div class="flex-1 overflow-y-auto p-2 custom-scrollbar" id="historyList">
                 <div class="text-center text-notion-muted py-8">
                     <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                     <p>불러오는 중...</p>
                 </div>
             </div>
-    
-            <div class="px-6 py-3 border-t border-notion-border bg-notion-sidebar rounded-b-xl text-right">
+
+            <div class="px-6 py-3 border-t border-notion-border rounded-b-2xl text-right">
                 <span class="text-xs text-notion-muted mr-2">완료된 작업만 표시됩니다.</span>
-                <button onclick="closeHistoryModal()" class="px-4 py-2 bg-notion-hover hover:bg-opacity-80 text-sm text-notion-text rounded border border-notion-border">
+                <button onclick="closeHistoryModal()" class="px-4 py-2 bg-notion-hover hover:bg-opacity-80 text-sm text-notion-text rounded-lg border border-notion-border">
                     닫기
                 </button>
             </div>
         </div>
     </div>
-    
-    <div id="shortcutModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-200">
-        <div class="bg-notion-sidebar border border-notion-border w-full max-w-md rounded-xl shadow-2xl flex flex-col transform scale-95 transition-transform duration-200" id="shortcutModalContent">
-            <div class="px-6 py-4 border-b border-notion-border flex justify-between items-center bg-notion-sidebar rounded-t-xl">
+
+    <div id="shortcutModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-200">
+        <div class="glass-strong w-full max-w-md rounded-2xl shadow-2xl flex flex-col transform scale-95 transition-transform duration-200" id="shortcutModalContent">
+            <div class="px-6 py-4 border-b border-notion-border flex justify-between items-center rounded-t-2xl">
                 <h2 class="text-lg font-bold text-notion-text flex items-center">
                     <i class="fas fa-keyboard text-blue-400 mr-2"></i> 단축키 안내
                 </h2>
@@ -364,8 +424,8 @@
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            
-            <div class="p-6 bg-notion-bg space-y-4 text-sm">
+
+            <div class="p-6 space-y-4 text-sm">
                 <div class="grid grid-cols-2 gap-y-3">
                     <div class="text-notion-muted">현재 탭 닫기</div>
                     <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">W</kbd></div>
@@ -395,8 +455,8 @@
                 </div>
             </div>
     
-            <div class="px-6 py-3 border-t border-notion-border bg-notion-sidebar rounded-b-xl text-right">
-                <button onclick="closeShortcutModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-sm text-white rounded">확인</button>
+            <div class="px-6 py-3 border-t border-notion-border rounded-b-2xl text-right">
+                <button onclick="closeShortcutModal()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-sm text-white rounded-lg">확인</button>
             </div>
         </div>
     </div>
@@ -889,12 +949,17 @@
                 try {
                     const savedTabs = JSON.parse(savedTabsJSON);
                     for (const tabMeta of savedTabs) {
+                        // 저장된 이름에서 폴더 경로(parentName)와 파일명을 분리
+                        // (이전에는 항상 'root'를 넘겨서 새로고침 시 탭 이름의 폴더 접두사가 사라졌음)
+                        const lastSlash = tabMeta.name.lastIndexOf('/');
+                        const parentName = lastSlash === -1 ? 'root' : tabMeta.name.substring(0, lastSlash);
+                        const fileName = lastSlash === -1 ? tabMeta.name : tabMeta.name.substring(lastSlash + 1);
                         // 저장된 zoom 값을 넘겨줌 (없으면 100)
                         await openDoc(
-                            { id: tabMeta.id, name: tabMeta.name.split('/').pop() }, 
-                            tabMeta.currentIndex || 0, 
-                            'root', 
-                            tabMeta.zoom || 100 
+                            { id: tabMeta.id, name: fileName },
+                            tabMeta.currentIndex || 0,
+                            parentName,
+                            tabMeta.zoom || 100
                         );
                     }
                     if (savedActiveId) switchTab(savedActiveId);

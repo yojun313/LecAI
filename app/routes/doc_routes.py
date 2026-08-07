@@ -6,7 +6,7 @@ from app.services.doc_manager import DocManager
 from app.services.job_manager import JobManager
 from app.services.auth_manager import AuthManager
 from app.core.config import settings
-from app.db import docs_col
+from app.db import docs_col, users_col
 from app.routes.deps import get_current_user
 import shutil
 import os
@@ -152,15 +152,25 @@ async def import_job_to_docs(
 
     zip_path = os.path.join(settings.RESULT_DIR, job["owner"], f"{job_id}.zip")
 
-    try:
-        if target_user and target_user.strip():
-            final_owner = target_user.strip()
-            final_parent_id = None
-            print(f"[Info] 문서 전송: {user} -> {final_owner}")
-        else:
-            final_owner = user
-            final_parent_id = None if parent_id == "root" else parent_id
+    if target_user and target_user.strip():
+        final_owner = target_user.strip()
 
+        if final_owner == user:
+            raise HTTPException(
+                status_code=400, detail="자기 자신에게는 전송할 수 없습니다."
+            )
+        if not users_col.find_one({"username": final_owner}):
+            raise HTTPException(
+                status_code=404, detail=f"'{final_owner}' 사용자를 찾을 수 없습니다."
+            )
+
+        final_parent_id = None
+        print(f"[Info] 문서 전송: {user} -> {final_owner}")
+    else:
+        final_owner = user
+        final_parent_id = None if parent_id == "root" else parent_id
+
+    try:
         new_doc = DocManager.upload_zip_doc(
             owner=final_owner,
             file_path=zip_path,

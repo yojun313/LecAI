@@ -5,10 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenAI API Key 발급 및 사용 가이드</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        body {
+            background: radial-gradient(circle at 10% 0%, rgba(99,102,241,0.16), transparent 40%),
+                        radial-gradient(circle at 90% 10%, rgba(59,130,246,0.14), transparent 45%),
+                        radial-gradient(circle at 50% 100%, rgba(16,185,129,0.10), transparent 45%),
+                        #eef0f9;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 8px 32px rgba(30, 41, 59, 0.10);
+        }
+        .glass-soft {
+            background: rgba(255, 255, 255, 0.45);
+            border: 1px solid rgba(15, 23, 42, 0.06);
+        }
         .step-number {
-            background: #3b82f6; /* Blue-500 */
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             color: white;
             width: 2rem;
             height: 2rem;
@@ -18,29 +35,31 @@
             justify-content: center;
             font-weight: bold;
             margin-right: 0.75rem;
+            box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+            flex-shrink: 0;
         }
     </style>
 </head>
-<body class="bg-gray-100 font-sans leading-relaxed text-gray-800">
+<body class="font-sans leading-relaxed text-slate-800 min-h-screen">
 
-    <div class="max-w-4xl mx-auto p-6 md:p-10 bg-white shadow-xl rounded-lg my-10">
-        
-        <header class="border-b pb-6 mb-8 text-center md:text-left">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">OpenAI API Key 발급 및 사용 가이드</h1>
-            <p class="text-gray-600">LecAI에서 GPT 모델을 사용하기 위해 필요한 API Key를 발급받는 방법을 안내합니다.</p>
+    <div class="max-w-4xl mx-auto p-6 md:p-10 glass rounded-3xl my-10">
+
+        <header class="border-b border-slate-900/10 pb-6 mb-8 text-center md:text-left">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">OpenAI API Key 발급 및 사용 가이드</h1>
+            <p class="text-slate-500">LecAI에서 GPT 모델을 사용하기 위해 필요한 API Key를 발급받는 방법을 안내합니다.</p>
         </header>
 
         <section class="mb-10">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
                 <span class="step-number">1</span> OpenAI 계정 생성 및 로그인
             </h2>
             <div class="pl-12">
                 <p class="mb-4">
                     OpenAI 서비스를 이용하려면 먼저 계정이 필요합니다. 이미 계정이 있다면 로그인해주세요.
                 </p>
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                <div class="glass-soft border-l-4 border-blue-500 rounded-r-xl p-4 mb-4">
                     <p class="text-sm text-blue-700">
-                        <strong>공식 사이트 바로가기:</strong> 
+                        <strong>공식 사이트 바로가기:</strong>
                         <a href="https://platform.openai.com/signup" target="_blank" class="text-blue-600 hover:underline font-semibold">OpenAI 회원가입 페이지 <i class="fas fa-external-link-alt text-xs"></i></a>
                     </p>
                 </div>
@@ -48,33 +67,33 @@
         </section>
 
         <section class="mb-10">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
                 <span class="step-number">2</span> API Key 생성 페이지 이동
             </h2>
             <div class="pl-12">
                 <p class="mb-4">로그인 후, 우측 상단 메뉴 또는 대시보드에서 API Key 관리 페이지로 이동합니다.</p>
-                <ol class="list-decimal list-inside space-y-2 mb-4 text-gray-700">
+                <ol class="list-decimal list-inside space-y-2 mb-4 text-slate-700">
                     <li>로그인 후 우측 상단의 프로필 아이콘 클릭</li>
                     <li><strong>'View API keys'</strong> 메뉴 선택</li>
                     <li>또는 아래 링크를 클릭하여 바로 이동하세요.</li>
                 </ol>
-                <a href="https://platform.openai.com/api-keys" target="_blank" class="inline-block bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-4 rounded transition">
+                <a href="https://platform.openai.com/api-keys" target="_blank" class="inline-block bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-white font-medium py-2 px-4 rounded-xl transition shadow-md">
                     API Key 관리 페이지 바로가기 <i class="fas fa-arrow-right ml-1"></i>
                 </a>
             </div>
         </section>
 
         <section class="mb-10">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
                 <span class="step-number">3</span> 새 API Key 발급 (Create new secret key)
             </h2>
             <div class="pl-12">
                 <p class="mb-4">
                     API Key 페이지에서 <strong>'+ Create new secret key'</strong> 버튼을 클릭합니다.
                 </p>
-                <div class="bg-gray-100 p-4 rounded-lg mb-4 border border-gray-300">
-                    <p class="text-sm text-gray-600 mb-2 font-semibold">설정 팁:</p>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
+                <div class="glass-soft rounded-xl p-4 mb-4">
+                    <p class="text-sm text-slate-600 mb-2 font-semibold">설정 팁:</p>
+                    <ul class="list-disc list-inside text-sm text-slate-700 space-y-1">
                         <li><strong>Name (Optional):</strong> 키의 용도를 식별하기 위한 이름입니다 (예: "LecAI Key").</li>
                         <li><strong>Permissions:</strong> 기본값인 'All'을 유지하거나 필요한 권한만 설정할 수 있습니다.</li>
                     </ul>
@@ -82,11 +101,11 @@
                 <p class="mb-4 text-red-600 font-semibold">
                     <i class="fas fa-exclamation-triangle"></i> 중요: 키가 생성되면 팝업창에 단 한 번만 표시됩니다. 반드시 복사하여 안전한 곳에 저장하세요. 창을 닫으면 다시 볼 수 없습니다!
                 </p>
-                </div>
+            </div>
         </section>
 
         <section class="mb-10">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
                 <span class="step-number">4</span> 결제 수단 등록 (필수)
             </h2>
             <div class="pl-12">
@@ -96,28 +115,28 @@
                 <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" class="text-blue-600 hover:underline font-semibold block mb-2">
                     결제 설정 페이지 바로가기 <i class="fas fa-external-link-alt text-xs"></i>
                 </a>
-                <p class="text-sm text-gray-600">
+                <p class="text-sm text-slate-500">
                     * ChatGPT Plus 구독(월 $20)과는 별개입니다. API 사용량에 따라 별도로 과금됩니다. (선불 충전 방식)
                 </p>
             </div>
         </section>
 
         <section class="mb-10">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
                 <span class="step-number">5</span> LecAI 설정에 키 입력
             </h2>
             <div class="pl-12">
                 <p class="mb-4">
-                    발급받은 키(<code>sk-...</code> 로 시작)를 복사하여 LecAI 설정 페이지의 <strong>'OpenAI API Key'</strong> 입력창에 붙여넣고 저장하세요.
+                    발급받은 키(<code class="bg-slate-900/5 px-1.5 py-0.5 rounded text-blue-700 font-mono text-sm">sk-...</code> 로 시작)를 복사하여 LecAI 설정 페이지의 <strong>'OpenAI API Key'</strong> 입력창에 붙여넣고 저장하세요.
                 </p>
-                <div class="bg-gray-900 text-gray-300 p-4 rounded text-sm font-mono overflow-x-auto">
+                <div class="bg-slate-900 text-slate-300 p-4 rounded-xl text-sm font-mono overflow-x-auto shadow-inner">
                     sk-proj-****************************************
                 </div>
             </div>
         </section>
 
-        <div class="border-t pt-6 text-center">
-            <button onclick="window.close()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition">
+        <div class="border-t border-slate-900/10 pt-6 text-center">
+            <button onclick="window.close()" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg shadow-blue-900/20">
                 창 닫기
             </button>
         </div>
