@@ -9,10 +9,9 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     
@@ -119,14 +118,18 @@
         ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; opacity: 0.5; }
         ::-webkit-scrollbar-track { background: transparent; }
         
-        .katex-display { 
+        .katex-display {
             background: var(--bg-hover);
-            padding: 1rem; 
-            border-radius: 0.5rem; 
+            padding: 1rem;
+            border-radius: 0.5rem;
             border: 1px solid var(--border-color);
-            overflow-x: auto; 
-            margin: 1rem 0; 
+            overflow-x: auto;
+            overflow-y: hidden;
+            margin: 1rem 0;
         }
+        .katex-display > .katex { white-space: nowrap; }
+        .katex { font-size: 1.08em; }
+        .prose p .katex, .prose li .katex, .prose td .katex { white-space: nowrap; }
         
         #dragOverlay { transition: all 0.2s ease; opacity: 0; visibility: hidden; pointer-events: none; z-index: 9999; }
         #dragOverlay.active { opacity: 1; visibility: visible; pointer-events: auto; }
@@ -262,6 +265,9 @@
         .tree-arrow.expanded { transform: rotate(90deg); }
         .tree-children { display: none; margin-left: 0.5rem; border-left: 1px solid var(--border-color); }
         .tree-children.show { display: block; }
+        .tree-content.drop-target { background: rgba(59,130,246,0.2); outline: 1px dashed rgba(59,130,246,0.6); }
+        #nodeList.root-drop-target { background: rgba(59,130,246,0.08); outline: 2px dashed rgba(59,130,246,0.5); outline-offset: -4px; border-radius: 0.75rem; }
+        #nodeList.root-drop-target::after { content: '여기에 놓으면 최상위로 이동'; display: block; text-align: center; font-size: 0.7rem; color: #60a5fa; padding: 0.75rem 0; }
         .invisible { visibility: hidden; }
         .sidebar-closed #resizer {
             display: none !important;
@@ -289,7 +295,7 @@
             </div>
         </div>
         <div class="px-2 pb-2 flex space-x-1">
-            <button onclick="createFolder()" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded-lg border border-notion-border transition" title="새 폴더">
+            <button onclick="createFolder(event, 'root')" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded-lg border border-notion-border transition" title="최상위에 새 폴더">
                 <i class="fas fa-folder-plus"></i>
             </button>
             <button onclick="openHistoryModal()" class="flex-1 bg-notion-hover hover:bg-opacity-80 text-sm py-1.5 rounded-lg border border-notion-border text-notion-text transition">
@@ -529,57 +535,82 @@
         const body = document.body;
 
         // ==========================================
-        // [핵심 변경] 2. Math Processing (Extension 방식)
+        // 2. Markdown + Math Rendering Pipeline
         // ==========================================
-        // 기존의 preprocessMath/postprocessMath를 제거하고,
-        // marked 파서가 수식을 만나면 즉시 KaTeX로 변환하도록 확장 기능을 등록합니다.
-        
-        const mathExtension = {
-            name: 'math',
-            level: 'inline', // 인라인/블록 모두 처리
-            start(src) { return src.match(/\$|\\\[|\\\(|^\$\$/)?.index; },
-            tokenizer(src, tokens) {
-                // 1. Block Math: $$...$$ 또는 \[...\]
-                const blockRule = /^(\$\$|\\\[)([\s\S]+?)(\$\$|\\\])/;
-                const blockMatch = blockRule.exec(src);
-                if (blockMatch) {
-                    return {
-                        type: 'math',
-                        raw: blockMatch[0],
-                        text: blockMatch[2].trim(),
-                        displayMode: true
-                    };
-                }
-                // 2. Inline Math: $...$ 또는 \(...\)
-                // (역슬래시가 없는 $만 매칭)
-                const inlineRule = /^(\$|\\\()((?:\\.|[^$\n])*?)(\$|\\\))/;
-                const inlineMatch = inlineRule.exec(src);
-                if (inlineMatch) {
-                    return {
-                        type: 'math',
-                        raw: inlineMatch[0],
-                        text: inlineMatch[2].trim(),
-                        displayMode: false
-                    };
-                }
-            },
-            renderer(token) {
+        // marked 가 문서를 파싱하기 전에 수식을 먼저 뽑아내 자리표시자로 바꾼다.
+        // (수식 안의 `=` 단독 줄이 setext 제목으로, `_`/`*` 가 강조로 오해되는 것을 원천 차단)
+        // 코드 펜스(```), 인라인 코드(`), 이스케이프된 \$ 는 건드리지 않는다.
+        // 지원 구분자: $$...$$, \[...\], \(...\), $...$, 그리고 구분자 없이 쓰인 \begin{align*}...\end{align*} 류 환경
+        // 완화 규칙용: $ 를 넘지 않고, 한글/한자/가나를 포함하지 않는 한 글자
+        const NOCJK = '(?:\\\\.|[^$\\\\\\n\\u3131-\\uD79D\\u4E00-\\u9FFF\\u3040-\\u30FF])';
+        const MATH_SCAN_RE = new RegExp([
+            '(^|\\n)( {0,3})(`{3,}|~{3,})[^\\n]*\\n[\\s\\S]*?\\n {0,3}\\3[`~]*[ \\t]*(?=\\n|$)', // 코드 펜스
+            '(`+)(?:[^`\\n]|\\n(?!\\n))*?\\4',                                              // 인라인 코드 (빈 줄을 넘지 않음)
+            '\\\\\\$',                                                                       // \$ (리터럴 달러)
+            '\\$\\$([\\s\\S]+?)\\$\\$',                                                      // $$ ... $$
+            '\\\\\\[([\\s\\S]+?)\\\\\\]',                                                    // \[ ... \]
+            '\\\\\\(([\\s\\S]+?)\\\\\\)',                                                    // \( ... \)
+            '(\\\\begin\\{(equation|align|alignat|gather|multline|eqnarray|displaymath|math|cases|matrix|pmatrix|bmatrix)\\*?\\}[\\s\\S]*?\\\\end\\{\\9\\*?\\})', // 환경
+            '\\$(?!\\s)((?:\\\\.|[^$\\\\\\n])+?)(?<!\\s)\\$(?!\\d)',                         // $...$ (엄격: 안쪽 공백 없음, 뒤에 숫자가 오면 통화)
+            '\\$(?!\\$)[ \\t]*(' + NOCJK + '*?[\\\\_^{]' + NOCJK + '*?)[ \\t]*\\$(?!\\d)'          // $ ... $ (완화: 안쪽 공백 허용. 한글 없음 + TeX 문자 포함일 때만)
+        ].join('|'), 'g');
+
+        function extractMath(src) {
+            const math = [];
+            const text = src.replace(MATH_SCAN_RE, (m, _ls, _ind, _fence, _tick, dd, bb, ip, env, _envName, id, ir) => {
+                let tex, display;
+                if (dd !== undefined) { tex = dd; display = true; }
+                else if (bb !== undefined) { tex = bb; display = true; }
+                else if (ip !== undefined) { tex = ip; display = false; }
+                else if (env !== undefined) { tex = env; display = true; }
+                else if (id !== undefined) { tex = id; display = false; }
+                else if (ir !== undefined) { tex = ir; display = false; }
+                else return m; // 코드/리터럴은 그대로
+                const idx = math.length;
+                math.push({ tex: tex.trim(), display });
+                return display ? `MATHBLOCK${idx}MATHEND` : `MATHINLINE${idx}MATHEND`;
+            });
+            return { text, math };
+        }
+
+        const KATEX_OPTS = { strict: false, trust: true, output: 'html' };
+
+        // LLM 이 자주 내는 사소한 LaTeX 오류를 보정 (예: \text{# of blocks} 의 # 미이스케이프)
+        function repairTex(tex) {
+            return tex
+                .replace(/(^|[^\\])#/g, '$1\\#')
+                .replace(/(^|[^\\])%/g, '$1\\%');
+        }
+
+        function renderTex(tex, display) {
+            try {
+                return katex.renderToString(tex, { ...KATEX_OPTS, displayMode: display, throwOnError: true });
+            } catch (err) {
                 try {
-                    return katex.renderToString(token.text, {
-                        displayMode: token.displayMode,
-                        throwOnError: false,
-                        output: 'html',
-                        trust: true
-                    });
-                } catch (err) {
-                    return `<span class="text-red-500 font-mono text-xs">Math Error</span>`;
+                    return katex.renderToString(repairTex(tex), { ...KATEX_OPTS, displayMode: display, throwOnError: true });
+                } catch (err2) {
+                    // 끝내 실패하면 KaTeX 의 오류 표시(빨간 원문)로 대체
+                    return katex.renderToString(tex, { ...KATEX_OPTS, displayMode: display, throwOnError: false });
                 }
             }
-        };
+        }
 
-        // Marked 설정 및 확장 등록
-        marked.setOptions({ breaks: true, gfm: true });
-        marked.use({ extensions: [mathExtension] });
+        // LLM 출력에 섞이는 LaTeX 식 따옴표 ``text'' 를 일반 따옴표로 정규화
+        // (이중 백틱이 인라인 코드로 해석되어 그 안의 수식까지 코드로 묶이는 것을 방지)
+        function normalizeQuotes(markdown) {
+            return markdown.replace(/``([^`\n]+?)''/g, '\u201C$1\u201D');
+        }
+
+        function renderMarkdownWithMath(markdown) {
+            const { text, math } = extractMath(normalizeQuotes(markdown));
+            let html = marked.parse(text);
+            // 문단 전체가 블록 수식인 경우 <p> 를 벗겨 display 수식만 남긴다
+            html = html.replace(/<p>\s*MATHBLOCK(\d+)MATHEND\s*<\/p>/g, (_, i) => renderTex(math[+i].tex, true));
+            html = html.replace(/MATH(BLOCK|INLINE)(\d+)MATHEND/g, (_, kind, i) => renderTex(math[+i].tex, kind === 'BLOCK'));
+            return html;
+        }
+
+        marked.use({ gfm: true, breaks: true });
 
 
         // ==========================================
@@ -679,11 +710,11 @@
             
             contentDiv.draggable = true;
             contentDiv.ondragstart = (e) => handleDragStart(e, node.id);
-            if (isFolder) {
-                contentDiv.ondragover = (e) => handleDragOver(e);
-                contentDiv.ondragleave = (e) => handleDragLeave(e);
-                contentDiv.ondrop = (e) => handleDrop(e, node.id);
-            }
+            contentDiv.ondragend = (e) => handleDragEnd(e);
+            contentDiv.ondragover = (e) => handleDragOver(e);
+            contentDiv.ondragleave = (e) => handleDragLeave(e);
+            // 폴더에 놓으면 그 폴더 안으로, 파일에 놓으면 그 파일이 속한 폴더(최상위 포함)로 이동
+            contentDiv.ondrop = (e) => handleDrop(e, isFolder ? node.id : getParentFolderId(contentDiv));
         
             contentDiv.onclick = () => handleNodeClick(contentDiv, node.id, node.type, node.name.replace(/'/g, "\\'"), parentName);
             
@@ -697,6 +728,8 @@
                 <span class="truncate text-sm select-none flex-1 pointer-events-none" title="${node.name}">${node.name}</span>
                 
                 <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 ml-2" onclick="event.stopPropagation()">
+                    ${isFolder ? `<button onclick="createFolder(event, '${node.id}')" class="text-notion-muted hover:text-yellow-400 p-1" title="하위 폴더 만들기"><i class="fas fa-folder-plus text-xs"></i></button>` : ''}
+                    ${depth > 0 ? `<button onclick="moveNodeTo(event, '${node.id}', 'root')" class="text-notion-muted hover:text-purple-400 p-1" title="최상위로 이동"><i class="fas fa-level-up-alt text-xs"></i></button>` : ''}
                     <button onclick="renameNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-blue-400 p-1" title="이름 변경"><i class="fas fa-pen text-xs"></i></button>
                     ${!isFolder ? `<button onclick="downloadFile(event, '${node.id}')" class="text-notion-muted hover:text-green-400 p-1" title="다운로드"><i class="fas fa-download text-xs"></i></button>` : ''}
                     <button onclick="deleteNode(event, '${node.id}')" class="text-notion-muted hover:text-red-400 p-1" title="삭제"><i class="fas fa-trash-alt text-xs"></i></button>
@@ -784,7 +817,7 @@
                 const data = await res.json();
                 
                 const cleanContent = cleanUpContent(data.content);
-                const htmlContent = marked.parse(cleanContent);
+                const htmlContent = renderMarkdownWithMath(cleanContent);
                 const slides = parseSlidesFromHtml(htmlContent);
                 
                 const fileStates = JSON.parse(localStorage.getItem('viewer_file_states') || '{}');
@@ -1188,27 +1221,18 @@
             try { const res = await fetch('/api/docs/upload', {method:'POST',body:formData}); if(!res.ok) throw new Error; loadTreeRoot(); }
             catch(e){ alert('업로드 실패'); } finally{ btn.innerHTML=org; btn.disabled=false; }
         }
-        async function createFolder() {
-            const name = prompt('새 폴더 이름:'); if(!name) return;
-            // 기본은 루트
-            let parentId = 'root';
-            const selected = document.querySelector('.tree-content.active');
-            if (selected) {
-                // 선택된 요소가 폴더인지 확인 (자신의 wrapper에 .tree-children이 있는지)
-                const maybeChildren = selected.parentElement.querySelector('.tree-children');
-                if (maybeChildren) {
-                    // 선택은 폴더 -> 그 안에 생성
-                    parentId = selected.getAttribute('data-node-id');
-                } else {
-                    // 선택은 파일 -> 가장 가까운 .tree-children 조상으로부터 폴더 id 추출
-                    const ancestorChildren = selected.closest('.tree-children');
-                    if (ancestorChildren && ancestorChildren.id && ancestorChildren.id.startsWith('children-')) {
-                        parentId = ancestorChildren.id.replace('children-', '');
-                    }
-                }
-            }
-            const formData = new FormData(); formData.append('name', name); formData.append('parent_id', parentId);
-            await fetch('/api/docs/folder', {method:'POST',body:formData}); loadTreeRoot();
+        // parentId: 'root' = 최상위(상단 버튼), 폴더 id = 해당 폴더 안(폴더 행의 호버 버튼)
+        async function createFolder(event, parentId = 'root') {
+            if (event) event.stopPropagation();
+            const name = prompt(parentId === 'root' ? '최상위에 만들 새 폴더 이름:' : '하위 폴더 이름:');
+            if (!name || !name.trim()) return;
+            const formData = new FormData(); formData.append('name', name.trim()); formData.append('parent_id', parentId);
+            try {
+                const res = await fetch('/api/docs/folder', {method:'POST', body: formData});
+                if (!res.ok) throw new Error();
+                if (parentId !== 'root') { expandedFolderIds.add(parentId); localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds])); }
+                loadTreeRoot();
+            } catch (err) { alert('폴더 생성 실패'); }
         }
         function downloadFile(e, id) { e.stopPropagation(); window.location.href = `/api/docs/download/${id}`; }
         async function deleteNode(e, id) {
@@ -1347,27 +1371,84 @@
         }
 
         // Tree Drag & Drop (이동)
-        function handleDragStart(e, id) { e.stopPropagation(); draggedNodeId = id; e.dataTransfer.effectAllowed = 'move'; e.target.style.opacity = '0.5'; }
-        function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add('bg-blue-500/20'); }
-        function handleDragLeave(e) { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove('bg-blue-500/20'); }
-        async function handleDrop(e, targetFolderId) {
-            e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove('bg-blue-500/20');
+        const rootDropZone = document.getElementById('nodeList');
+
+        // 트리 요소가 속한 폴더 id ('root' = 최상위)
+        function getParentFolderId(el) {
+            const children = el.closest('.tree-children');
+            return (children && children.id.startsWith('children-')) ? children.id.replace('children-', '') : 'root';
+        }
+        function clearDropHighlights() {
+            document.querySelectorAll('.tree-content.drop-target').forEach(el => el.classList.remove('drop-target'));
+            rootDropZone.classList.remove('root-drop-target');
+        }
+        function handleDragStart(e, id) { e.stopPropagation(); draggedNodeId = id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.style.opacity = '0.5'; }
+        function handleDragEnd(e) {
+            // 트리 밖에 놓았거나 취소된 경우 상태 복구
             document.querySelectorAll('.tree-content').forEach(el => el.style.opacity = '1');
-            if (!draggedNodeId || draggedNodeId === targetFolderId) return;
-            if (!confirm('이동하시겠습니까?')) return;
+            clearDropHighlights();
+            draggedNodeId = null;
+        }
+        function handleDragOver(e) {
+            if (!draggedNodeId) return;
+            e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
+            rootDropZone.classList.remove('root-drop-target');
+            e.currentTarget.classList.add('drop-target');
+        }
+        function handleDragLeave(e) { e.stopPropagation(); e.currentTarget.classList.remove('drop-target'); }
+        async function handleDrop(e, targetFolderId) {
+            e.preventDefault(); e.stopPropagation();
+            const nodeId = draggedNodeId;
+            document.querySelectorAll('.tree-content').forEach(el => el.style.opacity = '1');
+            clearDropHighlights();
+            draggedNodeId = null;
+            if (!nodeId || nodeId === targetFolderId) return;
+            await moveNode(nodeId, targetFolderId, true);
+        }
+
+        // 트리의 빈 공간: 최상위로 이동. 빈 폴더의 "(비어 있음)" 자리: 그 폴더로 이동.
+        rootDropZone.addEventListener('dragover', (e) => {
+            if (!draggedNodeId) return;
+            e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+            const children = e.target.closest ? e.target.closest('.tree-children') : null;
+            if (children) {
+                rootDropZone.classList.remove('root-drop-target');
+                const folderRow = children.previousElementSibling;
+                if (folderRow) folderRow.classList.add('drop-target');
+            } else {
+                rootDropZone.classList.add('root-drop-target');
+            }
+        });
+        rootDropZone.addEventListener('dragleave', (e) => {
+            if (!draggedNodeId) return;
+            if (!rootDropZone.contains(e.relatedTarget)) clearDropHighlights();
+        });
+        rootDropZone.addEventListener('drop', (e) => {
+            if (!draggedNodeId) return;
+            const children = e.target.closest ? e.target.closest('.tree-children') : null;
+            const targetId = (children && children.id.startsWith('children-')) ? children.id.replace('children-', '') : 'root';
+            handleDrop(e, targetId);
+        });
+
+        // 호버 버튼: 최상위로 이동 (드래그가 어려운 모바일 대응)
+        async function moveNodeTo(event, nodeId, targetFolderId) {
+            event.stopPropagation();
+            await moveNode(nodeId, targetFolderId, true);
+        }
+
+        async function moveNode(nodeId, targetFolderId, askConfirm) {
+            const label = targetFolderId === 'root' ? '최상위로' : '선택한 폴더로';
+            if (askConfirm && !confirm(`${label} 이동하시겠습니까?`)) return;
             try {
                 const res = await fetch('/api/docs/move', {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ node_id: draggedNodeId, target_parent_id: targetFolderId })
+                    body: JSON.stringify({ node_id: nodeId, target_parent_id: targetFolderId })
                 });
                 if (res.ok) {
+                    if (targetFolderId !== 'root') { expandedFolderIds.add(targetFolderId); localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds])); }
                     loadTreeRoot();
-                    if (expandedFolderIds.has(targetFolderId)) {
-                        const targetChildrenContainer = document.getElementById(`children-${targetFolderId}`);
-                        if(targetChildrenContainer) loadFolderChildren(targetFolderId, targetChildrenContainer, 0, '');
-                    }
                 } else { const err = await res.json(); alert('이동 실패: ' + (err.detail || '오류')); }
-            } catch (err) { alert('서버 통신 오류'); } finally { draggedNodeId = null; }
+            } catch (err) { alert('서버 통신 오류'); }
         }
     
         document.addEventListener('copy', (event) => {

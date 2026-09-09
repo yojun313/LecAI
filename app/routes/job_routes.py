@@ -1,7 +1,15 @@
 # app/routes/job_routes.py
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Depends
+from fastapi import (
+    APIRouter,
+    UploadFile,
+    File,
+    Form,
+    BackgroundTasks,
+    HTTPException,
+    Depends,
+)
 from app.services.job_manager import JobManager
-from app.services.processor import process_file_task
+from app.services.processor import process_file_task, transcript_path
 from app.services.audio_processor import process_audio_task
 from app.core.config import settings
 from app.routes.deps import get_current_user
@@ -15,6 +23,7 @@ router = APIRouter()
 async def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    transcript: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     file_path = os.path.join(settings.UPLOAD_DIR, file.filename)
@@ -28,6 +37,12 @@ async def upload_file(
     if ext in [".mp3", ".wav", ".m4a", ".flac"]:
         background_tasks.add_task(process_audio_task, job_id, file_path)
     else:
+        # 강의 녹음본(텍스트)이 함께 오면 파일로 저장해 두고 처리기가 슬라이드에 대응시킨다
+        transcript = (transcript or "").strip()
+        if transcript:
+            with open(transcript_path(job_id), "w", encoding="utf-8") as f:
+                f.write(transcript)
+            JobManager.set_transcript_flag(job_id, len(transcript))
         background_tasks.add_task(process_file_task, job_id, file_path)
 
     return {"job_id": job_id, "message": "Upload successful"}

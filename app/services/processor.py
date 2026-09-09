@@ -180,9 +180,12 @@ def build_messages(image_path: str, model_config: dict):
     """
     filename = os.path.basename(image_path)
     system_instruction, user_template = resolve_prompts(model_config)
+    transcript = model_config.get("transcript")
 
     has_filename = "{filename}" in user_template
     static_text = user_template.replace("{filename}", FILENAME_PLACEHOLDER)
+    if transcript:
+        static_text = static_text + "\n" + TRANSCRIPT_INSTRUCTION
 
     user_content = [
         {"type": "text", "text": static_text},
@@ -193,10 +196,17 @@ def build_messages(image_path: str, model_config: dict):
             {"type": "text", "text": f'{FILENAME_PLACEHOLDER} = "{filename}"'}
         )
 
-    return [
-        {"role": "system", "content": system_instruction},
-        {"role": "user", "content": user_content},
-    ]
+    messages = [{"role": "system", "content": system_instruction}]
+    if transcript:
+        # 녹음본 '통째로'. 모든 슬라이드 요청에서 바이트 단위로 동일 → 캐시 prefix 에 포함
+        messages.append(
+            {
+                "role": "system",
+                "content": TRANSCRIPT_HEADER.format(transcript=transcript),
+            }
+        )
+    messages.append({"role": "user", "content": user_content})
+    return messages
 
 
 def prompt_cache_key(model_config: dict) -> str:
@@ -205,8 +215,9 @@ def prompt_cache_key(model_config: dict) -> str:
     라우팅되도록 하는 키. 같은 사용자의 다른 작업에서도 캐시가 재사용된다.
     """
     system_instruction, user_template = resolve_prompts(model_config)
+    transcript = model_config.get("transcript") or ""
     digest = hashlib.sha256(
-        f"{model_config['model_id']}\n{system_instruction}\n{user_template}".encode(
+        f"{model_config['model_id']}\n{system_instruction}\n{user_template}\n{transcript}".encode(
             "utf-8"
         )
     ).hexdigest()
@@ -287,19 +298,29 @@ def parse_usage(result: dict) -> dict:
 
 
 # 모델에 따라 지원 여부가 달라 400 이 나면 제거하고 재시도하는 선택 파라미터
-OPTIONAL_PARAMS = ("prompt_cache_retention", "prompt_cache_options", "reasoning_effort")
+OPTIONAL_PARAMS = (
+    "prompt_cache_retention",
+    "prompt_cache_options",
+    "reasoning_effort",
+    "response_format",
+)
 
 
 def describe_image(image_path: str, model_config: dict):
-    filename = os.path.basename(image_path)
+    payload = build_payload(image_path, model_config)
+    return _post_chat(payload, model_config, os.path.basename(image_path))
+
+
+def _post_chat(payload: dict, model_config: dict, label: str, timeout: int = 180):
+    """chat/completions 호출 + 재시도. (content, usage) 반환"""
     url = f"{model_config['base_url']}/chat/completions"
     headers = get_headers(model_config["api_key"])
-    payload = build_payload(image_path, model_config)
+    filename = label
 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=180)
+            resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
 
             if resp.status_code == 200:
                 result = resp.json()
@@ -506,6 +527,59 @@ def _run_realtime(state: AnalysisState, items, max_workers: int, prefix="분석 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(run_safely, idx, p) for idx, p in rest]
         concurrent.futures.wait(futures)
+
+
+# ==========================================
+# 강의 녹음본 (Transcript) - 캐시 prefix 방식
+# ==========================================
+# 녹음본을 쪼개지 않고 '통째로' 모든 슬라이드 요청에 넣는다. 대신 요청의 고정 prefix
+# (system prompt → 녹음본 → 고정 지시문) 위치에 두어 Prompt Caching 이 적용되게 한다.
+#   - 첫 슬라이드(워밍업)에서 캐시에 기록(입력 단가의 1.25배, GPT-5.6+)
+#   - 이후 슬라이드는 캐시 단가(정가의 10%)로 녹음본을 읽는다
+#   - 슬라이드마다 달라지는 이미지/파일명은 항상 맨 뒤에 둔다
+# 272K 입력 토큰을 넘으면 요금이 2배가 되므로 그 아래로 잘라 보낸다.
+MAX_TRANSCRIPT_CHARS = 300_000  # 약 150k 토큰 (한국어 기준 여유 있게)
+
+TRANSCRIPT_HEADER = """[강의 녹음본 전체 전사]
+아래는 이 강의 자료를 설명한 강의 녹음의 전체 전사본입니다. 이후 요청마다 슬라이드 이미지가 한 장씩 주어지며,
+당신은 이 전사본 전체에서 해당 슬라이드를 설명하는 부분을 스스로 찾아 활용해야 합니다.
+전사본에는 오타, 잘못 인식된 단어, 군더더기 말이 포함될 수 있습니다.
+
+<transcript>
+{transcript}
+</transcript>"""
+
+TRANSCRIPT_INSTRUCTION = """
+[강의 녹음본 활용 지침]
+system 에 제공된 강의 녹음본 전체에서 이 슬라이드를 설명하는 부분을 찾아, 설명의 맨 마지막에 아래 절을 추가할 것.
+### 🎙️ 강의 녹음 발췌
+- **강의자 설명 요약:** 강의자가 이 슬라이드에서 실제로 말한 내용(강조점, 예시, 보충 설명, 시험 힌트 등)을 2~5문장으로 요약.
+- **녹음 원문:** 해당 부분의 전사 원문을 인용 블록(>)으로 발췌. 원문을 임의로 다듬거나 지어내지 말고 그대로 옮기되,
+  이 슬라이드와 직접 관련된 핵심 부분 위주로 최대 15문장 이내로 발췌할 것. 명백한 오인식 단어는 뒤에 (원문 오인식 추정) 표시 가능.
+- 녹음본에 이 슬라이드에 해당하는 내용이 없으면 이 절 전체를 생략할 것."""
+
+
+def transcript_path(job_id: str) -> str:
+    return os.path.join(settings.UPLOAD_DIR, f"{job_id}.transcript.txt")
+
+
+def load_transcript(job_id: str):
+    path = transcript_path(job_id)
+    if not os.path.exists(path):
+        return None
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        text = f.read().strip()
+    return text or None
+
+
+def normalize_transcript(text: str) -> str:
+    """공백 정리만 수행 (내용은 쪼개거나 요약하지 않음). 캐시 prefix 안정성을 위해 결정적이어야 한다."""
+    text = text.replace("\r", "")
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    if len(text) > MAX_TRANSCRIPT_CHARS:
+        text = text[:MAX_TRANSCRIPT_CHARS]
+    return text
 
 
 # ==========================================
@@ -818,6 +892,21 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
             )
 
         total_pages = len(images)
+
+        # 강의 녹음본이 있으면 통째로 프롬프트 prefix 에 넣는다 (Prompt Caching 으로 비용 절감)
+        transcript = load_transcript(job_id)
+        if transcript:
+            transcript = normalize_transcript(transcript)
+            model_config = dict(model_config, transcript=transcript)
+            approx_tokens = len(transcript) // 2  # 한국어 대략 추정치
+            JobManager.update_progress(
+                job_id,
+                0,
+                total_pages,
+                f"강의 녹음본 포함 ({len(transcript):,}자, 약 {approx_tokens:,} 토큰) | "
+                f"모든 슬라이드에 통째로 전달, 프롬프트 캐싱으로 2번째 슬라이드부터 캐시 단가 적용",
+            )
+
         state = AnalysisState(job_id, model_config, total_pages)
         items = list(enumerate(images, 1))
         image_by_idx = dict(items)
@@ -938,6 +1027,8 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
             shutil.rmtree(work_dir)
         if os.path.exists(file_path):
             os.remove(file_path)
+        if os.path.exists(transcript_path(job_id)):
+            os.remove(transcript_path(job_id))
 
 
 def process_file_task(job_id: str, file_path: str):

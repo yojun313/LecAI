@@ -52,6 +52,13 @@ class JobManager:
         return job_id
 
     @staticmethod
+    def set_transcript_flag(job_id: str, transcript_chars: int):
+        history_col.update_one(
+            {"id": job_id},
+            {"$set": {"has_transcript": True, "transcript_chars": transcript_chars}},
+        )
+
+    @staticmethod
     def start_processing(job_id: str):
         history_col.update_one({"id": job_id}, {"$set": {"status": "processing"}})
 
