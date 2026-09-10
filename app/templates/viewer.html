@@ -575,7 +575,7 @@
 
         const KATEX_OPTS = { strict: false, trust: true, output: 'html' };
 
-        // LLM 이 자주 내는 사소한 LaTeX 오류를 보정 (예: \text{# of blocks} 의 # 미이스케이프)
+        // LLM 이 자주 내는 사소한 LaTeX 오류를 보정 (예: \text 안의 # 이나 % 가 이스케이프되지 않은 경우)
         function repairTex(tex) {
             return tex
                 .replace(/(^|[^\\])#/g, '$1\\#')
