@@ -998,11 +998,20 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
         results_map = state.results_map
 
         # 3. 슬라이드별 저장 (desc/slide_NNN.md). 뷰어/PDF 는 result_store.compose_markdown 으로 합친다.
+        if transcript:
+            job_doc = JobManager.get_job(job_id) or {}
+            entry = rs.save_transcript(
+                result_base,
+                transcript,
+                job_doc.get("transcript_source") or "업로드 시 녹음본",
+            )
+            results_map = {
+                idx: (fname, rs.mark_transcript_section(text, entry["sid"]))
+                for idx, (fname, text) in results_map.items()
+            }
         rs.write_slides(
             result_base, {idx: text for idx, (_, text) in results_map.items()}
         )
-        if transcript:
-            rs.save_transcript_copy(result_base, transcript)
 
         # 4. 최종 완료 처리
         if model_config["provider"] == "openai":
@@ -1055,29 +1064,75 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
 # 슬라이드 이미지는 다시 보내지 않는다. 고정 prefix(system 지침 → 녹음본 통째로 → 고정 지시문)는
 # 캐시되고, 슬라이드마다 '기존 설명 텍스트'만 뒤에 붙여 보낸다. 해당 슬라이드를 설명한 부분이 없으면
 # 모델이 NONE 만 출력하고, 그 슬라이드는 건드리지 않는다.
-ENRICH_SYSTEM_PROMPT = """당신은 강의 녹음 전사본에서 특정 슬라이드에 해당하는 부분만 찾아 정리하는 전문 AI 조교입니다.
-system 에 강의 녹음본 전체가 주어지고, 요청마다 슬라이드 하나의 기존 설명(마크다운)이 주어집니다.
-강의는 대체로 슬라이드 순서대로 진행되므로 슬라이드 번호(전체 중 몇 번째)를 위치 힌트로 활용하되, 내용 일치를 최우선으로 판단하십시오.
+# 정확도 우선: 슬라이드-녹음본 매핑은 저(low) effort 로는 경계 오판이 잦아 medium 을 쓴다.
+ENRICH_REASONING_EFFORT = "medium"
+# 슬라이드 목차(캐시 prefix)에 넣는 슬라이드별 힌트 길이
+OUTLINE_HINT_CHARS = 160
+
+ENRICH_SYSTEM_PROMPT = """당신은 강의 녹음 전사본의 어느 부분이 어느 슬라이드를 설명하는지 정확히 판별하는 전문 AI 조교입니다.
+system 에 (1) 강의 녹음본 전체와 (2) 전체 슬라이드 목차가 주어지고, 요청마다 대상 슬라이드 하나의 기존 설명(마크다운)이 주어집니다.
+당신의 임무는 녹음본에서 '오직 대상 슬라이드를 설명하는 부분'만 찾아 정리하는 것입니다. 잘못 매핑하는 것이 빠뜨리는 것보다 훨씬 나쁩니다.
+
+[판별 절차 - 반드시 순서대로 수행]
+1. 목차에서 대상 슬라이드와 바로 앞·뒤 슬라이드가 무엇을 다루는지 확인한다. 강의는 대체로 슬라이드 순서대로 진행되므로,
+   앞 슬라이드를 설명한 부분과 뒤 슬라이드를 설명한 부분 '사이'에 대상 슬라이드의 설명이 위치한다.
+2. 녹음본에서 대상 슬라이드의 고유한 내용(제목, 용어, 수식, 그림, 예제, 숫자)이 언급되는 부분을 찾는다.
+   슬라이드 전환 신호("다음 슬라이드", "이 그림을 보면", "여기 보시면", 새 주제 제시 등)를 경계의 근거로 삼는다.
+3. 찾은 부분의 각 문장에 대해 "이 문장이 앞 슬라이드나 뒤 슬라이드가 아니라 바로 이 슬라이드를 설명한다"고 확신할 수 있는지 검토한다.
+   같은 용어가 여러 슬라이드에 걸쳐 나오면, 목차의 슬라이드별 차이(정의 vs 예제 vs 증명 vs 비교 등)로 구분한다.
+4. 확신도를 판정한다. 대상 슬라이드의 고유 내용이 녹음본에서 명시적으로 다뤄지고 경계도 분명하면 '높음',
+   주제는 맞지만 경계가 불분명하거나 짧게 스쳐 지나가면 '보통', 그 외는 '낮음'이다.
 
 [출력 규칙]
-- 녹음본에 이 슬라이드를 설명하는 부분이 분명히 있으면, 아래 형식의 마크다운만 출력할 것 (다른 텍스트 금지):
+- 확신도가 '높음' 또는 '보통'이면 아래 형식의 마크다운만 출력할 것 (다른 텍스트 금지):
 ### 🎙️ 강의 녹음 발췌
+**매칭 근거:** 이 부분이 이 슬라이드를 가리킨다고 판단한 근거(녹음본에 등장한 슬라이드 고유 용어·표현, 앞뒤 슬라이드와의 경계)를 1~2문장. 확신도(높음/보통)를 함께 표기.
 **강의자 설명 요약:** 강의자가 이 슬라이드에서 실제로 말한 내용(강조점, 예시, 보충 설명, 시험 힌트 등)을 한국어 2~5문장으로 요약.
-**슬라이드에 없는 추가 내용:** 기존 슬라이드 설명에는 없지만 강의자가 덧붙인 정보만 불릿으로 정리. 없으면 이 줄을 생략.
-> 녹음 원문: 해당 부분을 원문 그대로 인용 (임의 수정·창작 금지, 이 슬라이드와 직접 관련된 핵심 부분 위주로 최대 15문장).
-- 녹음본에 이 슬라이드에 해당하는 내용이 없거나, 다른 슬라이드의 내용을 억지로 끌어와야 한다면 정확히 NONE 만 출력할 것.
-- 다른 슬라이드에서 다룬 내용을 이 슬라이드에 적지 말 것. 한 부분은 그 부분이 설명하는 슬라이드에만 속합니다.
+**슬라이드에 없는 추가 내용:** 기존 슬라이드 설명에 없지만 강의자가 덧붙인 정보만 불릿으로 정리. 없으면 이 줄을 생략.
+> 녹음 원문 인용은 인용 블록(>)에 한 문장(또는 한 발화)씩 한 줄로, 녹음본의 문장을 '한 글자도 바꾸지 않고' 그대로 옮길 것.
+> 요약·의역·오탈자 수정·문장 결합 금지. 이 슬라이드와 직접 관련된 핵심 부분 위주로 최대 15줄.
+- 확신도가 '낮음'이거나, 녹음본에 대상 슬라이드에 해당하는 내용이 없거나, 다른 슬라이드의 내용을 끌어와야만 채울 수 있다면 정확히 NONE 만 출력할 것.
+- 앞·뒤 슬라이드에 속하는 문장을 이 슬라이드에 넣지 말 것. 한 문장은 그 문장이 설명하는 슬라이드 하나에만 속한다.
+- 목차/표지/구분 슬라이드는 강의자가 그 슬라이드를 명시적으로 언급한 경우가 아니면 NONE.
 - 수식은 LaTeX($...$)로, 한국어로 작성할 것."""
 
+ENRICH_OUTLINE_HEADER = """[전체 슬라이드 목차]
+아래는 이 강의 자료의 모든 슬라이드와 각 슬라이드의 핵심 내용 요약입니다. 대상 슬라이드의 앞·뒤 슬라이드가 무엇을 다루는지 확인하여
+녹음본에서 대상 슬라이드에 해당하는 부분의 경계를 정확히 정하는 데 사용하십시오.
+{outline}"""
+
 ENRICH_INSTRUCTION = (
-    "아래 슬라이드의 기존 설명을 읽고, system 의 강의 녹음본에서 이 슬라이드를 설명한 부분을 찾아 "
-    "규칙에 따라 '강의 녹음 발췌' 절을 출력하거나 NONE 을 출력하십시오."
+    "아래 대상 슬라이드의 기존 설명을 읽고, system 의 강의 녹음본에서 이 슬라이드를 설명한 부분을 판별 절차에 따라 찾아 "
+    "규칙에 맞는 '강의 녹음 발췌' 절을 출력하거나 NONE 을 출력하십시오."
 )
+
+
+def outline_hint(markdown_text: str, limit: int = OUTLINE_HINT_CHARS) -> str:
+    """슬라이드 설명에서 목차용 한 줄 요약: '핵심 주제' 절 우선, 없으면 첫 제목+첫 문장"""
+    text = markdown_text or ""
+    # 이전 녹음 발췌 절은 제외
+    text = re.sub(
+        r"<!-- transcript:[^ ]+ -->.*?<!-- /transcript:[^ ]+ -->", "", text, flags=re.S
+    )
+    m = re.search(r"핵심 주제[^\n]*\n+(.+?)(?:\n#{1,6}\s|\n\*\*|$)", text, re.S)
+    hint = m.group(1) if m else text
+    hint = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", hint)
+    hint = re.sub(r"[#*_`>|]", "", hint)
+    hint = re.sub(r"\s+", " ", hint).strip()
+    return hint[:limit]
+
+
+def build_outline(slides: dict) -> str:
+    return "\n".join(
+        f"{idx}: {outline_hint(slides[idx]) or '(내용 없음)'}" for idx in sorted(slides)
+    )
 
 
 def enrich_slide(idx, item, model_config):
     """item = (total_pages, slide_text). 반환 (content, usage)"""
     total, slide_text = item
+    # 앞뒤 슬라이드 위치 힌트 (변하는 부분이므로 맨 뒤)
+    neighbors = f"앞 슬라이드: {idx - 1 if idx > 1 else '없음'} / 뒤 슬라이드: {idx + 1 if idx < total else '없음'}"
     payload = {
         "model": model_config["model_id"],
         "messages": [
@@ -1089,19 +1144,27 @@ def enrich_slide(idx, item, model_config):
                 ),
             },
             {
+                "role": "system",
+                "content": ENRICH_OUTLINE_HEADER.format(
+                    outline=model_config.get("outline", "")
+                ),
+            },
+            {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": ENRICH_INSTRUCTION},
                     {
                         "type": "text",
-                        "text": f"[대상 슬라이드: {idx} / 전체 {total}]\n[기존 슬라이드 설명]\n{slide_text}",
+                        "text": f"[대상 슬라이드: {idx} / 전체 {total}] ({neighbors})\n[대상 슬라이드의 기존 설명]\n{slide_text}",
                     },
                 ],
             },
         ],
-        "max_completion_tokens": 4000,
+        "max_completion_tokens": 6000,
     }
     apply_request_options(payload, model_config)
+    if "reasoning_effort" in payload:
+        payload["reasoning_effort"] = ENRICH_REASONING_EFFORT
     return _post_chat(payload, model_config, f"enrich-slide-{idx}")
 
 
@@ -1118,6 +1181,39 @@ def _extract_transcript_section(content: str) -> str:
     if pos >= 0:
         return text[pos:].strip()
     return f"{rs.TRANSCRIPT_SECTION_HEADING}\n\n{text}"
+
+
+def _norm_for_match(text: str) -> str:
+    """인용 검증용 정규화: 공백·문장부호·따옴표 제거"""
+    return re.sub(r"[\s\W_]+", "", text, flags=re.UNICODE).lower()
+
+
+def verify_quotes(section: str, transcript: str, min_len: int = 6):
+    """
+    발췌 절의 인용(> 줄)이 실제 녹음본에 그대로 존재하는지 검증한다.
+    검증되지 않은 인용 줄은 제거한다. 반환: (정리된 절, 검증된 줄 수, 전체 인용 줄 수)
+    """
+    norm_t = _norm_for_match(transcript)
+    lines = section.split("\n")
+    kept, verified, total = [], 0, 0
+    for line in lines:
+        if line.lstrip().startswith(">"):
+            body = line.lstrip()[1:].strip()
+            if not body or body.startswith("녹음 원문"):
+                kept.append(line)
+                continue
+            total += 1
+            nb = _norm_for_match(body)
+            if len(nb) >= min_len and nb in norm_t:
+                verified += 1
+                kept.append(line)
+            # 검증 실패 줄은 버림 (원문에 없는 문장 = 의역/창작 가능성)
+        else:
+            kept.append(line)
+    cleaned = "\n".join(kept)
+    # 인용이 모두 사라졌으면 빈 인용 블록 헤더도 정리
+    cleaned = re.sub(r"\n>\s*녹음 원문[^\n]*\n(?=\s*(\n|$))", "\n", cleaned)
+    return cleaned.strip(), verified, total
 
 
 def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
@@ -1164,9 +1260,25 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
             raise RuntimeError("슬라이드 설명(desc/)을 찾을 수 없습니다.")
         total = len(slides)
 
-        # 3. 슬라이드마다 녹음본에서 해당 부분 찾기 (이미지 없이, 녹음본은 캐시 prefix)
+        # 출처 식별: 같은 녹음본을 다시 넣으면 해당 출처의 절만 교체되고, 다른 녹음본이면 누적된다
+        source_label = (job.get("transcript_source") or "붙여넣은 텍스트").strip()
+        entry = rs.save_transcript(result_dir, transcript, source_label)
+        sid = entry["sid"]
+        label = f"{entry['label']} · {entry['added_at'][:10]}"
+        prior = [e for e in rs.list_transcripts(result_dir) if e["sid"] != sid]
+        JobManager.update_progress(
+            job_id,
+            0,
+            total,
+            f"녹음본 #{entry['seq']} '{entry['label']}' 등록"
+            + (f" (기존 녹음본 {len(prior)}개와 함께 누적)" if prior else ""),
+        )
+
+        # 3. 슬라이드마다 녹음본에서 해당 부분 찾기 (이미지 없이, 녹음본+목차는 캐시 prefix)
         model_config = get_target_model(user_settings)
-        model_config = dict(model_config, transcript=transcript)
+        model_config = dict(
+            model_config, transcript=transcript, outline=build_outline(slides)
+        )
         approx_tokens = len(transcript) // 2
         JobManager.update_progress(
             job_id,
@@ -1180,17 +1292,37 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
         workers = PARALLEL_WORKERS if model_config["provider"] == "openai" else 1
         _run_realtime(state, items, workers, prefix="녹음본 대조 중", task=enrich_slide)
 
-        # 4. 해당 부분이 있는 슬라이드에만 절 추가
-        added = 0
+        # 4. 해당 부분이 있는 슬라이드에만 절 추가 (인용은 녹음본 원문 대조로 검증)
+        added, rejected, dropped_lines = 0, 0, 0
         for idx, (_, content) in state.results_map.items():
             if _is_none_answer(content):
                 continue
             section = _extract_transcript_section(content)
+            section, verified, quoted = verify_quotes(section, transcript)
+            dropped_lines += quoted - verified
+            if quoted and verified == 0:
+                # 인용이 하나도 원문에 없으면 매핑 자체를 신뢰할 수 없어 버린다
+                rejected += 1
+                print(f"[ENRICH] slide {idx}: quotes not found in transcript, rejected")
+                continue
+            section = re.sub(
+                r"^### 🎙️ 강의 녹음 발췌.*$",
+                f"### 🎙️ 강의 녹음 발췌 ({label})",
+                section,
+                count=1,
+                flags=re.M,
+            )
             rs.write_slide(
-                result_dir, idx, rs.upsert_transcript_section(slides[idx], section)
+                result_dir, idx, rs.upsert_transcript_section(slides[idx], section, sid)
             )
             added += 1
-        rs.save_transcript_copy(result_dir, transcript)
+        if rejected or dropped_lines:
+            JobManager.update_progress(
+                job_id,
+                total,
+                total,
+                f"인용 검증: 원문에 없는 인용 {dropped_lines}줄 제거, 신뢰 불가 슬라이드 {rejected}개 제외",
+            )
         if settings.GENERATE_PDF:
             JobManager.update_progress(job_id, total, total, "PDF 생성 중...")
             rs.render_pdf(result_dir)
@@ -1205,7 +1337,12 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
                 )
                 if not os.path.isdir(doc_dir):
                     continue
-                for name in (rs.DESC_DIR, rs.TRANSCRIPT_FILE, "result.pdf"):
+                for name in (
+                    rs.DESC_DIR,
+                    rs.TRANSCRIPTS_DIR,
+                    rs.TRANSCRIPT_FILE,
+                    "result.pdf",
+                ):
                     src = os.path.join(result_dir, name)
                     dst = os.path.join(doc_dir, name)
                     if os.path.isdir(src):
@@ -1223,11 +1360,11 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
             usd_val, krw_val = state.cost()
             AuthManager.update_user_cumulative_usage(owner, usd_val)
             final_log = (
-                f"녹음본 반영 완료: {added}/{total}개 슬라이드에 발췌 추가 | "
+                f"녹음본 #{entry['seq']} 반영 완료: {added}/{total}개 슬라이드에 발췌 추가 | "
                 f"비용: ${usd_val} (약 ₩{krw_val:,}) | 캐시 적중 토큰: {state.usage['cached']:,}"
             )
         else:
-            final_log = f"녹음본 반영 완료: {added}/{total}개 슬라이드에 발췌 추가"
+            final_log = f"녹음본 #{entry['seq']} 반영 완료: {added}/{total}개 슬라이드에 발췌 추가"
         JobManager.update_progress(job_id, total, total, final_log)
         JobManager.mark_completed(job_id, result_url)
 

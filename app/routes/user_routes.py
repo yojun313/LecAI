@@ -20,7 +20,6 @@ async def save_settings(
     model: str = Form(...),
     api_key: str = Form(""),
     audio_lang: str = Form("auto"),
-    audio_model: str = Form("2"),
     custom_prompt: Optional[str] = Form(None),
     custom_user_prompt: Optional[str] = Form(None),
     use_batch: str = Form("0"),
@@ -28,11 +27,6 @@ async def save_settings(
     user: Any = Depends(get_current_user),
 ):
     use_batch_api = use_batch.strip().lower() in ("1", "true", "on", "yes")
-    try:
-        int_audio_model = int(audio_model)
-    except:
-        int_audio_model = 2
-
     profile_url = None
     if profile_img and profile_img.filename:
         profile_dir = "static/profiles"
@@ -50,7 +44,7 @@ async def save_settings(
         api_key,
         model,
         audio_lang,
-        int_audio_model,
+        2,
         custom_prompt,
         custom_user_prompt,
         profile_url,

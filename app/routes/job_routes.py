@@ -18,7 +18,12 @@ from app.services import transcript_input as ti
 from app.services.transcript_input import AUDIO_EXTS
 from app.db import docs_col
 from typing import Optional
-from app.services.audio_processor import process_audio_task
+from app.services.audio_processor import (
+    process_audio_task,
+    NO_KEY_MESSAGE,
+    user_stt_key,
+)
+from app.services.auth_manager import AuthManager
 from app.core.config import settings
 from app.routes.deps import get_current_user
 import shutil
@@ -35,13 +40,20 @@ async def upload_file(
     transcript_file: Optional[UploadFile] = File(None),
     user: str = Depends(get_current_user),
 ):
+    ext = os.path.splitext(file.filename)[1].lower()
+    needs_stt = ext in AUDIO_EXTS or (
+        transcript_file
+        and transcript_file.filename
+        and ti.is_audio(transcript_file.filename)
+    )
+    if needs_stt and not user_stt_key(AuthManager.get_user_settings(user)):
+        raise HTTPException(status_code=400, detail=NO_KEY_MESSAGE)
+
     file_path = os.path.join(settings.UPLOAD_DIR, file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     job_id = JobManager.create_job(file.filename, user)
-
-    ext = os.path.splitext(file.filename)[1].lower()
 
     if ext in AUDIO_EXTS:
         background_tasks.add_task(process_audio_task, job_id, file_path)
@@ -149,6 +161,13 @@ async def add_transcript(
             status_code=400,
             detail="녹음본 텍스트, 텍스트 문서 또는 녹음 파일이 필요합니다.",
         )
+    if (
+        transcript_file
+        and transcript_file.filename
+        and ti.is_audio(transcript_file.filename)
+        and not user_stt_key(AuthManager.get_user_settings(user))
+    ):
+        raise HTTPException(status_code=400, detail=NO_KEY_MESSAGE)
 
     job_id = JobManager.create_job(f"[녹음본 추가] {display_name}", user)
     JobManager.update_fields(

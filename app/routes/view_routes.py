@@ -53,11 +53,7 @@ async def settings_page(request: Request):
             "settings": user_settings,
             "default_system_prompt": default_system_prompt,
             "default_user_prompt": default_user_prompt,
-            "stt_engine_label": (
-                f"OpenAI {settings.OPENAI_STT_MODEL}"
-                if settings.STT_PROVIDER == "openai"
-                else "매니저 서버 GPU Whisper"
-            ),
+            "stt_engine_label": f"OpenAI {settings.OPENAI_STT_MODEL}",
         },
     )
 

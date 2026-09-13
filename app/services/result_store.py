@@ -14,12 +14,16 @@
 
 import os
 import re
+import json
 import shutil
+import hashlib
+from datetime import datetime
 
 DESC_DIR = "desc"
 IMAGES_DIR = "images"
 LEGACY_MD = "result.md"
-TRANSCRIPT_FILE = "transcript.txt"
+TRANSCRIPT_FILE = "transcript.txt"  # 예전 구조 호환용 (첫 녹음본 사본)
+TRANSCRIPTS_DIR = "transcripts"  # 추가된 모든 녹음본 원문: 001_<label>.txt + index.json
 TRANSCRIPT_SECTION_HEADING = "### 🎙️ 강의 녹음 발췌"
 
 SLIDE_FILE_RE = re.compile(r"^slide_(\d{3,})\.md$")
@@ -160,22 +164,114 @@ def ensure_desc_layout(result_dir: str) -> bool:
     return True
 
 
-def upsert_transcript_section(text: str, section: str) -> str:
-    """슬라이드 본문에 녹음 발췌 절을 추가한다. 이미 있으면 교체."""
+def _marker(sid: str, end=False) -> str:
+    return f"<!-- {'/' if end else ''}transcript:{sid} -->"
+
+
+def upsert_transcript_section(text: str, section: str, sid: str = "default") -> str:
+    """
+    슬라이드 본문에 녹음 발췌 절을 추가한다. 절은 출처(sid)별로 누적되며, 같은 sid 가 이미 있으면 그 절만 교체한다.
+    (마커는 HTML 주석이라 뷰어/PDF 에는 보이지 않는다)
+    """
     text = (text or "").rstrip()
+    block = f"{_marker(sid)}\n{section.strip()}\n{_marker(sid, end=True)}"
     pattern = re.compile(
-        re.escape(TRANSCRIPT_SECTION_HEADING) + r".*?(?=\n#{1,3} |\Z)", re.S
+        re.escape(_marker(sid)) + r".*?" + re.escape(_marker(sid, end=True)), re.S
     )
     if pattern.search(text):
-        text = pattern.sub(section.strip() + "\n", text, count=1).rstrip()
+        text = pattern.sub(lambda m: block, text, count=1)
     else:
-        text = f"{text}\n\n{section.strip()}"
-    return text + "\n"
+        # 마커 없는 옛 형식(단일 절)이 있으면 그대로 두고 뒤에 누적
+        text = f"{text}\n\n{block}"
+    return text.rstrip() + "\n"
 
 
-def save_transcript_copy(result_dir: str, transcript: str):
-    with open(os.path.join(result_dir, TRANSCRIPT_FILE), "w", encoding="utf-8") as f:
+def mark_transcript_section(text: str, sid: str) -> str:
+    """LLM 이 본문 안에 직접 써 넣은(마커 없는) 발췌 절을 찾아 sid 마커로 감싼다. 없으면 그대로."""
+    text = (text or "").rstrip()
+    if _marker(sid) in text:
+        return text + "\n"
+    m = re.search(
+        re.escape(TRANSCRIPT_SECTION_HEADING) + r".*?(?=\n#{1,3} |\Z)", text, re.S
+    )
+    if not m:
+        return text + "\n"
+    section = m.group(0).strip()
+    rest = (text[: m.start()] + text[m.end() :]).rstrip()
+    return upsert_transcript_section(rest, section, sid)
+
+
+def transcript_sids(text: str) -> list:
+    return re.findall(r"<!-- transcript:([^ ]+) -->", text or "")
+
+
+def transcript_sid(transcript: str) -> str:
+    """녹음본 내용 해시 → 출처 id (같은 녹음본을 다시 넣으면 같은 id)"""
+    return hashlib.sha1(
+        re.sub(r"\s+", " ", transcript).strip().encode("utf-8")
+    ).hexdigest()[:10]
+
+
+def _index_path(result_dir: str) -> str:
+    return os.path.join(result_dir, TRANSCRIPTS_DIR, "index.json")
+
+
+def list_transcripts(result_dir: str) -> list:
+    path = _index_path(result_dir)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def save_transcript(result_dir: str, transcript: str, label: str = "") -> dict:
+    """
+    녹음본 원문을 transcripts/NNN_<label>.txt 로 보관하고 index.json 에 기록한다.
+    같은 내용(sid)이 이미 있으면 파일을 덮어쓰고 기존 항목을 갱신한다. 반환: index 항목
+    """
+    sid = transcript_sid(transcript)
+    entries = list_transcripts(result_dir)
+    existing = next((e for e in entries if e.get("sid") == sid), None)
+    safe_label = (
+        re.sub(r"[^\w\-가-힣. ]+", "_", label or "transcript").strip()[:60]
+        or "transcript"
+    )
+    if existing:
+        entry = existing
+        entry["label"] = label or entry.get("label", "")
+        entry["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    else:
+        seq = len(entries) + 1
+        entry = {
+            "sid": sid,
+            "seq": seq,
+            "label": label or f"녹음본 {seq}",
+            "file": f"{seq:03d}_{safe_label}.txt",
+            "chars": len(transcript),
+            "added_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        entries.append(entry)
+    os.makedirs(os.path.join(result_dir, TRANSCRIPTS_DIR), exist_ok=True)
+    with open(
+        os.path.join(result_dir, TRANSCRIPTS_DIR, entry["file"]), "w", encoding="utf-8"
+    ) as f:
         f.write(transcript)
+    with open(_index_path(result_dir), "w", encoding="utf-8") as f:
+        json.dump(entries, f, ensure_ascii=False, indent=2)
+    # 첫 녹음본은 예전 구조 호환을 위해 transcript.txt 로도 남긴다
+    if entry["seq"] == 1:
+        with open(
+            os.path.join(result_dir, TRANSCRIPT_FILE), "w", encoding="utf-8"
+        ) as f:
+            f.write(transcript)
+    return entry
+
+
+def save_transcript_copy(result_dir: str, transcript: str, label: str = ""):
+    return save_transcript(result_dir, transcript, label)
 
 
 def render_pdf(result_dir: str, md_content: str = None):
