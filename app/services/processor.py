@@ -7,7 +7,6 @@ import base64
 import hashlib
 import requests
 import subprocess
-import pdfkit
 import threading
 import concurrent.futures
 import time
@@ -16,6 +15,9 @@ from pdf2image import convert_from_path
 from app.core.config import settings
 from app.services.job_manager import JobManager
 from app.services.auth_manager import AuthManager
+from app.services.audio_processor import transcribe_audio
+from app.services import result_store as rs
+from app.db import docs_col
 from app.db.prompt import default_system_prompt, default_user_prompt
 
 # ==========================================
@@ -255,7 +257,11 @@ def build_payload(image_path: str, model_config: dict, for_batch: bool = False):
         "messages": build_messages(image_path, model_config),
         "max_completion_tokens": 10000,
     }
+    return apply_request_options(payload, model_config, for_batch)
 
+
+def apply_request_options(payload: dict, model_config: dict, for_batch: bool = False):
+    """reasoning effort / prompt cache 옵션을 요청에 붙인다 (OpenAI 전용)."""
     if model_config["provider"] != "openai":
         return payload
 
@@ -491,9 +497,12 @@ class AnalysisState:
 # ==========================================
 
 
-def _run_realtime(state: AnalysisState, items, max_workers: int, prefix="분석 중"):
+def _run_realtime(
+    state: AnalysisState, items, max_workers: int, prefix="분석 중", task=None
+):
     """
-    items: [(idx, image_path), ...]
+    items: [(idx, item), ...]  item 은 기본적으로 이미지 경로.
+    task(idx, item, model_config) -> (content, usage) 를 넘기면 다른 종류의 슬라이드 작업(예: 녹음본 반영)에도 사용 가능.
     OpenAI 병렬 처리 시 첫 슬라이드는 단독으로 먼저 보내 prompt cache 를 채운 뒤
     (cache warm-up) 나머지를 병렬로 보낸다. 동시에 출발하면 전부 캐시 미스가 난다.
     """
@@ -501,9 +510,14 @@ def _run_realtime(state: AnalysisState, items, max_workers: int, prefix="분석 
     if not items:
         return
 
-    def run_one(idx, img_path):
-        content, usage = describe_image(img_path, state.model_config)
-        state.add_result(idx, os.path.basename(img_path), content, usage)
+    def run_one(idx, item):
+        if task:
+            content, usage = task(idx, item, state.model_config)
+            label = ""
+        else:
+            content, usage = describe_image(item, state.model_config)
+            label = os.path.basename(item)
+        state.add_result(idx, label, content, usage)
 
     def run_safely(idx, img_path):
         try:
@@ -570,6 +584,49 @@ def load_transcript(job_id: str):
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         text = f.read().strip()
     return text or None
+
+
+def resolve_transcript_for_job(job_id: str, user_settings: dict):
+    """
+    작업에 딸린 녹음본을 확정한다. 텍스트가 있으면 그대로, 음성 파일만 있으면 STT 를 먼저 수행해
+    transcript_path 에 저장한다 (진행 상황은 작업 로그로 표시). 반환: 정규화된 녹음본 또는 None
+    """
+    job = JobManager.get_job(job_id) or {}
+    audio_path = job.get("transcript_audio_path")
+    if audio_path and os.path.exists(audio_path) and not load_transcript(job_id):
+        try:
+            JobManager.update_progress(
+                job_id,
+                0,
+                0,
+                f"녹음 파일 음성 인식(STT) 시작: {job.get('transcript_source', '')}",
+            )
+            result = transcribe_audio(
+                audio_path,
+                user_settings,
+                on_progress=lambda p, m: JobManager.update_progress(
+                    job_id, p, 100, f"[STT] {m}"
+                ),
+            )
+            text = result["text"]
+            if result.get("cost_usd"):
+                AuthManager.update_user_cumulative_usage(
+                    (job.get("owner") or ""), result["cost_usd"]
+                )
+            with open(transcript_path(job_id), "w", encoding="utf-8") as f:
+                f.write(text)
+            JobManager.set_transcript_flag(job_id, len(text))
+            JobManager.update_progress(
+                job_id,
+                100,
+                100,
+                f"[STT] 완료: {len(text):,}자 ({result.get('provider', '?')} / {result.get('model', '?')})",
+            )
+        finally:
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+    text = load_transcript(job_id)
+    return normalize_transcript(text) if text else None
 
 
 def normalize_transcript(text: str) -> str:
@@ -893,10 +950,11 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
 
         total_pages = len(images)
 
-        # 강의 녹음본이 있으면 통째로 프롬프트 prefix 에 넣는다 (Prompt Caching 으로 비용 절감)
-        transcript = load_transcript(job_id)
+        # 강의 녹음본(텍스트 또는 음성→STT)이 있으면 통째로 프롬프트 prefix 에 넣는다 (Prompt Caching 으로 비용 절감)
+        transcript = resolve_transcript_for_job(
+            job_id, AuthManager.get_user_settings(owner)
+        )
         if transcript:
-            transcript = normalize_transcript(transcript)
             model_config = dict(model_config, transcript=transcript)
             approx_tokens = len(transcript) // 2  # 한국어 대략 추정치
             JobManager.update_progress(
@@ -939,13 +997,12 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
 
         results_map = state.results_map
 
-        # 3. 결과 조합 (인덱스 순서대로)
-        md_content = ""
-        for idx in sorted(results_map.keys()):
-            fname, text = results_map[idx]
-            md_content += (
-                f"## Slide {idx}\n\n![{fname}](./images/{fname})\n\n{text}\n\n---\n\n"
-            )
+        # 3. 슬라이드별 저장 (desc/slide_NNN.md). 뷰어/PDF 는 result_store.compose_markdown 으로 합친다.
+        rs.write_slides(
+            result_base, {idx: text for idx, (_, text) in results_map.items()}
+        )
+        if transcript:
+            rs.save_transcript_copy(result_base, transcript)
 
         # 4. 최종 완료 처리
         if model_config["provider"] == "openai":
@@ -962,51 +1019,12 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
             final_log = f"작업 완료! 총 토큰: {state.total_tokens:,}"
         JobManager.update_progress(job_id, total_pages, total_pages, final_log)
 
-        # Markdown 저장
-        md_file = os.path.join(result_base, "result.md")
-        with open(md_file, "w", encoding="utf-8") as f:
-            f.write(md_content)
-
-        # PDF 생성
-        import markdown
-
-        raw_html = markdown.markdown(md_content)
-
-        # 절대 경로 변환 (wkhtmltopdf 에러 방지)
-        abs_image_dir = os.path.abspath(os.path.join(result_base, "images")).replace(
-            "\\", "/"
-        )
-        pdf_html_body = raw_html.replace("./images", f"file://{abs_image_dir}")
-
-        full_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body {{ font-family: sans-serif; padding: 20px; line-height: 1.6; }}
-                img {{ max-width: 100%; height: auto; display: block; margin: 20px auto; border: 1px solid #ddd; }}
-                h2 {{ border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 30px; page-break-before: always; }}
-                h2:first-of-type {{ page-break-before: auto; }}
-                blockquote {{ background: #f9f9f9; border-left: 10px solid #ccc; margin: 1.5em 10px; padding: 0.5em 10px; }}
-            </style>
-        </head>
-        <body>
-            {pdf_html_body}
-        </body>
-        </html>
-        """
-
-        pdf_options = {
-            "quiet": "",
-            "enable-local-file-access": "",  # 필수
-            "encoding": "UTF-8",
-            "no-outline": None,
-        }
-
-        pdfkit.from_string(
-            full_html, os.path.join(result_base, "result.pdf"), options=pdf_options
-        )
+        # PDF 생성 (.env GENERATE_PDF=true 일 때만)
+        if settings.GENERATE_PDF:
+            JobManager.update_progress(
+                job_id, total_pages, total_pages, "PDF 생성 중..."
+            )
+            rs.render_pdf(result_base)
 
         # 압축 및 정리
         user_result_dir = os.path.join(settings.RESULT_DIR, owner)
@@ -1027,6 +1045,198 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
             shutil.rmtree(work_dir)
         if os.path.exists(file_path):
             os.remove(file_path)
+        if os.path.exists(transcript_path(job_id)):
+            os.remove(transcript_path(job_id))
+
+
+# ==========================================
+# 강의 녹음본 사후 반영 (이미 생성된 설명에 추가)
+# ==========================================
+# 슬라이드 이미지는 다시 보내지 않는다. 고정 prefix(system 지침 → 녹음본 통째로 → 고정 지시문)는
+# 캐시되고, 슬라이드마다 '기존 설명 텍스트'만 뒤에 붙여 보낸다. 해당 슬라이드를 설명한 부분이 없으면
+# 모델이 NONE 만 출력하고, 그 슬라이드는 건드리지 않는다.
+ENRICH_SYSTEM_PROMPT = """당신은 강의 녹음 전사본에서 특정 슬라이드에 해당하는 부분만 찾아 정리하는 전문 AI 조교입니다.
+system 에 강의 녹음본 전체가 주어지고, 요청마다 슬라이드 하나의 기존 설명(마크다운)이 주어집니다.
+강의는 대체로 슬라이드 순서대로 진행되므로 슬라이드 번호(전체 중 몇 번째)를 위치 힌트로 활용하되, 내용 일치를 최우선으로 판단하십시오.
+
+[출력 규칙]
+- 녹음본에 이 슬라이드를 설명하는 부분이 분명히 있으면, 아래 형식의 마크다운만 출력할 것 (다른 텍스트 금지):
+### 🎙️ 강의 녹음 발췌
+**강의자 설명 요약:** 강의자가 이 슬라이드에서 실제로 말한 내용(강조점, 예시, 보충 설명, 시험 힌트 등)을 한국어 2~5문장으로 요약.
+**슬라이드에 없는 추가 내용:** 기존 슬라이드 설명에는 없지만 강의자가 덧붙인 정보만 불릿으로 정리. 없으면 이 줄을 생략.
+> 녹음 원문: 해당 부분을 원문 그대로 인용 (임의 수정·창작 금지, 이 슬라이드와 직접 관련된 핵심 부분 위주로 최대 15문장).
+- 녹음본에 이 슬라이드에 해당하는 내용이 없거나, 다른 슬라이드의 내용을 억지로 끌어와야 한다면 정확히 NONE 만 출력할 것.
+- 다른 슬라이드에서 다룬 내용을 이 슬라이드에 적지 말 것. 한 부분은 그 부분이 설명하는 슬라이드에만 속합니다.
+- 수식은 LaTeX($...$)로, 한국어로 작성할 것."""
+
+ENRICH_INSTRUCTION = (
+    "아래 슬라이드의 기존 설명을 읽고, system 의 강의 녹음본에서 이 슬라이드를 설명한 부분을 찾아 "
+    "규칙에 따라 '강의 녹음 발췌' 절을 출력하거나 NONE 을 출력하십시오."
+)
+
+
+def enrich_slide(idx, item, model_config):
+    """item = (total_pages, slide_text). 반환 (content, usage)"""
+    total, slide_text = item
+    payload = {
+        "model": model_config["model_id"],
+        "messages": [
+            {"role": "system", "content": ENRICH_SYSTEM_PROMPT},
+            {
+                "role": "system",
+                "content": TRANSCRIPT_HEADER.format(
+                    transcript=model_config["transcript"]
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": ENRICH_INSTRUCTION},
+                    {
+                        "type": "text",
+                        "text": f"[대상 슬라이드: {idx} / 전체 {total}]\n[기존 슬라이드 설명]\n{slide_text}",
+                    },
+                ],
+            },
+        ],
+        "max_completion_tokens": 4000,
+    }
+    apply_request_options(payload, model_config)
+    return _post_chat(payload, model_config, f"enrich-slide-{idx}")
+
+
+def _is_none_answer(content: str) -> bool:
+    text = (content or "").strip().strip("`").strip()
+    return text.upper() == "NONE" or text.startswith("**[분석 실패]**")
+
+
+def _extract_transcript_section(content: str) -> str:
+    text = (content or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:markdown)?\s*|\s*```$", "", text, flags=re.S).strip()
+    pos = text.find(rs.TRANSCRIPT_SECTION_HEADING)
+    if pos >= 0:
+        return text[pos:].strip()
+    return f"{rs.TRANSCRIPT_SECTION_HEADING}\n\n{text}"
+
+
+def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
+    """
+    사후 녹음본 반영 진입점. target_type: "doc"(문서함 문서, 제자리 갱신) | "job"(작업 결과 zip 갱신 + 연결된 문서 전파)
+    """
+    job = JobManager.get_job(job_id)
+    if not job:
+        return
+    owner = job.get("owner")
+    user_settings = AuthManager.get_user_settings(owner)
+    work_dir = os.path.join(settings.UPLOAD_DIR, job_id)
+    os.makedirs(work_dir, exist_ok=True)
+
+    try:
+        JobManager.start_processing(job_id)
+
+        # 1. 녹음본 확보 (붙여넣은 텍스트 / 텍스트 문서 본문 / 음성 파일 STT)
+        transcript = resolve_transcript_for_job(job_id, user_settings)
+        if not transcript:
+            raise RuntimeError("녹음본 텍스트가 비어 있습니다.")
+
+        # 2. 대상 결과 디렉터리 확보
+        zip_path = None
+        if target_type == "doc":
+            doc = docs_col.find_one({"id": target_id, "owner": owner, "type": "file"})
+            if not doc:
+                raise RuntimeError("대상 문서를 찾을 수 없습니다.")
+            result_dir = os.path.join(settings.DOCS_STATIC_DIR, owner, target_id)
+            result_url = f"/api/docs/download/{target_id}"
+        else:
+            zip_path = os.path.join(settings.RESULT_DIR, owner, f"{target_id}.zip")
+            if not os.path.exists(zip_path):
+                raise RuntimeError(
+                    "작업 결과 파일(zip)이 없습니다. 문서함의 문서에 추가해 주세요."
+                )
+            result_dir = os.path.join(work_dir, "result")
+            shutil.unpack_archive(zip_path, result_dir, "zip")
+            result_url = f"/static/results/{owner}/{target_id}.zip"
+
+        rs.ensure_desc_layout(result_dir)
+        slides = rs.read_slides(result_dir)
+        if not slides:
+            raise RuntimeError("슬라이드 설명(desc/)을 찾을 수 없습니다.")
+        total = len(slides)
+
+        # 3. 슬라이드마다 녹음본에서 해당 부분 찾기 (이미지 없이, 녹음본은 캐시 prefix)
+        model_config = get_target_model(user_settings)
+        model_config = dict(model_config, transcript=transcript)
+        approx_tokens = len(transcript) // 2
+        JobManager.update_progress(
+            job_id,
+            0,
+            total,
+            f"녹음본 {len(transcript):,}자(약 {approx_tokens:,} 토큰)를 {total}개 슬라이드에 대조 | "
+            f"이미지 재전송 없음, 프롬프트 캐싱 적용",
+        )
+        state = AnalysisState(job_id, model_config, total)
+        items = [(idx, (total, slides[idx])) for idx in sorted(slides)]
+        workers = PARALLEL_WORKERS if model_config["provider"] == "openai" else 1
+        _run_realtime(state, items, workers, prefix="녹음본 대조 중", task=enrich_slide)
+
+        # 4. 해당 부분이 있는 슬라이드에만 절 추가
+        added = 0
+        for idx, (_, content) in state.results_map.items():
+            if _is_none_answer(content):
+                continue
+            section = _extract_transcript_section(content)
+            rs.write_slide(
+                result_dir, idx, rs.upsert_transcript_section(slides[idx], section)
+            )
+            added += 1
+        rs.save_transcript_copy(result_dir, transcript)
+        if settings.GENERATE_PDF:
+            JobManager.update_progress(job_id, total, total, "PDF 생성 중...")
+            rs.render_pdf(result_dir)
+
+        # 5. 저장/전파
+        if target_type == "job":
+            shutil.make_archive(zip_path[:-4], "zip", result_dir)
+            JobManager.set_transcript_flag(target_id, len(transcript))
+            for doc in docs_col.find({"source_job_id": target_id, "type": "file"}):
+                doc_dir = os.path.join(
+                    settings.DOCS_STATIC_DIR, doc["owner"], doc["id"]
+                )
+                if not os.path.isdir(doc_dir):
+                    continue
+                for name in (rs.DESC_DIR, rs.TRANSCRIPT_FILE, "result.pdf"):
+                    src = os.path.join(result_dir, name)
+                    dst = os.path.join(doc_dir, name)
+                    if os.path.isdir(src):
+                        shutil.rmtree(dst, ignore_errors=True)
+                        shutil.copytree(src, dst)
+                    elif os.path.exists(src):
+                        shutil.copy2(src, dst)
+                docs_col.update_one(
+                    {"id": doc["id"]}, {"$set": {"has_transcript": True}}
+                )
+        else:
+            docs_col.update_one({"id": target_id}, {"$set": {"has_transcript": True}})
+
+        if model_config["provider"] == "openai":
+            usd_val, krw_val = state.cost()
+            AuthManager.update_user_cumulative_usage(owner, usd_val)
+            final_log = (
+                f"녹음본 반영 완료: {added}/{total}개 슬라이드에 발췌 추가 | "
+                f"비용: ${usd_val} (약 ₩{krw_val:,}) | 캐시 적중 토큰: {state.usage['cached']:,}"
+            )
+        else:
+            final_log = f"녹음본 반영 완료: {added}/{total}개 슬라이드에 발췌 추가"
+        JobManager.update_progress(job_id, total, total, final_log)
+        JobManager.mark_completed(job_id, result_url)
+
+    except Exception as e:
+        print(f"[ENRICH ERROR] {e}")
+        JobManager.mark_failed(job_id, str(e))
+    finally:
+        if os.path.exists(work_dir):
+            shutil.rmtree(work_dir)
         if os.path.exists(transcript_path(job_id)):
             os.remove(transcript_path(job_id))
 

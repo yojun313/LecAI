@@ -148,7 +148,7 @@
                     </div>
 
                     <div id="drop-zone" class="flex-1 min-h-[200px] glass border-2 border-dashed border-white/15 rounded-2xl flex flex-col items-center justify-center p-6 text-center transition hover:border-blue-400/60 hover:bg-blue-500/5 cursor-pointer group relative overflow-hidden">
-                        <input type="file" id="file-input" class="hidden" multiple accept=".ppt,.pptx,.pdf,.zip,.mp3,.wav,.m4a">
+                        <input type="file" id="file-input" class="hidden" multiple accept=".ppt,.pptx,.pdf,.zip,.mp3,.m4a,.m4b,.wav,.flac,.ogg,.oga,.opus,.webm,.aac,.wma,.amr,.aiff,.aif,.caf,.mp4,.mov,.mkv">
 
                         <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition duration-500"></div>
 
@@ -197,33 +197,7 @@
         </footer>
     </main>
 
-    <!-- 강의 녹음본 입력 모달 (슬라이드 파일 업로드 시) -->
-    <div id="transcriptModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center backdrop-blur-md p-4">
-        <div class="glass-strong w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center glass-soft">
-                <h3 class="font-bold text-sm text-white"><i class="fas fa-microphone-lines mr-2 text-purple-400"></i>강의 녹음본 추가 (선택)</h3>
-                <button onclick="resolveTranscriptModal(null)" class="text-white/40 hover:text-white transition" title="업로드 취소"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="p-5 space-y-3">
-                <div class="text-xs text-white/60 flex items-center glass-soft rounded-xl px-3 py-2">
-                    <i class="fas fa-file-lines mr-2 text-blue-400"></i>
-                    <span id="transcriptFileName" class="truncate"></span>
-                </div>
-                <textarea id="transcriptText" rows="12" placeholder="강의 녹음을 텍스트로 변환한 전사본을 여기에 붙여 넣으세요. (선택 사항)&#10;붙여 넣으면 슬라이드마다 녹음본에서 해당 슬라이드를 설명한 부분을 찾아 '강의 녹음 발췌' 절로 함께 정리합니다."
-                    class="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white/90 outline-none focus:border-purple-400/60 resize-y leading-relaxed"></textarea>
-                <div class="flex justify-between text-[11px] text-white/40">
-                    <span id="transcriptStats">0자</span>
-                    <span>녹음본은 슬라이드마다 통째로 전달되지만 프롬프트 캐싱으로 2번째 슬라이드부터 캐시 단가(정가의 10%)가 적용됩니다.</span>
-                </div>
-            </div>
-            <div class="p-4 border-t border-white/10 flex justify-end space-x-2 glass-soft">
-                <button onclick="resolveTranscriptModal('')" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">녹음본 없이 업로드</button>
-                <button onclick="resolveTranscriptModal(document.getElementById('transcriptText').value)" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold shadow-md transition">
-                    <i class="fas fa-upload mr-1"></i> 녹음본과 함께 업로드
-                </button>
-            </div>
-        </div>
-    </div>
+    {% include "_transcript_picker.html" %}
 
     <div id="folderModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center backdrop-blur-md">
         <div class="glass-strong w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0" id="folderModalContent">
@@ -285,6 +259,9 @@
                             <i class="fas fa-terminal mr-1"></i> Log
                         </button>
                         <div class="flex-1"></div>
+                        <button class="add-transcript-btn hidden text-[10px] glass-soft hover:bg-white/10 hover:text-purple-300 text-white/70 px-2 py-1 rounded-lg transition border border-white/10" title="강의 녹음본을 이 설명에 추가">
+                            <i class="fas fa-microphone-lines mr-1"></i> 녹음본 추가
+                        </button>
                         <a href="#" target="_blank" class="download-btn hidden text-[10px] glass-soft hover:bg-white/10 hover:text-blue-300 text-white/70 px-2 py-1 rounded-lg transition border border-white/10">
                             <i class="fas fa-download mr-1"></i> Download
                         </a>
@@ -405,54 +382,33 @@
         async function handleFiles(files) {
             if (files.length === 0) return;
             for (const file of files) {
-                let transcript = '';
+                let choice = null;
                 if (isSlideFile(file)) {
                     // 슬라이드 파일은 드롭 직후 녹음본 입력 모달을 띄운다 (건너뛰기 가능)
-                    transcript = await askTranscript(file);
-                    if (transcript === null) continue; // 취소
+                    choice = await pickTranscript({ mode: 'pre', targetName: file.name });
+                    if (choice === null) continue; // 닫기 = 업로드 취소
                 }
-                await uploadSingleFile(file, transcript);
+                await uploadSingleFile(file, choice);
             }
         }
 
-        // ---- 녹음본 입력 모달 (Promise 기반) ----
-        let transcriptResolver = null;
-        const transcriptModal = document.getElementById('transcriptModal');
-        const transcriptText = document.getElementById('transcriptText');
-        const transcriptStats = document.getElementById('transcriptStats');
-
-        function updateTranscriptStats() {
-            const n = transcriptText.value.length;
-            const approxTokens = Math.round(n / 2);
-            transcriptStats.textContent = n ? `${n.toLocaleString()}자 (약 ${approxTokens.toLocaleString()} 토큰)` : '0자';
-        }
-        transcriptText.addEventListener('input', updateTranscriptStats);
-
-        function askTranscript(file) {
-            return new Promise((resolve) => {
-                transcriptResolver = resolve;
-                document.getElementById('transcriptFileName').textContent = file.name;
-                transcriptText.value = '';
-                updateTranscriptStats();
-                transcriptModal.classList.remove('hidden');
-                transcriptModal.classList.add('flex');
-                setTimeout(() => transcriptText.focus(), 50);
-            });
+        // ---- 사후 녹음본 추가 (작업 카드 버튼) ----
+        async function openAddTranscriptModal(type, id, name) {
+            const choice = await pickTranscript({ mode: 'post', targetName: name });
+            if (!choice || choice.kind === 'none') return;
+            const formData = new FormData();
+            applyTranscriptChoice(formData, choice);
+            try {
+                const res = await fetch(`/api/transcript/${type}/${id}`, { method: 'POST', body: formData });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
+                fetchJobs();
+            } catch (err) {
+                alert('녹음본 반영 요청 실패: ' + err.message);
+            }
         }
 
-        function resolveTranscriptModal(value) {
-            transcriptModal.classList.add('hidden');
-            transcriptModal.classList.remove('flex');
-            const resolver = transcriptResolver;
-            transcriptResolver = null;
-            if (resolver) resolver(value === null ? null : (value || '').trim());
-        }
-
-        transcriptModal.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') resolveTranscriptModal(null);
-        });
-
-        async function uploadSingleFile(file, transcript = '') {
+        async function uploadSingleFile(file, transcriptChoice = null) {
             const tempId = `temp-${Date.now()}`;
             const tempJob = { id: tempId, filename: file.name, status: 'uploading', progress: 0, logs: ['전송 시작...'] };
 
@@ -463,7 +419,7 @@
 
             const formData = new FormData();
             formData.append('file', file);
-            if (transcript) formData.append('transcript', transcript);
+            applyTranscriptChoice(formData, transcriptChoice);
 
             try {
                 await fetch('/api/upload', { method: 'POST', body: formData });
@@ -546,7 +502,9 @@
             const iconBox = cardDiv.querySelector('.icon-box');
             const lowerName = (job.filename || "").toLowerCase();
 
-            if (lowerName.endsWith('.pdf')) {
+            if (job.kind === 'transcript' || lowerName.startsWith('[녹음본 추가]')) {
+                iconBox.innerHTML = '<i class="fas fa-microphone-lines text-purple-400"></i>';
+            } else if (lowerName.endsWith('.pdf')) {
                 iconBox.innerHTML = '<i class="fas fa-file-pdf text-red-400"></i>';
             } else if (lowerName.endsWith('.zip')) {
                 iconBox.innerHTML = '<i class="fas fa-file-archive text-yellow-400"></i>';
@@ -584,6 +542,8 @@
             const percentText = card.querySelector('.percent-text');
             const downloadBtn = card.querySelector('.download-btn');
             const addToViewerBtn = card.querySelector('.add-to-viewer-btn');
+            const addTranscriptBtn = card.querySelector('.add-transcript-btn');
+            const isSlideJob = job.kind !== 'transcript' && SLIDE_EXTS.some(ext => (job.filename || '').toLowerCase().endsWith(ext));
             const logArea = card.querySelector('.log-area');
 
             if (job.status === 'completed') {
@@ -601,6 +561,14 @@
                     addToViewerBtn.onclick = (e) => {
                         e.stopPropagation();
                         openFolderModal(job.id);
+                    };
+                }
+
+                if (addTranscriptBtn && isSlideJob) {
+                    addTranscriptBtn.classList.remove('hidden');
+                    addTranscriptBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        openAddTranscriptModal('job', job.id, job.filename);
                     };
                 }
 

@@ -1,0 +1,167 @@
+{# 강의 녹음본 입력 공용 모달: 사전(슬라이드 업로드 시)/사후(기존 설명에 추가) 공통 #}
+<div id="transcriptPicker" class="fixed inset-0 bg-black/70 z-[110] hidden items-center justify-center backdrop-blur-md p-4">
+    <div class="glass-strong w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
+        <div class="p-4 border-b border-white/10 flex justify-between items-center glass-soft">
+            <h3 class="font-bold text-sm text-white"><i class="fas fa-microphone-lines mr-2 text-purple-400"></i><span id="tpTitle">강의 녹음본 추가</span></h3>
+            <button onclick="tpResolve(null)" class="text-white/40 hover:text-white transition" title="닫기"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-5 space-y-3">
+            <div class="text-xs text-white/60 flex items-center glass-soft rounded-xl px-3 py-2">
+                <i class="fas fa-file-lines mr-2 text-blue-400"></i>
+                <span id="tpTarget" class="truncate"></span>
+            </div>
+            <p id="tpHelp" class="text-[11px] text-white/45 leading-relaxed"></p>
+
+            <div class="flex space-x-1 glass-soft rounded-xl p-1" role="tablist">
+                <button type="button" data-tp-tab="paste" class="tp-tab flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-paste mr-1"></i> 텍스트 붙여넣기</button>
+                <button type="button" data-tp-tab="text" class="tp-tab flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-file-alt mr-1"></i> 텍스트 파일</button>
+                <button type="button" data-tp-tab="audio" class="tp-tab flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-file-audio mr-1"></i> 녹음 파일</button>
+            </div>
+
+            <div data-tp-panel="paste">
+                <textarea id="tpText" rows="10" placeholder="강의 녹음을 텍스트로 변환한 전사본을 여기에 붙여 넣으세요."
+                    class="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white/90 outline-none focus:border-purple-400/60 resize-y leading-relaxed"></textarea>
+                <div class="text-[11px] text-white/40 mt-1"><span id="tpStats">0자</span></div>
+            </div>
+
+            <div data-tp-panel="text" class="hidden">
+                <div id="tpTextDrop" class="tp-drop border-2 border-dashed border-white/15 rounded-xl p-6 text-center cursor-pointer transition hover:border-blue-400/60 hover:bg-blue-500/5">
+                    <i class="fas fa-file-arrow-up text-2xl text-white/50 mb-2"></i>
+                    <p class="text-sm text-white/80">텍스트 문서를 드래그하거나 클릭해서 선택</p>
+                    <p class="text-[11px] text-white/40 mt-1">txt, md, docx, doc, pdf, hwp, hwpx, odt, rtf, srt, vtt, html, json, csv 등</p>
+                    <input type="file" id="tpTextFile" class="hidden" accept=".txt,.md,.markdown,.text,.log,.csv,.tsv,.json,.xml,.srt,.vtt,.sbv,.lrc,.html,.htm,.docx,.doc,.rtf,.odt,.hwp,.hwpx,.pages,.wps,.pdf">
+                </div>
+            </div>
+
+            <div data-tp-panel="audio" class="hidden">
+                <div id="tpAudioDrop" class="tp-drop border-2 border-dashed border-white/15 rounded-xl p-6 text-center cursor-pointer transition hover:border-purple-400/60 hover:bg-purple-500/5">
+                    <i class="fas fa-microphone text-2xl text-white/50 mb-2"></i>
+                    <p class="text-sm text-white/80">녹음 파일을 드래그하거나 클릭해서 선택</p>
+                    <p class="text-[11px] text-white/40 mt-1">mp3, m4a, wav, flac, ogg, opus, webm, aac, wma, amr, aiff, mp4 등 · 자동 음성 인식(STT) 후 반영</p>
+                    <input type="file" id="tpAudioFile" class="hidden" accept="audio/*,video/mp4,video/webm,video/quicktime,.mp3,.m4a,.m4b,.wav,.flac,.ogg,.oga,.opus,.webm,.aac,.wma,.amr,.aiff,.aif,.caf,.mp4,.mov,.mkv">
+                </div>
+            </div>
+
+            <div id="tpFileInfo" class="hidden text-xs glass-soft rounded-xl px-3 py-2 flex items-center justify-between">
+                <span class="truncate text-white/80"><i id="tpFileIcon" class="fas fa-file mr-2 text-blue-400"></i><span id="tpFileName"></span></span>
+                <button type="button" onclick="tpClearFile()" class="text-white/40 hover:text-white ml-2" title="파일 제거"><i class="fas fa-times"></i></button>
+            </div>
+            <p id="tpError" class="hidden text-xs text-red-400"></p>
+        </div>
+        <div class="p-4 border-t border-white/10 flex justify-end space-x-2 glass-soft">
+            <button type="button" id="tpSkipBtn" onclick="tpResolve({ kind: 'none' })" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">녹음본 없이 업로드</button>
+            <button type="button" id="tpCancelBtn" onclick="tpResolve(null)" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">취소</button>
+            <button type="button" id="tpSubmitBtn" onclick="tpSubmit()" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold shadow-md transition">
+                <i class="fas fa-upload mr-1"></i> <span id="tpSubmitLabel">확인</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==========================================
+// 강의 녹음본 입력 공용 모달 (Promise 기반)
+//   pickTranscript({ mode: 'pre' | 'post', targetName })
+//     -> { kind: 'none' } | { kind: 'text', text } | { kind: 'file', file } | null(취소)
+// ==========================================
+(function () {
+    const TP_TEXT_EXTS = ['.txt', '.md', '.markdown', '.text', '.log', '.csv', '.tsv', '.json', '.xml', '.srt', '.vtt', '.sbv', '.lrc', '.html', '.htm', '.docx', '.doc', '.rtf', '.odt', '.hwp', '.hwpx', '.pages', '.wps', '.pdf'];
+    const TP_AUDIO_EXTS = ['.mp3', '.m4a', '.m4b', '.wav', '.flac', '.ogg', '.oga', '.opus', '.webm', '.aac', '.wma', '.amr', '.aiff', '.aif', '.caf', '.mp4', '.mov', '.mkv'];
+    const extOf = (name) => { const m = /\.[^.]+$/.exec((name || '').toLowerCase()); return m ? m[0] : ''; };
+
+    const modal = document.getElementById('transcriptPicker');
+    const textArea = document.getElementById('tpText');
+    const stats = document.getElementById('tpStats');
+    const fileInfo = document.getElementById('tpFileInfo');
+    const errorEl = document.getElementById('tpError');
+    let resolver = null, currentTab = 'paste', pickedFile = null;
+
+    function setTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('#transcriptPicker .tp-tab').forEach(b => {
+            const active = b.dataset.tpTab === tab;
+            b.className = 'tp-tab flex-1 text-xs py-2 rounded-lg transition ' + (active ? 'bg-purple-600/40 text-white border border-purple-400/40' : 'text-white/60 hover:text-white hover:bg-white/5');
+        });
+        document.querySelectorAll('#transcriptPicker [data-tp-panel]').forEach(p => p.classList.toggle('hidden', p.dataset.tpPanel !== tab));
+        errorEl.classList.add('hidden');
+    }
+    document.querySelectorAll('#transcriptPicker .tp-tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tpTab)));
+
+    function showError(msg) { errorEl.textContent = msg; errorEl.classList.remove('hidden'); }
+    function setFile(file, kind) {
+        pickedFile = file ? { file, kind } : null;
+        fileInfo.classList.toggle('hidden', !file);
+        if (file) {
+            document.getElementById('tpFileIcon').className = 'fas mr-2 ' + (kind === 'audio' ? 'fa-file-audio text-purple-400' : 'fa-file-alt text-blue-400');
+            document.getElementById('tpFileName').textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)` + (kind === 'audio' ? ' · 음성 인식 후 반영' : ' · 본문 추출 후 반영');
+        }
+    }
+    window.tpClearFile = () => { setFile(null); document.getElementById('tpTextFile').value = ''; document.getElementById('tpAudioFile').value = ''; };
+
+    function acceptFile(file) {
+        if (!file) return;
+        const ext = extOf(file.name);
+        if (TP_AUDIO_EXTS.includes(ext)) { setTab('audio'); setFile(file, 'audio'); }
+        else if (TP_TEXT_EXTS.includes(ext)) { setTab('text'); setFile(file, 'text'); }
+        else showError(`지원하지 않는 형식입니다: ${ext || file.name}`);
+    }
+    for (const [dropId, inputId] of [['tpTextDrop', 'tpTextFile'], ['tpAudioDrop', 'tpAudioFile']]) {
+        const drop = document.getElementById(dropId), input = document.getElementById(inputId);
+        drop.addEventListener('click', () => input.click());
+        input.addEventListener('change', () => { acceptFile(input.files[0]); });
+        drop.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add('border-blue-400', 'bg-blue-500/10'); });
+        drop.addEventListener('dragleave', (e) => { e.stopPropagation(); drop.classList.remove('border-blue-400', 'bg-blue-500/10'); });
+        drop.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove('border-blue-400', 'bg-blue-500/10'); acceptFile(e.dataTransfer.files[0]); });
+    }
+    // 모달 어디에 떨어뜨려도 파일로 인식 (페이지의 업로드 드롭존과 충돌 방지)
+    modal.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); });
+    modal.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); acceptFile(e.dataTransfer.files[0]); });
+    modal.addEventListener('dragenter', (e) => e.stopPropagation());
+    modal.addEventListener('dragleave', (e) => e.stopPropagation());
+    modal.addEventListener('keydown', (e) => { if (e.key === 'Escape') tpResolve(null); });
+
+    textArea.addEventListener('input', () => {
+        const n = textArea.value.length;
+        stats.textContent = n ? `${n.toLocaleString()}자 (약 ${Math.round(n / 2).toLocaleString()} 토큰)` : '0자';
+    });
+
+    window.pickTranscript = ({ mode, targetName }) => new Promise((resolve) => {
+        resolver = resolve;
+        const pre = mode === 'pre';
+        document.getElementById('tpTitle').textContent = pre ? '강의 녹음본 추가 (선택)' : '강의 녹음본 추가';
+        document.getElementById('tpTarget').textContent = targetName || '';
+        document.getElementById('tpHelp').textContent = pre
+            ? '슬라이드 분석 시 녹음본에서 각 슬라이드를 설명한 부분을 찾아 "강의 녹음 발췌" 절을 함께 정리합니다. 녹음본은 슬라이드마다 통째로 전달되지만 프롬프트 캐싱으로 2번째 슬라이드부터 캐시 단가(정가의 10%)가 적용됩니다.'
+            : '이미 만들어진 슬라이드 설명에 강의 녹음 내용을 덧붙입니다. 녹음본에서 각 슬라이드를 설명한 부분만 찾아 그 슬라이드에만 "강의 녹음 발췌" 절이 추가됩니다. 슬라이드 이미지는 다시 보내지 않고 녹음본은 프롬프트 캐싱으로 처리됩니다.';
+        document.getElementById('tpSkipBtn').classList.toggle('hidden', !pre);
+        document.getElementById('tpCancelBtn').classList.toggle('hidden', pre);
+        document.getElementById('tpSubmitLabel').textContent = pre ? '녹음본과 함께 업로드' : '녹음본 반영 시작';
+        textArea.value = ''; stats.textContent = '0자'; tpClearFile(); setTab('paste');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        setTimeout(() => textArea.focus(), 50);
+    });
+
+    window.tpResolve = (value) => {
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+        const r = resolver; resolver = null;
+        if (r) r(value);
+    };
+
+    window.tpSubmit = () => {
+        if (currentTab === 'paste') {
+            const text = textArea.value.trim();
+            if (!text) return showError('녹음본 텍스트를 붙여 넣으세요.');
+            return tpResolve({ kind: 'text', text });
+        }
+        if (!pickedFile) return showError(currentTab === 'audio' ? '녹음 파일을 선택하세요.' : '텍스트 문서를 선택하세요.');
+        return tpResolve({ kind: 'file', file: pickedFile.file });
+    };
+
+    // FormData 에 선택 결과를 채운다 (사전/사후 공통)
+    window.applyTranscriptChoice = (formData, choice) => {
+        if (!choice || choice.kind === 'none') return;
+        if (choice.kind === 'text') formData.append('transcript', choice.text);
+        else if (choice.kind === 'file') formData.append('transcript_file', choice.file);
+    };
+})();
+</script>

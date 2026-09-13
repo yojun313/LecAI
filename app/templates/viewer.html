@@ -393,6 +393,10 @@
         </button>
     </main>
 
+    {% include "_transcript_picker.html" %}
+
+    <div id="viewerToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[120] hidden glass-strong border border-blue-400/40 text-sm text-notion-text px-4 py-2.5 rounded-xl shadow-2xl max-w-[90vw]"></div>
+
     <div id="historyModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-200">
         <div class="glass-strong w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[80vh] transform scale-95 transition-transform duration-200" id="historyModalContent">
             <div class="px-6 py-4 border-b border-notion-border flex justify-between items-center rounded-t-2xl">
@@ -731,6 +735,7 @@
                     ${isFolder ? `<button onclick="createFolder(event, '${node.id}')" class="text-notion-muted hover:text-yellow-400 p-1" title="하위 폴더 만들기"><i class="fas fa-folder-plus text-xs"></i></button>` : ''}
                     ${depth > 0 ? `<button onclick="moveNodeTo(event, '${node.id}', 'root')" class="text-notion-muted hover:text-purple-400 p-1" title="최상위로 이동"><i class="fas fa-level-up-alt text-xs"></i></button>` : ''}
                     <button onclick="renameNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-blue-400 p-1" title="이름 변경"><i class="fas fa-pen text-xs"></i></button>
+                    ${!isFolder ? `<button onclick="event.stopPropagation(); openAddTranscriptModal('doc', '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-purple-400 p-1" title="강의 녹음본 추가"><i class="fas fa-microphone-lines text-xs"></i></button>` : ''}
                     ${!isFolder ? `<button onclick="downloadFile(event, '${node.id}')" class="text-notion-muted hover:text-green-400 p-1" title="다운로드"><i class="fas fa-download text-xs"></i></button>` : ''}
                     <button onclick="deleteNode(event, '${node.id}')" class="text-notion-muted hover:text-red-400 p-1" title="삭제"><i class="fas fa-trash-alt text-xs"></i></button>
                 </div>
@@ -1368,6 +1373,66 @@
             if (!confirm('가져오시겠습니까?')) return;
             const formData = new FormData(); formData.append('parent_id', 'root');
             try { const res = await fetch(`/api/docs/import/${jobId}`, { method: 'POST', body: formData }); if (!res.ok) throw new Error; closeHistoryModal(); loadTreeRoot(); } catch (err) { alert('실패'); }
+        }
+
+        // ---- 사후 녹음본 추가 (문서 행 버튼) ----
+        async function openAddTranscriptModal(type, id, name) {
+            const choice = await pickTranscript({ mode: 'post', targetName: name });
+            if (!choice || choice.kind === 'none') return;
+            const formData = new FormData();
+            applyTranscriptChoice(formData, choice);
+            try {
+                const res = await fetch(`/api/transcript/${type}/${id}`, { method: 'POST', body: formData });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
+                onTranscriptJobStarted(data.job_id, { type, id, name });
+            } catch (err) {
+                alert('녹음본 반영 요청 실패: ' + err.message);
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(message, ms = 4000) {
+            const el = document.getElementById('viewerToast');
+            el.textContent = message;
+            el.classList.remove('hidden');
+            clearTimeout(toastTimer);
+            if (ms > 0) toastTimer = setTimeout(() => el.classList.add('hidden'), ms);
+        }
+
+        // 녹음본 반영 작업 진행 상황을 폴링하고, 끝나면 열려 있는 탭을 새로 불러온다
+        function onTranscriptJobStarted(jobId, target) {
+            showToast(`녹음본 반영 시작: ${target.name} (대시보드에서도 진행 상황을 볼 수 있습니다)`, 0);
+            const timer = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/status/${jobId}`);
+                    if (!res.ok) return;
+                    const job = await res.json();
+                    const last = (job.logs && job.logs.length) ? job.logs[job.logs.length - 1].replace(/^\[[^\]]*\]\s*/, '') : '';
+                    if (job.status === 'completed') {
+                        clearInterval(timer);
+                        showToast(`녹음본 반영 완료: ${target.name}`, 6000);
+                        await reloadDocIfOpen(target.id);
+                    } else if (job.status === 'failed') {
+                        clearInterval(timer);
+                        showToast(`녹음본 반영 실패: ${job.error || last}`, 8000);
+                    } else {
+                        showToast(`녹음본 반영 중 (${job.progress || 0}%) ${last}`, 0);
+                    }
+                } catch (err) { /* 다음 폴링에서 재시도 */ }
+            }, 4000);
+        }
+
+        async function reloadDocIfOpen(docId) {
+            const tab = openedTabs.find(t => t.id === docId);
+            if (!tab) return;
+            const wasActive = activeTabId === docId;
+            const meta = { id: tab.id, name: tab.name.includes('/') ? tab.name.substring(tab.name.lastIndexOf('/') + 1) : tab.name };
+            const parentName = tab.name.includes('/') ? tab.name.substring(0, tab.name.lastIndexOf('/')) : 'root';
+            const index = tab.currentIndex || 0, zoom = tab.zoom || 100;
+            closeTab(docId);
+            await openDoc(meta, index, parentName, zoom);
+            if (!wasActive && openedTabs.length > 1) switchTab(openedTabs[0].id);
         }
 
         // Tree Drag & Drop (이동)

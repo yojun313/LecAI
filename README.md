@@ -39,6 +39,12 @@ source .venv/bin/activate
 
 Create a `.env` file in the root directory. There exists `.env.example` in root directory.
 
+Set `GENERATE_PDF=true` to also produce `result.pdf` for each analysis (off by default).
+
+Speech-to-text for lecture recordings is selected with `STT_PROVIDER`:
+`custom` uses the manager server's GPU Whisper (`AUDIO_LLM_URL`, `AUDIO_LLM_TOKEN`, optional `AUDIO_PROGRESS_URL` for live progress),
+`openai` uses the OpenAI Audio API (`OPENAI_STT_MODEL`, `OPENAI_STT_API_KEY` or the user's own key; long files are split automatically).
+
 ### 4) Run the Server
 
 ```bash

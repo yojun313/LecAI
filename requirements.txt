@@ -10,4 +10,4 @@ jinja2
 markdown
 bcrypt
 python-multipart
-pymongo
+pymongowebsockets

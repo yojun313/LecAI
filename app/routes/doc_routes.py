@@ -176,6 +176,7 @@ async def import_job_to_docs(
             file_path=zip_path,
             filename=job["filename"],
             parent_id=final_parent_id,
+            source_job_id=job_id if final_owner == user else None,
         )
         return new_doc
 

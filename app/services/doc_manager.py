@@ -6,6 +6,7 @@ import zipfile
 from datetime import datetime
 from app.core.config import settings
 from app.db import docs_col
+from app.services import result_store as rs
 
 
 class DocManager:
@@ -91,7 +92,11 @@ class DocManager:
 
     @staticmethod
     def upload_zip_doc(
-        owner: str, file_path: str, filename: str, parent_id: str = None
+        owner: str,
+        file_path: str,
+        filename: str,
+        parent_id: str = None,
+        source_job_id: str = None,
     ):
         doc_id = str(uuid.uuid4())
 
@@ -126,6 +131,9 @@ class DocManager:
                         shutil.move(src_path, extract_path)
                     os.rmdir(nested_dir)
 
+        # 예전 구조(result.md)의 zip 이면 슬라이드별 desc/ 로 변환
+        rs.ensure_desc_layout(extract_path)
+
         doc_name = os.path.splitext(filename)[0]
 
         new_doc = {
@@ -136,6 +144,10 @@ class DocManager:
             "parent_id": parent_id,
             "path": f"/static/docs/{owner}/{doc_id}",
             "created_at": datetime.now().isoformat(),
+            "source_job_id": source_job_id,
+            "has_transcript": os.path.exists(
+                os.path.join(extract_path, rs.TRANSCRIPT_FILE)
+            ),
         }
 
         docs_col.insert_one(new_doc)
@@ -166,13 +178,12 @@ class DocManager:
         if not target:
             return None
 
-        md_path = os.path.join(settings.DOCS_STATIC_DIR, owner, doc_id, "result.md")
+        doc_dir = os.path.join(settings.DOCS_STATIC_DIR, owner, doc_id)
+        rs.ensure_desc_layout(doc_dir)
+        content = rs.compose_markdown(doc_dir)
 
-        if not os.path.exists(md_path):
+        if not content:
             return "# Error: Markdown file not found."
-
-        with open(md_path, "r", encoding="utf-8") as f:
-            content = f.read()
 
         content = content.replace("./images/", f"{target['path']}/images/")
         return content

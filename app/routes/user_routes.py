@@ -19,7 +19,7 @@ class ModelUpdateRequest(BaseModel):
 async def save_settings(
     model: str = Form(...),
     api_key: str = Form(""),
-    audio_lang: str = Form("ko"),
+    audio_lang: str = Form("auto"),
     audio_model: str = Form("2"),
     custom_prompt: Optional[str] = Form(None),
     custom_user_prompt: Optional[str] = Form(None),

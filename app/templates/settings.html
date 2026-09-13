@@ -267,23 +267,40 @@
                     <section class="glass rounded-2xl overflow-hidden shadow-xl">
                         <div class="p-6 border-b border-white/10 glass-soft flex items-center space-x-3">
                             <i class="fas fa-microphone-alt text-emerald-400"></i>
-                            <h3 class="text-lg font-bold">오디오 요약 (STT) 설정</h3>
+                            <h3 class="text-lg font-bold">음성 인식 (STT) 설정</h3>
+                            <span class="text-xs text-white/40 ml-2">현재 엔진: {{ stt_engine_label }}</span>
                         </div>
                         <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
-                                <label class="block text-sm font-bold text-white/70 mb-2">정확도 모드</label>
-                                <select name="audio_model" id="audioModelSelect" class="w-full p-3 rounded-xl glass-input outline-none transition cursor-pointer">
-                                    <option class="bg-[#0f1424]" value="1">Level 1 (빠른 처리)</option>
-                                    <option class="bg-[#0f1424]" value="2" selected>Level 2 (표준 균형)</option>
-                                    <option class="bg-[#0f1424]" value="3">Level 3 (정밀 분석)</option>
+                                <label class="block text-sm font-bold text-white/70 mb-2">강의 녹음 언어</label>
+                                <select name="audio_lang" id="audioLangSelect" class="w-full p-3 rounded-xl glass-input outline-none transition cursor-pointer">
+                                    <option class="bg-[#0f1424]" value="auto">자동 인식 (기본)</option>
+                                    <option class="bg-[#0f1424]" value="ko">한국어</option>
+                                    <option class="bg-[#0f1424]" value="en">영어</option>
+                                    <option class="bg-[#0f1424]" value="ja">일본어</option>
+                                    <option class="bg-[#0f1424]" value="zh">중국어</option>
+                                    <option class="bg-[#0f1424]" value="fr">프랑스어</option>
+                                    <option class="bg-[#0f1424]" value="de">독일어</option>
+                                    <option class="bg-[#0f1424]" value="es">스페인어</option>
+                                    <option class="bg-[#0f1424]" value="it">이탈리아어</option>
+                                    <option class="bg-[#0f1424]" value="pt">포르투갈어</option>
+                                    <option class="bg-[#0f1424]" value="ru">러시아어</option>
+                                    <option class="bg-[#0f1424]" value="ar">아랍어</option>
+                                    <option class="bg-[#0f1424]" value="hi">힌디어</option>
+                                    <option class="bg-[#0f1424]" value="th">태국어</option>
+                                    <option class="bg-[#0f1424]" value="vi">베트남어</option>
+                                    <option class="bg-[#0f1424]" value="id">인도네시아어</option>
                                 </select>
+                                <p class="text-[11px] text-white/35 mt-2">녹음 파일로 강의 녹음본을 추가할 때 적용됩니다. 자동 인식이면 언어를 지정하지 않고 엔진이 판별합니다.</p>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-white/70 mb-2">기본 언어</label>
-                                <select name="audio_lang" id="audioLangSelect" class="w-full p-3 rounded-xl glass-input outline-none transition cursor-pointer">
-                                    <option class="bg-[#0f1424]" value="ko">한국어 (Korean)</option>
-                                    <option class="bg-[#0f1424]" value="en">영어 (English)</option>
+                                <label class="block text-sm font-bold text-white/70 mb-2">정확도 모드 <span class="text-white/35 font-normal">(매니저 서버 Whisper 전용)</span></label>
+                                <select name="audio_model" id="audioModelSelect" class="w-full p-3 rounded-xl glass-input outline-none transition cursor-pointer">
+                                    <option class="bg-[#0f1424]" value="1">빠름 (small)</option>
+                                    <option class="bg-[#0f1424]" value="2" selected>중간 (medium, 권장)</option>
+                                    <option class="bg-[#0f1424]" value="3">정확 (large)</option>
                                 </select>
+                                <p class="text-[11px] text-white/35 mt-2">OpenAI 엔진을 쓸 때는 .env 의 OPENAI_STT_MODEL 이 적용됩니다.</p>
                             </div>
                         </div>
                     </section>
@@ -378,6 +395,8 @@
         document.getElementById('modelSelect').value = currentModel || 'gpt-5.6-luna';
         document.getElementById('apiKeyInput').value = currentKey || '';
         document.getElementById('useBatchCheckbox').checked = currentUseBatch;
+        document.getElementById('audioLangSelect').value = "{{ settings.audio_language or 'auto' }}" || 'auto';
+        document.getElementById('audioModelSelect').value = String({{ settings.audio_model_level or 2 }});
         document.getElementById('customPrompt').value = currentPrompt;
         document.getElementById('customUserPrompt').value = currentUserPrompt;
 

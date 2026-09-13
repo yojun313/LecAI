@@ -52,6 +52,10 @@ class JobManager:
         return job_id
 
     @staticmethod
+    def update_fields(job_id: str, fields: dict):
+        history_col.update_one({"id": job_id}, {"$set": fields})
+
+    @staticmethod
     def set_transcript_flag(job_id: str, transcript_chars: int):
         history_col.update_one(
             {"id": job_id},
