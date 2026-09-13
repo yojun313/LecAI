@@ -219,3 +219,6 @@ docs/
 results/
 uploads/
 profiles/
+
+# Whisper 노트 원본 음성 저장소 (static 밖 — 인증된 API로만 서빙)
+data/
