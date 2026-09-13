@@ -151,6 +151,7 @@ class AuthManager:
         custom_user_prompt=None,
         profile_url=None,
         use_batch_api=False,
+        stt_provider=None,
     ):
         update_data = {
             "openai_api_key": api_key,
@@ -159,6 +160,8 @@ class AuthManager:
             "audio_model_level": int(audio_model),
             "use_batch_api": bool(use_batch_api),
         }
+        if stt_provider in ("custom", "openai"):
+            update_data["stt_provider"] = stt_provider
 
         if custom_prompt is not None:
             update_data["custom_prompt"] = custom_prompt
@@ -235,6 +238,7 @@ class AuthManager:
                 "openai_api_key": user.get("openai_api_key", ""),
                 "preferred_model": user.get("preferred_model", DEFAULT_MODEL),
                 "use_batch_api": bool(user.get("use_batch_api", False)),
+                "stt_provider": user.get("stt_provider") or "",
                 "audio_language": user.get("audio_language", "auto"),
                 "audio_model_level": user.get("audio_model_level", 2),
                 "custom_prompt": user.get("custom_prompt", default_system_prompt),
@@ -248,6 +252,7 @@ class AuthManager:
             "openai_api_key": "",
             "preferred_model": DEFAULT_MODEL,
             "use_batch_api": False,
+            "stt_provider": "",
             "audio_language": "auto",
             "audio_model_level": 2,
             "custom_prompt": default_system_prompt,

@@ -7,8 +7,20 @@ load_dotenv()
 class Settings:
     CUSTOM_BASE_URL = os.getenv("PPT_LLM_URL", "").rstrip("/")
     CUSTOM_TOKEN = os.getenv("CUSTOM_TOKEN")
-    # ---- 음성 인식(STT): OpenAI Audio API 전용, 각 사용자의 OpenAI API Key 사용 ----
-    # 모델: gpt-transcribe(기본, $0.0045/분) / gpt-4o-mini-transcribe / gpt-4o-transcribe / whisper-1
+    # ---- 음성 인식(STT) ----
+    # 제공자는 사용자가 설정 화면에서 고른다 (custom | openai). 아직 고르지 않은 사용자의 기본값:
+    STT_DEFAULT_PROVIDER = os.getenv("STT_DEFAULT_PROVIDER", "custom").strip().lower()
+    # custom: 매니저 서버 GPU Whisper (무료). URL/토큰/진행상황 서버는 서버 .env 에서 관리
+    AUDIO_LLM_URL = os.getenv("AUDIO_LLM_URL", "")
+    # 실시간(NDJSON 스트림) 엔드포인트. 비우면 AUDIO_LLM_URL + "/stream" 을 먼저 시도하고, 없으면(404/405) 일괄 방식으로 자동 전환
+    AUDIO_LLM_STREAM_URL = os.getenv("AUDIO_LLM_STREAM_URL", "").strip()
+    AUDIO_LLM_TOKEN = os.getenv("AUDIO_LLM_TOKEN") or os.getenv(
+        "CUSTOM_TOKEN"
+    )  # 매니저 앱 /token 값
+    AUDIO_PROGRESS_URL = os.getenv("AUDIO_PROGRESS_URL", "").rstrip(
+        "/"
+    )  # 예: https://manager.knpu.re.kr/progress
+    # openai: 각 사용자의 OpenAI API Key 사용. 모델: gpt-transcribe(기본, $0.0045/분) 등
     OPENAI_STT_MODEL = os.getenv("OPENAI_STT_MODEL", "gpt-transcribe")
     SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-change-me")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
@@ -21,6 +33,8 @@ class Settings:
     DOCS_STATIC_DIR = os.path.join(
         BASE_DIR, "static", "docs"
     )  # 압축 해제된 파일 저장소
+    # Whisper 노트의 원본 음성 저장소 — static/ 밖에 둔다 (인증 없이 공개되면 안 됨)
+    WHISPER_DIR = os.path.join(BASE_DIR, "data", "whisper")
 
     BASE_URL = "http://localhost:8000"
 
@@ -42,3 +56,4 @@ settings = Settings()
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 os.makedirs(settings.RESULT_DIR, exist_ok=True)
+os.makedirs(settings.WHISPER_DIR, exist_ok=True)

@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <script>(function(){try{var t=localStorage.getItem('lecai_theme_style');if(t&&t!=='default')document.documentElement.setAttribute('data-ui-theme',t);if(localStorage.getItem('theme')==='light'){document.documentElement.setAttribute('data-ui-theme-mode','light');}else{document.documentElement.classList.add('dark');}}catch(e){}})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LecAI</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
@@ -61,6 +62,7 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 4px; }
     </style>
+    <link rel="stylesheet" href="/static/shared/theme.css">
 </head>
 <body class="bg-dark text-white font-sans h-screen flex overflow-hidden">
 
@@ -94,6 +96,10 @@
                 <i class="fas fa-book-open w-6 text-center"></i>
                 <span class="ml-2 font-medium text-sm">Viewer</span>
             </a>
+            <a href="/whisper" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
+                <i class="fas fa-microphone w-6 text-center"></i>
+                <span class="ml-2 font-medium text-sm">Whisper</span>
+            </a>
             <a href="/settings" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
                 <i class="fas fa-cog w-6 text-center"></i>
                 <span class="ml-2 font-medium text-sm">Settings</span>
@@ -116,7 +122,7 @@
                 </button>
                 <h2 class="text-base font-semibold text-white/90"><i class="fas fa-home mr-2 text-blue-400"></i>Dashboard</h2>
             </div>
-            <div class="text-xs font-mono text-white/35" id="clock">00:00:00</div>
+            <button id="themeSettingsBtn" class="theme-settings-btn" type="button" title="테마 설정" aria-label="테마 설정"><i class="fas fa-palette text-sm"></i></button>
         </header>
 
         <div class="flex-1 overflow-hidden p-4 md:p-6">
@@ -293,8 +299,6 @@
         let selectedFolderId = 'root';
 
         // Init Sequence
-        updateClock();
-        setInterval(updateClock, 1000);
         fetchJobs();
         startPolling();
 
@@ -374,6 +378,11 @@
         }
 
         const SLIDE_EXTS = ['.pdf', '.ppt', '.pptx'];
+        const AUDIO_EXTS_UI = ['.mp3', '.m4a', '.m4b', '.wav', '.flac', '.ogg', '.oga', '.opus', '.webm', '.aac', '.wma', '.amr', '.aiff', '.aif', '.caf', '.mp4', '.mov', '.mkv'];
+        function isAudioFile(file) {
+            const name = (file.name || '').toLowerCase();
+            return AUDIO_EXTS_UI.some(ext => name.endsWith(ext));
+        }
         function isSlideFile(file) {
             const name = (file.name || '').toLowerCase();
             return SLIDE_EXTS.some(ext => name.endsWith(ext));
@@ -387,6 +396,10 @@
                     // 슬라이드 파일은 드롭 직후 녹음본 입력 모달을 띄운다 (건너뛰기 가능)
                     choice = await pickTranscript({ mode: 'pre', targetName: file.name });
                     if (choice === null) continue; // 닫기 = 업로드 취소
+                } else if (isAudioFile(file)) {
+                    // 단독 녹음 파일: 음성 인식 언어만 고른다
+                    choice = await pickTranscript({ mode: 'audio', targetName: file.name });
+                    if (choice === null) continue;
                 }
                 await uploadSingleFile(file, choice);
             }
@@ -774,17 +787,17 @@
                 }
             });
         }
-        function updateClock() {
-            document.getElementById('clock').textContent = new Date().toLocaleTimeString('ko-KR');
-        }
 
-        // 단축키: V -> Viewer, S -> Settings (입력 폼에 포커스된 경우 무시)
+        // 단축키: V -> Viewer, W -> Whisper, S -> Settings (입력 폼에 포커스된 경우 무시)
         document.addEventListener('keydown', (e) => {
             const tag = e.target && e.target.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
             if (!e.ctrlKey && !e.altKey && !e.metaKey) {
                 if (e.code === 'KeyV') {
                     e.preventDefault(); window.location.href = '/viewer'; return;
+                }
+                if (e.code === 'KeyW') {
+                    e.preventDefault(); window.location.href = '/whisper'; return;
                 }
                 if (e.code === 'KeyS') {
                     e.preventDefault(); window.location.href = '/settings'; return;
@@ -793,5 +806,6 @@
         });
 
     </script>
+<script src="/static/shared/theme.js"></script>
 </body>
 </html>

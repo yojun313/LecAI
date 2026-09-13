@@ -20,6 +20,8 @@ async def save_settings(
     model: str = Form(...),
     api_key: str = Form(""),
     audio_lang: str = Form("auto"),
+    audio_model: str = Form("2"),
+    stt_provider: str = Form(""),
     custom_prompt: Optional[str] = Form(None),
     custom_user_prompt: Optional[str] = Form(None),
     use_batch: str = Form("0"),
@@ -44,11 +46,12 @@ async def save_settings(
         api_key,
         model,
         audio_lang,
-        2,
+        int(audio_model) if audio_model.isdigit() else 2,
         custom_prompt,
         custom_user_prompt,
         profile_url,
         use_batch_api,
+        stt_provider,
     )
 
     if success:

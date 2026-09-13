@@ -593,6 +593,9 @@ def resolve_transcript_for_job(job_id: str, user_settings: dict):
     """
     job = JobManager.get_job(job_id) or {}
     audio_path = job.get("transcript_audio_path")
+    if job.get("transcript_language"):
+        # 업로드 모달에서 고른 언어 (이번 파일에만 적용)
+        user_settings = dict(user_settings, audio_language=job["transcript_language"])
     if audio_path and os.path.exists(audio_path) and not load_transcript(job_id):
         try:
             JobManager.update_progress(

@@ -1,0 +1,277 @@
+/* ============================================================================
+   LecAI 공통 테마 (모든 페이지 공용) — theme.js 와 한 쌍
+   - 테마 스타일: html[data-ui-theme="mesh|apple|mono"] (기본 '오로라'는 속성 없음)
+   - 라이트 모드: html[data-ui-theme-mode="light"]  (다크가 기본이라 라이트만 표시)
+   - 기존 페이지들은 다크 전제의 Tailwind 유틸리티(text-white 등)를 쓰므로,
+     라이트 모드는 실제 사용 중인 유틸리티 집합을 여기서 일괄 반전시킨다.
+   ============================================================================ */
+
+/* ── 테마 설정 버튼 ─────────────────────────────────────────────── */
+.theme-settings-btn {
+    width: 34px; height: 34px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: background 150ms, color 150ms, transform 150ms;
+    flex-shrink: 0;
+}
+.theme-settings-btn:hover { background: rgba(255,255,255,0.12); color: #fff; transform: rotate(15deg); }
+html[data-ui-theme-mode="light"] .theme-settings-btn {
+    border-color: rgba(15, 23, 42, 0.12);
+    background: rgba(15, 23, 42, 0.05);
+    color: #47536e;
+}
+html[data-ui-theme-mode="light"] .theme-settings-btn:hover { background: rgba(15,23,42,0.1); color: #101828; }
+
+/* ── 테마 설정 모달 ─────────────────────────────────────────────── */
+.lecai-theme-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(5, 7, 15, 0.55);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.lecai-theme-overlay[hidden] { display: none; }
+.lecai-theme-modal {
+    width: 100%; max-width: 380px;
+    border-radius: 18px;
+    background: rgba(20, 25, 40, 0.92);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    color: #e8e9ee;
+    font-family: inherit;
+}
+html[data-ui-theme-mode="light"] .lecai-theme-modal {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: rgba(15, 23, 42, 0.1);
+    color: #1e2233;
+    box-shadow: 0 20px 60px rgba(30, 41, 59, 0.25);
+}
+.lecai-theme-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    padding: 18px 20px 10px;
+}
+.lecai-theme-head h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.lecai-theme-head p { margin: 4px 0 0; font-size: 11.5px; opacity: 0.6; line-height: 1.5; }
+.lecai-theme-close {
+    background: none; border: none; font-size: 22px; line-height: 1;
+    color: inherit; opacity: 0.5; cursor: pointer; flex-shrink: 0; padding: 0;
+}
+.lecai-theme-close:hover { opacity: 1; }
+.lecai-theme-body { padding: 8px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lecai-theme-option {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 14px 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: inherit; font-family: inherit; font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: border-color 150ms, background 150ms;
+}
+html[data-ui-theme-mode="light"] .lecai-theme-option {
+    border-color: rgba(15, 23, 42, 0.1);
+    background: rgba(15, 23, 42, 0.03);
+}
+.lecai-theme-option:hover { border-color: rgba(96, 165, 250, 0.5); }
+.lecai-theme-option.selected { border-color: #60a5fa; background: rgba(59, 130, 246, 0.12); }
+.lecai-theme-check { display: none; margin-right: 4px; color: #60a5fa; }
+.lecai-theme-option.selected .lecai-theme-check { display: inline; }
+.lecai-theme-swatch {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.lecai-swatch-default {
+    background: radial-gradient(circle at 25% 25%, rgba(59,130,246,0.9), transparent 60%),
+                radial-gradient(circle at 75% 30%, rgba(168,85,247,0.8), transparent 60%),
+                #05070f;
+}
+.lecai-swatch-mesh {
+    background: radial-gradient(circle at 25% 30%, hsl(190 70% 55% / .9), transparent 55%),
+                radial-gradient(circle at 75% 25%, hsl(310 60% 60% / .8), transparent 55%),
+                radial-gradient(circle at 50% 80%, hsl(45 70% 55% / .7), transparent 55%),
+                #14151f;
+}
+.lecai-swatch-apple {
+    background: radial-gradient(circle at 30% 25%, rgba(38,92,190,0.95), transparent 60%),
+                radial-gradient(circle at 75% 70%, rgba(118,48,140,0.8), transparent 60%),
+                #0a0a0d;
+}
+.lecai-swatch-mono { background: linear-gradient(135deg, #12151d 0%, #1d2230 100%); }
+.lecai-theme-mode-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px 18px; font-size: 12.5px; font-weight: 700;
+}
+.lecai-mode-switch {
+    width: 42px; height: 24px; border-radius: 999px;
+    border: none; cursor: pointer; position: relative;
+    background: rgba(148, 163, 184, 0.35);
+    transition: background 150ms;
+}
+.lecai-mode-switch::before {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; transition: transform 150ms;
+}
+.lecai-mode-switch.on { background: #3b82f6; }
+.lecai-mode-switch.on::before { transform: translateX(18px); }
+
+/* ============================================================================
+   라이트 모드 — 다크 전제 유틸리티 일괄 반전
+   (아래 목록은 실제 템플릿에서 쓰는 클래스들의 전수 목록이다)
+   ============================================================================ */
+html[data-ui-theme-mode="light"] body { color: #101828; }
+
+/* 텍스트 계열 */
+html[data-ui-theme-mode="light"] .text-white { color: #101828 !important; }
+html[data-ui-theme-mode="light"] .text-white\/90 { color: #1a2233 !important; }
+html[data-ui-theme-mode="light"] .text-white\/80 { color: #253046 !important; }
+html[data-ui-theme-mode="light"] .text-white\/70 { color: #34405c !important; }
+html[data-ui-theme-mode="light"] .text-white\/60 { color: #47536e !important; }
+html[data-ui-theme-mode="light"] .text-white\/50 { color: #5a6781 !important; }
+html[data-ui-theme-mode="light"] .text-white\/40 { color: #6b7490 !important; }
+html[data-ui-theme-mode="light"] .text-white\/35 { color: #77809a !important; }
+html[data-ui-theme-mode="light"] .text-white\/30 { color: #8a92aa !important; }
+html[data-ui-theme-mode="light"] .hover\:text-white:hover { color: #101828 !important; }
+html[data-ui-theme-mode="light"] .placeholder-white\/30::placeholder { color: #94a3b8 !important; }
+
+/* 테두리 계열 */
+html[data-ui-theme-mode="light"] .border-white\/5 { border-color: rgba(15, 23, 42, 0.06) !important; }
+html[data-ui-theme-mode="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.10) !important; }
+html[data-ui-theme-mode="light"] .border-white\/15 { border-color: rgba(15, 23, 42, 0.14) !important; }
+html[data-ui-theme-mode="light"] .border-white\/20 { border-color: rgba(15, 23, 42, 0.18) !important; }
+
+/* 배경 계열 */
+html[data-ui-theme-mode="light"] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04) !important; }
+html[data-ui-theme-mode="light"] .bg-white\/10 { background-color: rgba(15, 23, 42, 0.07) !important; }
+html[data-ui-theme-mode="light"] .hover\:bg-white\/5:hover { background-color: rgba(15, 23, 42, 0.05) !important; }
+html[data-ui-theme-mode="light"] .hover\:bg-white\/10:hover { background-color: rgba(15, 23, 42, 0.08) !important; }
+html[data-ui-theme-mode="light"] .hover\:bg-white\/20:hover { background-color: rgba(15, 23, 42, 0.12) !important; }
+html[data-ui-theme-mode="light"] .bg-black\/60 { background-color: rgba(15, 23, 42, 0.35) !important; }
+html[data-ui-theme-mode="light"] .bg-gray-800 { background-color: #e2e8f0 !important; }
+html[data-ui-theme-mode="light"] .bg-dark { background-color: #eef0f9 !important; }
+
+/* 액센트 — 라이트 배경에서 대비가 나오도록 진하게 */
+html[data-ui-theme-mode="light"] .text-blue-300 { color: #1d4ed8 !important; }
+html[data-ui-theme-mode="light"] .text-blue-400 { color: #2563eb !important; }
+html[data-ui-theme-mode="light"] .hover\:text-blue-200:hover,
+html[data-ui-theme-mode="light"] .hover\:text-blue-300:hover,
+html[data-ui-theme-mode="light"] .hover\:text-blue-400:hover { color: #1d4ed8 !important; }
+html[data-ui-theme-mode="light"] .text-purple-400 { color: #7c3aed !important; }
+html[data-ui-theme-mode="light"] .hover\:text-purple-400:hover { color: #6d28d9 !important; }
+html[data-ui-theme-mode="light"] .text-red-300,
+html[data-ui-theme-mode="light"] .text-red-300\/90,
+html[data-ui-theme-mode="light"] .text-red-400 { color: #dc2626 !important; }
+html[data-ui-theme-mode="light"] .hover\:text-red-300:hover,
+html[data-ui-theme-mode="light"] .hover\:text-red-400:hover { color: #b91c1c !important; }
+html[data-ui-theme-mode="light"] .text-emerald-300 { color: #059669 !important; }
+html[data-ui-theme-mode="light"] .text-emerald-400 { color: #047857 !important; }
+html[data-ui-theme-mode="light"] .text-yellow-500 { color: #a16207 !important; }
+
+/* 셀렉트 option (다크 팝업색 하드코딩 대응) */
+html[data-ui-theme-mode="light"] option.bg-\[\#0f1424\],
+html[data-ui-theme-mode="light"] .bg-\[\#0f1424\] { background-color: #ffffff !important; color: #1e2233 !important; }
+
+/* 유리 패널 (viewer.html 은 자체 CSS 변수로 이미 대응하지만 다른 페이지는
+   다크 고정값이라 여기서 라이트 값을 지정한다) */
+html[data-ui-theme-mode="light"] .glass {
+    background: rgba(255, 255, 255, 0.60);
+    border-color: rgba(15, 23, 42, 0.08);
+}
+html[data-ui-theme-mode="light"] .glass-strong {
+    background: rgba(255, 255, 255, 0.75);
+    border-color: rgba(15, 23, 42, 0.10);
+}
+html[data-ui-theme-mode="light"] .glass-soft {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: rgba(15, 23, 42, 0.07);
+}
+
+/* 스크롤바 */
+html[data-ui-theme-mode="light"] ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.35); }
+html[data-ui-theme-mode="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(71, 85, 105, 0.55); }
+
+/* ============================================================================
+   테마별 배경 — 각 페이지 인라인 body 배경(오로라 다크)보다 선택자 특이도가
+   높아 자연스럽게 이긴다. 기본(오로라) 테마의 다크는 페이지 원본을 그대로 쓴다.
+   ============================================================================ */
+
+/* 기본(오로라) — 라이트 */
+html[data-ui-theme-mode="light"]:not([data-ui-theme]) body {
+    background: radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.14), transparent 35%),
+                radial-gradient(circle at 90% 0%, rgba(236, 72, 153, 0.10), transparent 40%),
+                radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.10), transparent 45%),
+                #eef0f9;
+}
+
+/* 그라디언트 메시 — 은은히 색이 도는 배경 (다크/라이트) */
+html[data-ui-theme="mesh"] body { background: var(--lecai-mesh-base, #14151f); position: relative; }
+html[data-ui-theme="mesh"] body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1;
+    background: radial-gradient(at 18% 20%, var(--lecai-mesh-1) 0, transparent 52%),
+                radial-gradient(at 82% 15%, var(--lecai-mesh-2) 0, transparent 52%),
+                radial-gradient(at 15% 82%, var(--lecai-mesh-3) 0, transparent 52%),
+                radial-gradient(at 85% 85%, var(--lecai-mesh-4) 0, transparent 52%),
+                var(--lecai-mesh-base, #14151f);
+    animation: lecaiMeshHue 30s linear infinite;
+}
+@keyframes lecaiMeshHue { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+html[data-ui-theme="mesh"]:not([data-ui-theme-mode="light"]) body {
+    --lecai-mesh-base: #14151f;
+    --lecai-mesh-1: hsl(190 70% 55% / .26);
+    --lecai-mesh-2: hsl(310 60% 60% / .22);
+    --lecai-mesh-3: hsl(45 70% 55% / .18);
+    --lecai-mesh-4: hsl(260 60% 62% / .22);
+}
+html[data-ui-theme="mesh"][data-ui-theme-mode="light"] body {
+    --lecai-mesh-base: #eef0f4;
+    --lecai-mesh-1: hsl(200 60% 65% / .20);
+    --lecai-mesh-2: hsl(300 45% 68% / .16);
+    --lecai-mesh-3: hsl(40 65% 68% / .15);
+    --lecai-mesh-4: hsl(255 45% 68% / .15);
+}
+@media (prefers-reduced-motion: reduce) {
+    html[data-ui-theme="mesh"] body::before { animation: none; }
+}
+
+/* 애플 글래스 — 월페이퍼 위 유리 (다크/라이트) */
+html[data-ui-theme="apple"]:not([data-ui-theme-mode="light"]) body {
+    background: radial-gradient(62% 55% at 14% 2%, rgba(38, 92, 190, .42) 0, transparent 62%),
+                radial-gradient(52% 48% at 90% 8%, rgba(118, 48, 140, .34) 0, transparent 62%),
+                radial-gradient(58% 52% at 78% 96%, rgba(18, 96, 148, .38) 0, transparent 62%),
+                radial-gradient(46% 42% at 6% 92%, rgba(72, 52, 150, .3) 0, transparent 62%),
+                #0a0a0d;
+    background-attachment: fixed;
+}
+html[data-ui-theme="apple"][data-ui-theme-mode="light"] body {
+    background: radial-gradient(62% 55% at 14% 2%, rgba(118, 170, 255, .38) 0, transparent 62%),
+                radial-gradient(52% 48% at 88% 8%, rgba(255, 170, 198, .32) 0, transparent 62%),
+                radial-gradient(58% 52% at 78% 96%, rgba(140, 205, 255, .34) 0, transparent 62%),
+                radial-gradient(46% 42% at 6% 92%, rgba(198, 180, 255, .3) 0, transparent 62%),
+                #eef0f5;
+    background-attachment: fixed;
+}
+html[data-ui-theme="apple"] .glass,
+html[data-ui-theme="apple"] .glass-strong,
+html[data-ui-theme="apple"] .glass-soft {
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+}
+
+/* 미니멀 플랫 — 유리/블러를 걷어낸 단색 표면 (다크/라이트) */
+html[data-ui-theme="mono"]:not([data-ui-theme-mode="light"]) body { background: #0b0e14; }
+html[data-ui-theme="mono"][data-ui-theme-mode="light"] body { background: #f3f4f6; }
+html[data-ui-theme="mono"] .glass,
+html[data-ui-theme="mono"] .glass-strong,
+html[data-ui-theme="mono"] .glass-soft {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+html[data-ui-theme="mono"]:not([data-ui-theme-mode="light"]) .glass { background: #12151d; border-color: rgba(255,255,255,0.08); }
+html[data-ui-theme="mono"]:not([data-ui-theme-mode="light"]) .glass-strong { background: #151924; border-color: rgba(255,255,255,0.10); }
+html[data-ui-theme="mono"]:not([data-ui-theme-mode="light"]) .glass-soft { background: #10131b; border-color: rgba(255,255,255,0.06); }
+html[data-ui-theme="mono"][data-ui-theme-mode="light"] .glass,
+html[data-ui-theme="mono"][data-ui-theme-mode="light"] .glass-strong { background: #ffffff; border-color: rgba(15,23,42,0.10); }
+html[data-ui-theme="mono"][data-ui-theme-mode="light"] .glass-soft { background: #f8fafc; border-color: rgba(15,23,42,0.07); }

@@ -53,7 +53,11 @@ async def settings_page(request: Request):
             "settings": user_settings,
             "default_system_prompt": default_system_prompt,
             "default_user_prompt": default_user_prompt,
-            "stt_engine_label": f"OpenAI {settings.OPENAI_STT_MODEL}",
+            "openai_stt_model": settings.OPENAI_STT_MODEL,
+            "custom_stt_available": bool(settings.AUDIO_LLM_URL),
+            "default_stt_provider": settings.STT_DEFAULT_PROVIDER
+            if settings.STT_DEFAULT_PROVIDER in ("custom", "openai")
+            else "custom",
         },
     )
 
@@ -66,6 +70,27 @@ async def viewer_page(request: Request):
         return RedirectResponse(url="/login", status_code=302)
 
     return templates.TemplateResponse(request, "viewer.html", {"username": user})
+
+
+@router.get("/whisper")
+async def whisper_page(request: Request):
+    session_id = request.cookies.get("session_id")
+    user = AuthManager.get_user_by_session(session_id)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    user_settings = AuthManager.get_user_settings(user)
+
+    return templates.TemplateResponse(
+        request,
+        "whisper.html",
+        {
+            "username": user,
+            "settings": user_settings,
+            "default_language": user_settings.get("audio_language") or "auto",
+            "default_model": int(user_settings.get("audio_model_level") or 2),
+        },
+    )
 
 
 @router.get("/guide/openai", response_class=HTMLResponse)

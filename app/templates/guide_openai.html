@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <script>(function(){try{var t=localStorage.getItem('lecai_theme_style');if(t&&t!=='default')document.documentElement.setAttribute('data-ui-theme',t);if(localStorage.getItem('theme')==='light'){document.documentElement.setAttribute('data-ui-theme-mode','light');}else{document.documentElement.classList.add('dark');}}catch(e){}})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenAI API Key 발급 및 사용 가이드</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,8 +40,11 @@
             flex-shrink: 0;
         }
     </style>
+    <link rel="stylesheet" href="/static/shared/theme.css">
 </head>
 <body class="font-sans leading-relaxed text-slate-800 min-h-screen">
+    <button id="themeSettingsBtn" class="theme-settings-btn" type="button" title="테마 설정" aria-label="테마 설정" style="position:fixed;top:16px;right:16px;z-index:100;"><i class="fas fa-palette text-sm"></i></button>
+
 
     <div class="max-w-4xl mx-auto p-6 md:p-10 glass rounded-3xl my-10">
 
@@ -143,5 +147,6 @@
 
     </div>
 
+<script src="/static/shared/theme.js"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <script>(function(){try{var t=localStorage.getItem('lecai_theme_style');if(t&&t!=='default')document.documentElement.setAttribute('data-ui-theme',t);if(localStorage.getItem('theme')==='light'){document.documentElement.setAttribute('data-ui-theme-mode','light');}else{document.documentElement.classList.add('dark');}}catch(e){}})();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - LecAI</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
@@ -57,8 +58,11 @@
         .btn-glow-blue:hover { box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4); transform: translateY(-1px); }
         .btn-disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
     </style>
+    <link rel="stylesheet" href="/static/shared/theme.css">
 </head>
 <body class="text-white h-screen flex items-center justify-center overflow-hidden relative">
+    <button id="themeSettingsBtn" class="theme-settings-btn" type="button" title="테마 설정" aria-label="테마 설정" style="position:fixed;top:16px;right:16px;z-index:100;"><i class="fas fa-palette text-sm"></i></button>
+
 
     <div class="blob w-96 h-96 bg-emerald-500 -top-20 -left-20"></div>
     <div class="blob w-96 h-96 bg-blue-600 top-1/3 -right-24" style="animation-delay: -4s;"></div>
@@ -179,5 +183,6 @@
             }
         });
     </script>
+<script src="/static/shared/theme.js"></script>
 </body>
 </html>

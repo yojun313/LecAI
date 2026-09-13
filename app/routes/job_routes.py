@@ -18,11 +18,7 @@ from app.services import transcript_input as ti
 from app.services.transcript_input import AUDIO_EXTS
 from app.db import docs_col
 from typing import Optional
-from app.services.audio_processor import (
-    process_audio_task,
-    NO_KEY_MESSAGE,
-    user_stt_key,
-)
+from app.services.audio_processor import process_audio_task, stt_precheck
 from app.services.auth_manager import AuthManager
 from app.core.config import settings
 from app.routes.deps import get_current_user
@@ -38,6 +34,7 @@ async def upload_file(
     file: UploadFile = File(...),
     transcript: str = Form(""),
     transcript_file: Optional[UploadFile] = File(None),
+    audio_language: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     ext = os.path.splitext(file.filename)[1].lower()
@@ -46,8 +43,10 @@ async def upload_file(
         and transcript_file.filename
         and ti.is_audio(transcript_file.filename)
     )
-    if needs_stt and not user_stt_key(AuthManager.get_user_settings(user)):
-        raise HTTPException(status_code=400, detail=NO_KEY_MESSAGE)
+    if needs_stt:
+        problem = stt_precheck(AuthManager.get_user_settings(user))
+        if problem:
+            raise HTTPException(status_code=400, detail=problem)
 
     file_path = os.path.join(settings.UPLOAD_DIR, file.filename)
     with open(file_path, "wb") as buffer:
@@ -56,11 +55,15 @@ async def upload_file(
     job_id = JobManager.create_job(file.filename, user)
 
     if ext in AUDIO_EXTS:
+        if audio_language.strip():
+            JobManager.update_fields(
+                job_id, {"transcript_language": audio_language.strip()}
+            )
         background_tasks.add_task(process_audio_task, job_id, file_path)
     else:
         # 강의 녹음본: 붙여넣은 텍스트 / 텍스트 문서 / 음성 파일 중 하나 (선택)
         try:
-            _store_transcript_input(job_id, transcript, transcript_file)
+            _store_transcript_input(job_id, transcript, transcript_file, audio_language)
         except ValueError as e:
             JobManager.delete_job(job_id, user)
             if os.path.exists(file_path):
@@ -71,7 +74,9 @@ async def upload_file(
     return {"job_id": job_id, "message": "Upload successful"}
 
 
-def _store_transcript_input(job_id: str, transcript: str, transcript_file):
+def _store_transcript_input(
+    job_id: str, transcript: str, transcript_file, audio_language: str = ""
+):
     """
     녹음본 입력을 작업(job_id)에 저장한다.
       - 붙여넣은 텍스트 / 텍스트 문서 → 본문을 transcript_path(job_id) 에 저장
@@ -90,10 +95,12 @@ def _store_transcript_input(job_id: str, transcript: str, transcript_file):
             )
             with open(audio_path, "wb") as buffer:
                 shutil.copyfileobj(transcript_file.file, buffer)
-            JobManager.update_fields(
-                job_id,
-                {"transcript_audio_path": audio_path, "transcript_source": fname},
-            )
+            fields = {"transcript_audio_path": audio_path, "transcript_source": fname}
+            if (audio_language or "").strip():
+                fields["transcript_language"] = (
+                    audio_language.strip()
+                )  # 이번 파일에만 적용되는 언어
+            JobManager.update_fields(job_id, fields)
             return "audio"
         if ti.is_text_doc(fname):
             tmp_path = os.path.join(
@@ -129,6 +136,7 @@ async def add_transcript(
     background_tasks: BackgroundTasks,
     transcript: str = Form(""),
     transcript_file: Optional[UploadFile] = File(None),
+    audio_language: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     """
@@ -165,9 +173,10 @@ async def add_transcript(
         transcript_file
         and transcript_file.filename
         and ti.is_audio(transcript_file.filename)
-        and not user_stt_key(AuthManager.get_user_settings(user))
     ):
-        raise HTTPException(status_code=400, detail=NO_KEY_MESSAGE)
+        problem = stt_precheck(AuthManager.get_user_settings(user))
+        if problem:
+            raise HTTPException(status_code=400, detail=problem)
 
     job_id = JobManager.create_job(f"[녹음본 추가] {display_name}", user)
     JobManager.update_fields(
@@ -175,7 +184,9 @@ async def add_transcript(
         {"kind": "transcript", "target_type": target_type, "target_id": target_id},
     )
     try:
-        kind = _store_transcript_input(job_id, transcript, transcript_file)
+        kind = _store_transcript_input(
+            job_id, transcript, transcript_file, audio_language
+        )
     except ValueError as e:
         JobManager.delete_job(job_id, user)
         raise HTTPException(status_code=400, detail=str(e))

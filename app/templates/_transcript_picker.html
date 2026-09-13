@@ -16,6 +16,7 @@
                 <button type="button" data-tp-tab="paste" class="tp-tab flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-paste mr-1"></i> 텍스트 붙여넣기</button>
                 <button type="button" data-tp-tab="text" class="tp-tab flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-file-alt mr-1"></i> 텍스트 파일</button>
                 <button type="button" data-tp-tab="audio" class="tp-tab flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-file-audio mr-1"></i> 녹음 파일</button>
+                <button type="button" data-tp-tab="whisper" class="tp-tab flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-microphone mr-1"></i> Whisper 노트</button>
             </div>
 
             <div data-tp-panel="paste">
@@ -33,12 +34,33 @@
                 </div>
             </div>
 
-            <div data-tp-panel="audio" class="hidden">
+            <div data-tp-panel="audio" class="hidden space-y-3">
+                <div id="tpAudioOnlyInfo" class="hidden text-xs text-white/70 glass-soft rounded-xl px-3 py-2">
+                    <i class="fas fa-file-audio mr-2 text-purple-400"></i>녹음 파일을 음성 인식해 텍스트로 변환합니다. 결과는 작업 목록에서 내려받을 수 있습니다.
+                </div>
+                <div class="flex items-center space-x-3">
+                    <label for="tpLang" class="text-xs font-bold text-white/70 whitespace-nowrap"><i class="fas fa-language mr-1 text-emerald-400"></i> 음성 인식 언어</label>
+                    <select id="tpLang" class="flex-1 p-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white/90 outline-none focus:border-purple-400/60 cursor-pointer">
+                        <option class="bg-[#0f1424]" value="auto">자동 인식</option>
+                        <option class="bg-[#0f1424]" value="ko">한국어</option><option class="bg-[#0f1424]" value="en">영어</option><option class="bg-[#0f1424]" value="ja">일본어</option><option class="bg-[#0f1424]" value="zh">중국어</option>
+                        <option class="bg-[#0f1424]" value="fr">프랑스어</option><option class="bg-[#0f1424]" value="de">독일어</option><option class="bg-[#0f1424]" value="es">스페인어</option><option class="bg-[#0f1424]" value="it">이탈리아어</option>
+                        <option class="bg-[#0f1424]" value="pt">포르투갈어</option><option class="bg-[#0f1424]" value="ru">러시아어</option><option class="bg-[#0f1424]" value="ar">아랍어</option><option class="bg-[#0f1424]" value="hi">힌디어</option>
+                        <option class="bg-[#0f1424]" value="th">태국어</option><option class="bg-[#0f1424]" value="vi">베트남어</option><option class="bg-[#0f1424]" value="id">인도네시아어</option>
+                    </select>
+                </div>
+                <p class="text-[11px] text-white/40">설정 화면의 기본 언어가 미리 선택됩니다. 여기서 바꾸면 이번 파일에만 적용됩니다.</p>
                 <div id="tpAudioDrop" class="tp-drop border-2 border-dashed border-white/15 rounded-xl p-6 text-center cursor-pointer transition hover:border-purple-400/60 hover:bg-purple-500/5">
                     <i class="fas fa-microphone text-2xl text-white/50 mb-2"></i>
                     <p class="text-sm text-white/80">녹음 파일을 드래그하거나 클릭해서 선택</p>
                     <p class="text-[11px] text-white/40 mt-1">mp3, m4a, wav, flac, ogg, opus, webm, aac, wma, amr, aiff, mp4 등 · 자동 음성 인식(STT) 후 반영</p>
                     <input type="file" id="tpAudioFile" class="hidden" accept="audio/*,video/mp4,video/webm,video/quicktime,.mp3,.m4a,.m4b,.wav,.flac,.ogg,.oga,.opus,.webm,.aac,.wma,.amr,.aiff,.aif,.caf,.mp4,.mov,.mkv">
+                </div>
+            </div>
+
+            <div data-tp-panel="whisper" class="hidden space-y-2">
+                <p class="text-[11px] text-white/45"><i class="fas fa-circle-info mr-1 text-blue-400"></i>Whisper 탭에서 이미 변환해 둔 노트의 전사 텍스트를 그대로 사용합니다 (재변환 없음).</p>
+                <div id="tpNoteList" class="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                    <div class="text-center text-white/40 text-xs py-6">불러오는 중...</div>
                 </div>
             </div>
 
@@ -70,14 +92,17 @@
     const extOf = (name) => { const m = /\.[^.]+$/.exec((name || '').toLowerCase()); return m ? m[0] : ''; };
 
     const modal = document.getElementById('transcriptPicker');
+    const langSelect = document.getElementById('tpLang');
+    const DEFAULT_LANG = "{{ (settings.audio_language if settings else 'auto') or 'auto' }}";
     const textArea = document.getElementById('tpText');
     const stats = document.getElementById('tpStats');
     const fileInfo = document.getElementById('tpFileInfo');
     const errorEl = document.getElementById('tpError');
-    let resolver = null, currentTab = 'paste', pickedFile = null;
+    let resolver = null, currentTab = 'paste', pickedFile = null, pickedNoteUid = null;
 
     function setTab(tab) {
         currentTab = tab;
+        if (tab === 'whisper') loadWhisperNotes();
         document.querySelectorAll('#transcriptPicker .tp-tab').forEach(b => {
             const active = b.dataset.tpTab === tab;
             b.className = 'tp-tab flex-1 text-xs py-2 rounded-lg transition ' + (active ? 'bg-purple-600/40 text-white border border-purple-400/40' : 'text-white/60 hover:text-white hover:bg-white/5');
@@ -97,6 +122,35 @@
         }
     }
     window.tpClearFile = () => { setFile(null); document.getElementById('tpTextFile').value = ''; document.getElementById('tpAudioFile').value = ''; };
+
+    // ── Whisper 노트 목록 (완료/중단된 노트의 전사를 그대로 사용) ──
+    const tpEsc = (s) => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+    const tpFmtDur = (sec) => { sec = Math.floor(sec || 0); const m = Math.floor(sec / 60), s = sec % 60; return `${m}:${String(s).padStart(2, '0')}`; };
+    async function loadWhisperNotes() {
+        const list = document.getElementById('tpNoteList');
+        try {
+            const res = await fetch('/api/whisper/notes');
+            if (!res.ok) throw new Error();
+            const items = ((await res.json()).items || []).filter(n => n.status === 'done' || n.status === 'stopped');
+            if (!items.length) {
+                list.innerHTML = '<div class="text-center text-white/40 text-xs py-6 leading-relaxed">변환 완료된 Whisper 노트가 없습니다.<br>Whisper 탭에서 먼저 녹음을 변환해 주세요.</div>';
+                return;
+            }
+            list.innerHTML = items.map(n => `
+                <button type="button" data-tp-note="${n.uid}"
+                    class="tp-note w-full text-left px-3 py-2 rounded-xl border transition ${n.uid === pickedNoteUid ? 'border-purple-400/60 bg-purple-500/15' : 'border-white/10 hover:bg-white/5'}">
+                    <div class="text-xs font-bold text-white/85 truncate">${tpEsc(n.title)}</div>
+                    <div class="text-[10px] text-white/40 mt-0.5">${tpEsc((n.createdAt || '').slice(0, 10))}${n.duration ? ' · ' + tpFmtDur(n.duration) : ''}${n.status === 'stopped' ? ' · 중단됨(부분 전사)' : ''}</div>
+                </button>`).join('');
+            list.querySelectorAll('.tp-note').forEach(b => b.addEventListener('click', () => {
+                pickedNoteUid = b.dataset.tpNote;
+                loadWhisperNotes();
+                errorEl.classList.add('hidden');
+            }));
+        } catch (e) {
+            list.innerHTML = '<div class="text-center text-white/40 text-xs py-6">노트 목록을 불러오지 못했습니다.</div>';
+        }
+    }
 
     function acceptFile(file) {
         if (!file) return;
@@ -125,20 +179,28 @@
         stats.textContent = n ? `${n.toLocaleString()}자 (약 ${Math.round(n / 2).toLocaleString()} 토큰)` : '0자';
     });
 
+    // mode: 'pre' (슬라이드 업로드 시, 건너뛰기 가능) | 'post' (기존 설명에 추가) | 'audio' (단독 녹음 파일 업로드: 언어만 선택)
     window.pickTranscript = ({ mode, targetName }) => new Promise((resolve) => {
         resolver = resolve;
-        const pre = mode === 'pre';
-        document.getElementById('tpTitle').textContent = pre ? '강의 녹음본 추가 (선택)' : '강의 녹음본 추가';
+        const pre = mode === 'pre', audioOnly = mode === 'audio';
+        document.getElementById('tpTitle').textContent = audioOnly ? '녹음 파일 음성 인식' : (pre ? '강의 녹음본 추가 (선택)' : '강의 녹음본 추가');
         document.getElementById('tpTarget').textContent = targetName || '';
-        document.getElementById('tpHelp').textContent = pre
+        document.getElementById('tpHelp').textContent = audioOnly
+            ? '녹음 파일을 텍스트로 변환합니다. 언어를 확인하고 시작하세요.'
+            : pre
             ? '슬라이드 분석 시 녹음본에서 각 슬라이드를 설명한 부분을 찾아 "강의 녹음 발췌" 절을 함께 정리합니다. 녹음본은 슬라이드마다 통째로 전달되지만 프롬프트 캐싱으로 2번째 슬라이드부터 캐시 단가(정가의 10%)가 적용됩니다.'
             : '이미 만들어진 슬라이드 설명에 강의 녹음 내용을 덧붙입니다. 녹음본에서 각 슬라이드를 설명한 부분만 찾아 그 슬라이드에만 "강의 녹음 발췌" 절이 추가됩니다. 슬라이드 이미지는 다시 보내지 않고 녹음본은 프롬프트 캐싱으로 처리됩니다.';
         document.getElementById('tpSkipBtn').classList.toggle('hidden', !pre);
         document.getElementById('tpCancelBtn').classList.toggle('hidden', pre);
-        document.getElementById('tpSubmitLabel').textContent = pre ? '녹음본과 함께 업로드' : '녹음본 반영 시작';
-        textArea.value = ''; stats.textContent = '0자'; tpClearFile(); setTab('paste');
+        document.getElementById('tpSubmitLabel').textContent = audioOnly ? '음성 인식 시작' : (pre ? '녹음본과 함께 업로드' : '녹음본 반영 시작');
+        modal.querySelector('[role="tablist"]').classList.toggle('hidden', audioOnly);
+        document.getElementById('tpAudioDrop').classList.toggle('hidden', audioOnly);
+        document.getElementById('tpAudioOnlyInfo').classList.toggle('hidden', !audioOnly);
+        langSelect.value = DEFAULT_LANG; if (!langSelect.value) langSelect.value = 'auto';
+        textArea.value = ''; stats.textContent = '0자'; tpClearFile(); pickedNoteUid = null; setTab(audioOnly ? 'audio' : 'paste');
         modal.classList.remove('hidden'); modal.classList.add('flex');
-        setTimeout(() => textArea.focus(), 50);
+        setTimeout(() => (audioOnly ? langSelect : textArea).focus(), 50);
+        modal.dataset.mode = mode;
     });
 
     window.tpResolve = (value) => {
@@ -147,14 +209,28 @@
         if (r) r(value);
     };
 
-    window.tpSubmit = () => {
+    window.tpSubmit = async () => {
+        if (modal.dataset.mode === 'audio') return tpResolve({ kind: 'audio-only', language: langSelect.value || 'auto' });
         if (currentTab === 'paste') {
             const text = textArea.value.trim();
             if (!text) return showError('녹음본 텍스트를 붙여 넣으세요.');
             return tpResolve({ kind: 'text', text });
         }
+        if (currentTab === 'whisper') {
+            if (!pickedNoteUid) return showError('Whisper 노트를 선택하세요.');
+            try {
+                const res = await fetch(`/api/whisper/notes/${pickedNoteUid}`);
+                if (!res.ok) throw new Error();
+                const note = await res.json();
+                const text = (note.text || (note.segments || []).map(s => s.text).join(' ')).trim();
+                if (!text) return showError('선택한 노트에 전사 텍스트가 없습니다.');
+                return tpResolve({ kind: 'text', text });
+            } catch (e) {
+                return showError('노트 내용을 불러오지 못했습니다.');
+            }
+        }
         if (!pickedFile) return showError(currentTab === 'audio' ? '녹음 파일을 선택하세요.' : '텍스트 문서를 선택하세요.');
-        return tpResolve({ kind: 'file', file: pickedFile.file });
+        return tpResolve({ kind: 'file', file: pickedFile.file, language: pickedFile.kind === 'audio' ? (langSelect.value || 'auto') : undefined });
     };
 
     // FormData 에 선택 결과를 채운다 (사전/사후 공통)
@@ -162,6 +238,7 @@
         if (!choice || choice.kind === 'none') return;
         if (choice.kind === 'text') formData.append('transcript', choice.text);
         else if (choice.kind === 'file') formData.append('transcript_file', choice.file);
+        if (choice.language) formData.append('audio_language', choice.language);
     };
 })();
 </script>

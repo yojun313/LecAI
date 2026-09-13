@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper - LecAI</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <script>(function(){try{var t=localStorage.getItem('lecai_theme_style');if(t&&t!=='default')document.documentElement.setAttribute('data-ui-theme',t);if(localStorage.getItem('theme')==='light'){document.documentElement.setAttribute('data-ui-theme-mode','light');}else{document.documentElement.classList.add('dark');}}catch(e){}})();</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#05070f',
+                        card: '#0f1424',
+                        sidebar: '#0a0e1a'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/shared/theme.css">
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.35); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.55); }
+
+        body {
+            background: radial-gradient(circle at 10% 10%, rgba(59,130,246,0.20), transparent 35%),
+                        radial-gradient(circle at 90% 0%, rgba(168,85,247,0.18), transparent 40%),
+                        radial-gradient(circle at 50% 100%, rgba(16,185,129,0.10), transparent 45%),
+                        #05070f;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-soft {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* ── Whisper 전용 컴포넌트 ── */
+        .seg-row { transition: background 130ms; cursor: pointer; }
+        .seg-row.active { background: rgba(59, 130, 246, 0.16); }
+        .seg-row.active .seg-text { color: #fff; font-weight: 600; }
+        html[data-ui-theme-mode="light"] .seg-row.active { background: rgba(59, 130, 246, 0.14); }
+        html[data-ui-theme-mode="light"] .seg-row.active .seg-text { color: #101828; }
+        .seg-text mark { background: rgba(59, 130, 246, 0.4); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+        .spinner {
+            width: 18px; height: 18px; flex-shrink: 0;
+            border: 3px solid rgba(148, 163, 184, 0.25);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        input[type="range"].seek { width: 100%; accent-color: #3b82f6; height: 5px; cursor: pointer; }
+
+        .drop-overlay {
+            display: none; position: fixed; inset: 0; z-index: 300;
+            background: rgba(5, 7, 15, 0.65);
+            align-items: center; justify-content: center;
+            color: #fff; font-size: 19px; font-weight: 800;
+            border: 4px dashed rgba(96, 165, 250, 0.6);
+            pointer-events: none;
+        }
+        .drop-overlay.on { display: flex; }
+
+        .fulltext-body { white-space: pre-wrap; word-break: break-word; line-height: 1.85; }
+    </style>
+</head>
+<body class="bg-dark text-white font-sans h-screen flex overflow-hidden">
+
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
+
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 glass-strong border-r border-white/10 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
+        <div class="p-5 border-b border-white/10 relative">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 mb-4 tracking-tight">
+                LecAI
+            </h1>
+            <div class="flex items-center space-x-3 glass-soft p-2 rounded-xl">
+                <div class="w-10 h-10 rounded-full border border-blue-400/40 overflow-hidden bg-gray-800 flex-shrink-0 shadow-lg">
+                    <img src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
+                </div>
+                <div class="min-w-0">
+                    <p class="text-xs text-white/40">Welcome,</p>
+                    <p class="text-sm font-bold text-white truncate">{{ username }}</p>
+                </div>
+            </div>
+            <button id="closeSidebarBtn" class="absolute top-5 right-5 md:hidden text-white/40 hover:text-white transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="flex-1 px-3 py-4 space-y-1">
+            <a href="/" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
+                <i class="fas fa-columns w-6 text-center"></i>
+                <span class="ml-2 font-medium text-sm">Dashboard</span>
+            </a>
+            <a href="/viewer" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
+                <i class="fas fa-book-open w-6 text-center"></i>
+                <span class="ml-2 font-medium text-sm">Viewer</span>
+            </a>
+            <a href="/whisper" class="flex items-center px-3 py-2.5 bg-blue-500/15 text-blue-300 rounded-xl border border-blue-400/25 shadow-inner">
+                <i class="fas fa-microphone w-6 text-center"></i>
+                <span class="ml-2 font-medium text-sm">Whisper</span>
+            </a>
+            <a href="/settings" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
+                <i class="fas fa-cog w-6 text-center"></i>
+                <span class="ml-2 font-medium text-sm">Settings</span>
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-white/10">
+            <a href="/logout" class="flex items-center px-3 py-2 text-red-300/90 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition text-sm">
+                <i class="fas fa-sign-out-alt w-6 text-center"></i>
+                <span class="ml-2">Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0">
+        <header class="h-14 glass border-b border-white/10 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-20">
+            <div class="flex items-center">
+                <button id="openSidebarBtn" class="md:hidden mr-3 text-white/60 hover:text-white transition">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <h2 class="text-base font-semibold text-white/90"><i class="fas fa-microphone mr-2 text-blue-400"></i>Whisper</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="themeSettingsBtn" class="theme-settings-btn" type="button" title="테마 설정" aria-label="테마 설정">
+                    <i class="fas fa-palette text-sm"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-hidden p-4 md:p-6 flex gap-4 md:gap-6 min-h-0">
+
+            <!-- 노트 목록 -->
+            <div class="w-72 lg:w-80 glass rounded-2xl flex-col flex-shrink-0 hidden md:flex" id="note-panel">
+                <div class="p-4 border-b border-white/10 flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-white/50 uppercase tracking-wider">내 노트</h3>
+                    <span class="text-[10px] bg-white/10 text-white/60 px-2 py-0.5 rounded-full font-bold" id="note-count">0</span>
+                </div>
+                <div class="p-3 space-y-2 border-b border-white/10">
+                    <button onclick="openUploadModal()"
+                        class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-sm font-bold py-2.5 rounded-xl transition shadow-lg">
+                        <i class="fas fa-plus mr-1"></i> 새 노트 만들기
+                    </button>
+                    <input type="text" id="note-search" oninput="renderNoteList()" placeholder="노트 검색..."
+                        class="w-full glass-soft border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/40 placeholder-white/30">
+                </div>
+                <div class="flex-1 overflow-y-auto p-2" id="note-list">
+                    <div class="text-center text-white/40 text-sm py-8">불러오는 중...</div>
+                </div>
+                <!-- GPU 모니터 (사이드바 하단 고정 영역) -->
+                <div class="border-t border-white/10 px-3.5 py-2.5 text-[11px] flex-shrink-0" id="gpu-widget" style="display:none;">
+                    <div id="gpu-body"></div>
+                </div>
+            </div>
+
+            <!-- 본문 -->
+            <div class="flex-1 glass rounded-2xl flex flex-col min-w-0 min-h-0">
+
+                <!-- 빈 상태 -->
+                <div class="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center" id="empty-state">
+                    <div class="w-24 h-24 rounded-full bg-blue-500/10 border border-blue-400/25 flex items-center justify-center">
+                        <i class="fas fa-microphone text-3xl text-blue-400"></i>
+                    </div>
+                    <div class="text-lg font-bold text-white">음성을 텍스트로 바꿔 드립니다</div>
+                    <div class="text-sm text-white/50 leading-relaxed">
+                        음성/영상 파일을 업로드하면 AI가 자동으로 받아 적고,<br>
+                        진행 상황과 인식된 문장을 실시간으로 보여드립니다.<br>
+                        변환이 끝나면 구간별 재생·검색·내보내기를 할 수 있습니다.
+                    </div>
+                    <button onclick="openUploadModal()"
+                        class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-sm font-bold px-6 py-2.5 rounded-xl transition shadow-lg">
+                        <i class="fas fa-upload mr-1"></i> 파일 업로드
+                    </button>
+                    <button onclick="toggleSidebarPanel()" class="md:hidden text-xs text-white/40 hover:text-white underline">노트 목록 보기</button>
+                    <div class="text-[11px] text-white/35">
+                        지원 형식: mp3 · wav · m4a · aac · ogg · flac · amr · mp4 · mov · webm 등 (최대 2GB)
+                    </div>
+                </div>
+
+                <!-- 노트 상세 -->
+                <div id="note-view" style="display:none;" class="flex-1 min-h-0 flex-col">
+                    <div class="p-4 md:px-6 border-b border-white/10 space-y-2 flex-shrink-0">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <button onclick="toggleSidebarPanel()" class="md:hidden text-white/50 hover:text-white flex-shrink-0"><i class="fas fa-list"></i></button>
+                            <div class="text-lg font-bold text-white truncate cursor-text hover:bg-white/5 rounded-lg px-1 -mx-1" id="note-title" title="클릭하여 이름 변경"></div>
+                        </div>
+                        <div class="text-xs text-white/40 flex flex-wrap gap-x-4 gap-y-1" id="note-meta"></div>
+                        <div class="flex flex-wrap gap-2" id="note-actions"></div>
+                    </div>
+
+                    <div class="px-4 md:px-6 py-4 border-b border-white/10 flex-shrink-0" id="processing-box" style="display:none;">
+                        <div class="flex items-center gap-4">
+                            <div class="spinner"></div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-bold text-blue-300 mb-2" id="processing-stage">준비 중...</div>
+                                <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+                                    <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500" id="processing-fill" style="width:0%"></div>
+                                </div>
+                                <div class="text-[11px] text-white/35 mt-2">페이지를 닫아도 변환은 서버에서 계속 진행됩니다. 인식되는 문장이 아래에 실시간으로 표시됩니다.</div>
+                            </div>
+                            <div class="text-xl font-extrabold text-white w-16 text-right" id="processing-pct">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="mx-4 md:mx-6 mt-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-400/30 text-red-300 text-sm leading-relaxed" id="error-box" style="display:none;"></div>
+
+                    <div class="px-4 md:px-6 py-3 border-b border-white/10 flex items-center gap-3 flex-wrap flex-shrink-0">
+                        <div class="flex gap-1">
+                            <button id="tab-timeline" onclick="setView('timeline')"
+                                class="text-xs font-bold px-3 py-1.5 rounded-lg border border-blue-400/40 bg-blue-500/15 text-blue-300 transition">타임라인</button>
+                            <button id="tab-fulltext" onclick="setView('fulltext')"
+                                class="text-xs font-bold px-3 py-1.5 rounded-lg border border-white/10 text-white/50 hover:text-white transition">전체 텍스트</button>
+                        </div>
+                        <input type="text" id="transcript-search" oninput="renderSegments()" placeholder="내용 검색..."
+                            class="flex-1 min-w-[140px] max-w-[280px] glass-soft border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/40 placeholder-white/30">
+                        <label class="ml-auto flex items-center gap-1.5 text-xs font-bold text-white/50 cursor-pointer select-none whitespace-nowrap">
+                            <input type="checkbox" id="auto-scroll" checked class="accent-blue-500"> 자동 스크롤
+                        </label>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto px-3 md:px-4 py-2" id="transcript" style="scroll-behavior:smooth;"></div>
+                    <div class="flex-1 overflow-y-auto px-5 md:px-8 py-5" id="fulltext" style="display:none;">
+                        <div class="fulltext-body text-[15px] text-white/80 max-w-3xl" id="fulltext-body"></div>
+                    </div>
+
+                    <div class="border-t border-white/10 px-4 py-3 flex items-center gap-3 flex-wrap flex-shrink-0" id="player-bar" style="display:none;">
+                        <button onclick="skip(-10)" title="10초 뒤로"
+                            class="w-8 h-8 rounded-full border border-white/15 text-white/60 hover:text-white hover:bg-white/10 text-[10px] font-extrabold transition flex-shrink-0">-10</button>
+                        <button id="play-btn" onclick="togglePlay()" title="재생/일시정지"
+                            class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white flex items-center justify-center transition shadow-lg flex-shrink-0">
+                            <i class="fas fa-play text-sm" id="icon-play"></i>
+                            <i class="fas fa-pause text-sm" id="icon-pause" style="display:none;"></i>
+                        </button>
+                        <button onclick="skip(10)" title="10초 앞으로"
+                            class="w-8 h-8 rounded-full border border-white/15 text-white/60 hover:text-white hover:bg-white/10 text-[10px] font-extrabold transition flex-shrink-0">+10</button>
+                        <span class="text-xs text-white/50 tabular-nums whitespace-nowrap" id="time-current">0:00</span>
+                        <div class="flex-1 min-w-[120px] flex items-center">
+                            <input type="range" class="seek" id="seek" min="0" max="1000" value="0" step="1">
+                        </div>
+                        <span class="text-xs text-white/50 tabular-nums whitespace-nowrap" id="time-total">0:00</span>
+                        <select id="speed" onchange="player.playbackRate = parseFloat(this.value)"
+                            class="glass-soft border border-white/10 text-white text-xs font-bold rounded-lg px-2 py-1.5 outline-none cursor-pointer">
+                            <option class="bg-[#0f1424]" value="0.5">0.5x</option>
+                            <option class="bg-[#0f1424]" value="0.75">0.75x</option>
+                            <option class="bg-[#0f1424]" value="1" selected>1.0x</option>
+                            <option class="bg-[#0f1424]" value="1.25">1.25x</option>
+                            <option class="bg-[#0f1424]" value="1.5">1.5x</option>
+                            <option class="bg-[#0f1424]" value="2">2.0x</option>
+                        </select>
+                    </div>
+                    <audio id="player" preload="metadata"></audio>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 업로드 모달 -->
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] items-center justify-center p-5" id="upload-modal" style="display:none;"
+         onclick="if(event.target===this) closeUploadModal()">
+        <div class="glass-strong rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto shadow-2xl">
+            <div class="p-5 border-b border-white/10 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white"><i class="fas fa-upload mr-2 text-blue-400"></i>새 노트 만들기</h3>
+                <button class="text-white/40 hover:text-white text-lg" onclick="closeUploadModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5">
+                <div id="dropzone" onclick="document.getElementById('file-input').click()"
+                    class="border-2 border-dashed border-white/15 hover:border-blue-400/60 rounded-xl p-6 text-center text-white/50 text-sm cursor-pointer transition leading-relaxed">
+                    <b class="text-white/80">파일을 끌어다 놓거나 클릭하여 선택</b><br>
+                    mp3 · wav · m4a · aac · ogg · flac · amr · mp4 · mov · webm (최대 2GB)
+                </div>
+                <input type="file" id="file-input" multiple style="display:none;"
+                       accept=".mp3,.wav,.m4a,.aac,.ogg,.opus,.flac,.wma,.amr,.webm,.mp4,.mov,.avi,.mkv,audio/*,video/*"
+                       onchange="addFiles(this.files); this.value='';">
+                <div class="mt-3 space-y-1.5" id="file-list"></div>
+
+                <div class="mt-4">
+                    <label class="block text-xs font-bold text-white/60 mb-1.5">언어</label>
+                    <select id="upload-language"
+                        class="w-full glass-soft border border-white/10 text-white text-sm rounded-xl px-3 py-2.5 outline-none cursor-pointer">
+                        <option class="bg-[#0f1424]" value="auto">자동 인식 (권장)</option>
+                        <option class="bg-[#0f1424]" value="ko">한국어</option>
+                        <option class="bg-[#0f1424]" value="en">영어</option>
+                        <option class="bg-[#0f1424]" value="ja">일본어</option>
+                        <option class="bg-[#0f1424]" value="zh">중국어</option>
+                        <option class="bg-[#0f1424]" value="fr">프랑스어</option>
+                        <option class="bg-[#0f1424]" value="de">독일어</option>
+                        <option class="bg-[#0f1424]" value="es">스페인어</option>
+                        <option class="bg-[#0f1424]" value="it">이탈리아어</option>
+                        <option class="bg-[#0f1424]" value="pt">포르투갈어</option>
+                        <option class="bg-[#0f1424]" value="ru">러시아어</option>
+                        <option class="bg-[#0f1424]" value="ar">아랍어</option>
+                        <option class="bg-[#0f1424]" value="hi">힌디어</option>
+                        <option class="bg-[#0f1424]" value="th">태국어</option>
+                        <option class="bg-[#0f1424]" value="vi">베트남어</option>
+                        <option class="bg-[#0f1424]" value="id">인도네시아어</option>
+                    </select>
+                </div>
+                <div class="mt-4">
+                    <label class="block text-xs font-bold text-white/60 mb-1.5">인식 모델</label>
+                    <select id="upload-model"
+                        class="w-full glass-soft border border-white/10 text-white text-sm rounded-xl px-3 py-2.5 outline-none cursor-pointer">
+                        <option class="bg-[#0f1424]" value="1">빠름 (small)</option>
+                        <option class="bg-[#0f1424]" value="2">중간 (medium, 권장)</option>
+                        <option class="bg-[#0f1424]" value="3">정확 (large)</option>
+                    </select>
+                </div>
+
+                <div class="mt-3 space-y-2" id="upload-progress-list"></div>
+
+                <button id="upload-start-btn" onclick="startUpload()"
+                    class="w-full mt-5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-xl transition shadow-lg">
+                    변환 시작
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="drop-overlay" id="drop-overlay">파일을 놓으면 새 노트가 만들어집니다</div>
+
+
+<script>
+    const API = '/api/whisper/notes';
+    const ALLOWED_EXTS = ['.mp3','.wav','.m4a','.aac','.ogg','.opus','.flac','.wma','.amr','.webm','.mp4','.mov','.avi','.mkv'];
+    const MODEL_LABEL = {1:'빠름', 2:'중간', 3:'정확'};
+    const LANG_LABEL = {auto:'자동 인식',ko:'한국어',en:'영어',ja:'일본어',zh:'중국어',fr:'프랑스어',de:'독일어',es:'스페인어',it:'이탈리아어',pt:'포르투갈어',ru:'러시아어',ar:'아랍어',hi:'힌디어',th:'태국어',vi:'베트남어',id:'인도네시아어'};
+    const STATE_META = {
+        queued:     {text:'대기',   cls:'bg-blue-500/15 text-blue-300 border border-blue-400/25'},
+        processing: {text:'변환중', cls:'bg-blue-500/15 text-blue-300 border border-blue-400/25'},
+        done:       {text:'완료',   cls:'bg-emerald-500/15 text-emerald-300 border border-emerald-400/25'},
+        error:      {text:'오류',   cls:'bg-red-500/15 text-red-300 border border-red-400/25'},
+        stopped:    {text:'중단됨', cls:'bg-yellow-500/15 text-yellow-500 border border-yellow-400/25'},
+    };
+
+    let notes = [];
+    let activeUid = null;
+    let activeNote = null;
+    let notePollTimer = null;
+    let pendingFiles = [];
+    let uploading = false;
+
+    const player = document.getElementById('player');
+
+    /* ══════════ 유틸 ══════════ */
+    function esc(s) {
+        if (s == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(s);
+        return div.innerHTML;
+    }
+    function fmtTime(sec) {
+        sec = Math.max(0, Math.floor(sec || 0));
+        const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+        return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+    }
+    function fmtSize(bytes) {
+        if (!bytes) return '0 B';
+        if (bytes > 1024 ** 3) return (bytes / 1024 ** 3).toFixed(2) + ' GB';
+        if (bytes > 1024 ** 2) return (bytes / 1024 ** 2).toFixed(1) + ' MB';
+        return (bytes / 1024).toFixed(1) + ' KB';
+    }
+    function fmtDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    function langDisplay(n) {
+        const base = LANG_LABEL[n.language] || n.language;
+        if (n.language === 'auto' && n.detectedLanguage) {
+            return `${base} (${LANG_LABEL[n.detectedLanguage] || n.detectedLanguage})`;
+        }
+        return base;
+    }
+
+    /* ══════════ 노트 목록 ══════════ */
+    async function loadNotes() {
+        try {
+            const res = await fetch(API);
+            if (res.status === 401) { location.href = '/login'; return; }
+            if (!res.ok) return;
+            const data = await res.json();
+            notes = data.items || [];
+            renderNoteList();
+        } catch (e) { /* 다음 폴링에서 회복 */ }
+    }
+
+    function renderNoteList() {
+        const q = document.getElementById('note-search').value.trim().toLowerCase();
+        const list = document.getElementById('note-list');
+        const filtered = q ? notes.filter(n => (n.title || '').toLowerCase().includes(q)) : notes;
+        document.getElementById('note-count').textContent = notes.length;
+
+        if (!filtered.length) {
+            list.innerHTML = `<div class="text-center text-white/40 text-sm py-8 leading-relaxed">${q ? '검색 결과가 없습니다' : '아직 노트가 없습니다.<br>파일을 업로드해 첫 노트를 만들어 보세요.'}</div>`;
+            return;
+        }
+        list.innerHTML = filtered.map(n => {
+            const busy = n.status === 'queued' || n.status === 'processing';
+            const st = STATE_META[n.status] || {text:n.status, cls:'bg-white/10 text-white/50'};
+            const activeCls = n.uid === activeUid
+                ? 'bg-blue-500/15 border-blue-400/40'
+                : 'border-transparent hover:bg-white/5';
+            return `
+            <div class="seg-row p-3 rounded-xl border ${activeCls} mb-1" onclick="openNote('${n.uid}')">
+                <div class="text-sm font-bold text-white truncate mb-1">${esc(n.title)}</div>
+                <div class="flex items-center gap-2 text-[11px] text-white/40 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded font-bold text-[10px] ${st.cls}">${st.text}${n.status==='processing' ? ` ${n.progress||0}%` : ''}</span>
+                    ${busy
+                        ? `<span class="flex-1 min-w-[40px] h-1 rounded-full bg-white/10 overflow-hidden"><span class="block h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all" style="width:${n.progress||0}%"></span></span>`
+                        : `<span>${fmtDate(n.createdAt)}</span>${n.duration ? `<span>· ${fmtTime(n.duration)}</span>` : ''}`}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    /* ══════════ 노트 상세 ══════════ */
+    async function openNote(uid) {
+        activeUid = uid;
+        renderNoteList();
+        stopNotePoll();
+        activeNote = null;
+        player.pause();
+        player.removeAttribute('src');
+        player.load();
+
+        document.getElementById('empty-state').style.display = 'none';
+        const view = document.getElementById('note-view');
+        view.style.display = 'flex';
+        document.getElementById('transcript').innerHTML = '<div class="text-center text-white/40 text-sm py-8">불러오는 중...</div>';
+        document.getElementById('fulltext-body').textContent = '';
+        document.getElementById('transcript-search').value = '';
+
+        const res = await fetch(`${API}/${uid}`);
+        if (!res.ok) {
+            document.getElementById('transcript').innerHTML = '<div class="text-center text-white/40 text-sm py-8">노트를 불러오지 못했습니다</div>';
+            return;
+        }
+        activeNote = await res.json();
+        renderNoteView();
+
+        if (activeNote.status === 'queued' || activeNote.status === 'processing') {
+            startNotePoll();
+        }
+    }
+
+    function renderNoteView() {
+        const n = activeNote;
+        if (!n) return;
+
+        document.getElementById('note-title').textContent = n.title || '(제목 없음)';
+
+        const metaParts = [
+            fmtDate(n.createdAt),
+            n.duration ? fmtTime(n.duration) : null,
+            `${langDisplay(n)} · ${MODEL_LABEL[n.model] || n.model} 모델`,
+            n.origFilename ? `${esc(n.origFilename)} (${fmtSize(n.size)})` : null,
+        ].filter(Boolean);
+        document.getElementById('note-meta').innerHTML = metaParts.map(p => `<span>${p}</span>`).join('');
+
+        const btn = (label, icon, extra, onclick) =>
+            `<button class="text-xs font-bold px-3 py-1.5 rounded-lg transition ${extra}" onclick="${onclick}"><i class="fas ${icon} mr-1"></i>${label}</button>`;
+        const neutral = 'bg-white/10 hover:bg-white/20 text-white/70 hover:text-white';
+        const actions = [];
+        if (n.status === 'done') {
+            actions.push(btn('텍스트', 'fa-file-lines', neutral, "exportNote('txt')"));
+            actions.push(btn('타임스탬프', 'fa-clock', neutral, "exportNote('time')"));
+            actions.push(btn('SRT 자막', 'fa-closed-captioning', neutral, "exportNote('srt')"));
+            actions.push(btn('본문 복사', 'fa-copy', neutral, 'copyTranscript(this)'));
+        }
+        if (n.status === 'error' || n.status === 'stopped') {
+            actions.push(btn('다시 시도', 'fa-rotate-right', 'bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25', 'retryNote()'));
+        }
+        if (n.status === 'queued' || n.status === 'processing') {
+            actions.push(btn('중단', 'fa-stop', 'bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25', 'cancelNote()'));
+        }
+        actions.push(btn('삭제', 'fa-trash', 'bg-red-500/10 text-red-300 hover:bg-red-500/20', 'deleteNote()'));
+        document.getElementById('note-actions').innerHTML = actions.join('');
+
+        const busy = n.status === 'queued' || n.status === 'processing';
+        document.getElementById('processing-box').style.display = busy ? 'block' : 'none';
+        if (busy) updateProcessingUI();
+
+        const errBox = document.getElementById('error-box');
+        if (n.status === 'error') {
+            errBox.style.display = 'block';
+            errBox.textContent = '변환에 실패했습니다: ' + (n.error || '알 수 없는 오류');
+        } else {
+            errBox.style.display = 'none';
+        }
+
+        const playerBar = document.getElementById('player-bar');
+        if (n.status === 'done' || (n.status === 'stopped' && (n.segments || []).length)) {
+            playerBar.style.display = 'flex';
+            player.src = `${API}/${n.uid}/audio`;
+            document.getElementById('time-total').textContent = fmtTime(n.duration);
+            document.getElementById('speed').value = '1';
+            player.playbackRate = 1;
+        } else {
+            playerBar.style.display = 'none';
+        }
+
+        setView('timeline');
+        renderSegments();
+        renderFulltext();
+    }
+
+    function updateProcessingUI() {
+        const n = activeNote;
+        document.getElementById('processing-stage').textContent = n.stage || '처리 중';
+        document.getElementById('processing-fill').style.width = (n.progress || 0) + '%';
+        document.getElementById('processing-pct').textContent = (n.progress || 0) + '%';
+    }
+
+    function segRowHtml(s, idx, q) {
+        let text = esc(s.text);
+        if (q) {
+            const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            text = text.replace(re, m => `<mark>${m}</mark>`);
+        }
+        return `
+        <div class="seg-row flex gap-3 items-start px-3 py-2 rounded-xl hover:bg-white/5" data-idx="${idx}" data-start="${s.start}" data-end="${s.end}" onclick="seekTo(${s.start})">
+            <span class="flex-shrink-0 text-[11px] font-bold text-blue-300 bg-blue-500/10 border border-blue-400/20 px-2 py-0.5 rounded-md tabular-nums mt-0.5">${fmtTime(s.start)}</span>
+            <span class="seg-text text-[14.5px] leading-relaxed text-white/80 break-words min-w-0">${text}</span>
+        </div>`;
+    }
+
+    function renderSegments() {
+        const box = document.getElementById('transcript');
+        const n = activeNote;
+        if (!n) return;
+        const q = document.getElementById('transcript-search').value.trim().toLowerCase();
+        let segs = n.segments || [];
+        if (q) segs = segs.filter(s => s.text.toLowerCase().includes(q));
+
+        if (!segs.length) {
+            const busy = n.status === 'queued' || n.status === 'processing';
+            box.innerHTML = `<div class="text-center text-white/40 text-sm py-8">${
+                q ? '검색 결과가 없습니다'
+                  : busy ? '음성을 인식하는 대로 문장이 여기에 나타납니다...'
+                  : n.status === 'error' ? '' : '인식된 문장이 없습니다'
+            }</div>`;
+            return;
+        }
+        box.innerHTML = segs.map(s => segRowHtml(s, (n.segments || []).indexOf(s), q)).join('');
+    }
+
+    function appendSegments(newSegs) {
+        const box = document.getElementById('transcript');
+        const q = document.getElementById('transcript-search').value.trim();
+        if (q) { renderSegments(); return; }
+
+        if (box.querySelector('.text-center')) box.innerHTML = '';
+
+        const base = (activeNote.segments.length - newSegs.length);
+        box.insertAdjacentHTML('beforeend', newSegs.map((s, i) => segRowHtml(s, base + i, '')).join(''));
+
+        if (document.getElementById('auto-scroll').checked) {
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+
+    function renderFulltext() {
+        const n = activeNote;
+        const body = document.getElementById('fulltext-body');
+        body.textContent = n.text || (n.segments || []).map(s => s.text).join(' ');
+    }
+
+    function setView(mode) {
+        const on = 'text-xs font-bold px-3 py-1.5 rounded-lg border border-blue-400/40 bg-blue-500/15 text-blue-300 transition';
+        const off = 'text-xs font-bold px-3 py-1.5 rounded-lg border border-white/10 text-white/50 hover:text-white transition';
+        document.getElementById('tab-timeline').className = mode === 'timeline' ? on : off;
+        document.getElementById('tab-fulltext').className = mode === 'fulltext' ? on : off;
+        document.getElementById('transcript').style.display = mode === 'timeline' ? 'block' : 'none';
+        document.getElementById('fulltext').style.display = mode === 'fulltext' ? 'block' : 'none';
+        if (mode === 'fulltext') renderFulltext();
+    }
+
+    /* ══════════ 변환 중 폴링 ══════════ */
+    function startNotePoll() {
+        stopNotePoll();
+        notePollTimer = setInterval(pollActiveNote, 1000);
+    }
+    function stopNotePoll() {
+        if (notePollTimer) { clearInterval(notePollTimer); notePollTimer = null; }
+    }
+
+    async function pollActiveNote() {
+        if (!activeUid || !activeNote) return;
+        const uid = activeUid;
+        try {
+            const since = (activeNote.segments || []).length;
+            const res = await fetch(`${API}/${uid}?since=${since}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (uid !== activeUid) return;
+
+            const newSegs = data.segments || [];
+            if (newSegs.length) {
+                activeNote.segments = (activeNote.segments || []).concat(newSegs);
+            }
+            const statusChanged = data.status !== activeNote.status;
+            Object.assign(activeNote, {
+                status: data.status, stage: data.stage, progress: data.progress,
+                duration: data.duration, error: data.error, text: data.text, title: data.title,
+                detectedLanguage: data.detectedLanguage,
+            });
+
+            updateProcessingUI();
+            if (newSegs.length) appendSegments(newSegs);
+
+            const row = notes.find(x => x.uid === uid);
+            if (row) Object.assign(row, {status: data.status, progress: data.progress, duration: data.duration});
+            renderNoteList();
+
+            if (data.status === 'done' || data.status === 'error' || data.status === 'stopped') {
+                stopNotePoll();
+                if (statusChanged) openNote(uid);
+            }
+        } catch (e) { /* 다음 폴링에서 회복 */ }
+    }
+
+    /* ══════════ 플레이어 ══════════ */
+    let seeking = false;
+
+    function togglePlay() {
+        if (player.paused) player.play(); else player.pause();
+    }
+    function skip(sec) {
+        player.currentTime = Math.max(0, Math.min((player.duration || 0), player.currentTime + sec));
+    }
+    function seekTo(sec) {
+        if (!activeNote || !['done','stopped'].includes(activeNote.status)) return;
+        player.currentTime = sec;
+        player.play();
+    }
+
+    player.addEventListener('play', () => {
+        document.getElementById('icon-play').style.display = 'none';
+        document.getElementById('icon-pause').style.display = 'block';
+    });
+    player.addEventListener('pause', () => {
+        document.getElementById('icon-play').style.display = 'block';
+        document.getElementById('icon-pause').style.display = 'none';
+    });
+    player.addEventListener('loadedmetadata', () => {
+        if (player.duration && isFinite(player.duration)) {
+            document.getElementById('time-total').textContent = fmtTime(player.duration);
+        }
+    });
+    player.addEventListener('timeupdate', () => {
+        const dur = player.duration || (activeNote && activeNote.duration) || 0;
+        document.getElementById('time-current').textContent = fmtTime(player.currentTime);
+        if (!seeking && dur) {
+            document.getElementById('seek').value = Math.round(player.currentTime / dur * 1000);
+        }
+        highlightActiveSegment(player.currentTime);
+    });
+
+    const seekEl = document.getElementById('seek');
+    seekEl.addEventListener('input', () => { seeking = true; });
+    seekEl.addEventListener('change', () => {
+        const dur = player.duration || (activeNote && activeNote.duration) || 0;
+        player.currentTime = seekEl.value / 1000 * dur;
+        seeking = false;
+    });
+
+    let lastActiveIdx = -1;
+    function highlightActiveSegment(t) {
+        if (!activeNote || !activeNote.segments) return;
+        const segs = activeNote.segments;
+        let idx = -1;
+        for (let i = 0; i < segs.length; i++) {
+            if (t >= segs[i].start && t < segs[i].end + 0.3) { idx = i; break; }
+            if (segs[i].start > t) break;
+        }
+        if (idx === lastActiveIdx) return;
+        lastActiveIdx = idx;
+        document.querySelectorAll('#transcript .seg-row.active').forEach(el => el.classList.remove('active'));
+        if (idx >= 0) {
+            const el = document.querySelector(`#transcript .seg-row[data-idx="${idx}"]`);
+            if (el) {
+                el.classList.add('active');
+                if (document.getElementById('auto-scroll').checked && !player.paused) {
+                    el.scrollIntoView({block: 'center', behavior: 'smooth'});
+                }
+            }
+        }
+    }
+
+    /* ══════════ 제목 변경 / 삭제 / 재시도 / 내보내기 ══════════ */
+    document.getElementById('note-title').addEventListener('click', () => {
+        if (!activeNote) return;
+        const titleEl = document.getElementById('note-title');
+        const input = document.createElement('input');
+        input.className = 'flex-1 min-w-0 bg-transparent border border-blue-400/60 rounded-lg px-2 py-0.5 text-lg font-bold text-white outline-none';
+        input.value = activeNote.title || '';
+        titleEl.replaceWith(input);
+        input.focus();
+        input.select();
+
+        const restore = () => { input.replaceWith(titleEl); };
+        const save = async () => {
+            const title = input.value.trim();
+            restore();
+            if (!title || title === activeNote.title) return;
+            const res = await fetch(`${API}/${activeNote.uid}`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title}),
+            });
+            if (res.ok) {
+                activeNote.title = title;
+                titleEl.textContent = title;
+                const row = notes.find(x => x.uid === activeNote.uid);
+                if (row) row.title = title;
+                renderNoteList();
+            }
+        };
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') input.blur();
+            if (e.key === 'Escape') { input.value = activeNote.title; input.blur(); }
+        });
+        input.addEventListener('blur', save);
+    });
+
+    async function deleteNote() {
+        if (!activeNote) return;
+        if (!confirm(`"${activeNote.title}" 노트를 삭제하시겠습니까?\n음성 파일과 변환 결과가 모두 삭제됩니다.`)) return;
+        const res = await fetch(`${API}/${activeNote.uid}`, {method: 'DELETE'});
+        if (!res.ok) { alert('삭제에 실패했습니다'); return; }
+        stopNotePoll();
+        activeUid = null;
+        activeNote = null;
+        document.getElementById('note-view').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'flex';
+        loadNotes();
+    }
+
+    async function cancelNote() {
+        if (!activeNote) return;
+        if (!confirm('진행 중인 변환을 중단하시겠습니까?\n지금까지 인식된 내용은 남습니다.')) return;
+        const res = await fetch(`${API}/${activeNote.uid}/cancel`, {method: 'POST'});
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { alert(d.detail || '중단에 실패했습니다'); return; }
+        // 서비스가 stopped로 마무리하면 폴링이 감지해 뷰를 전환한다
+    }
+
+    async function retryNote() {
+        if (!activeNote) return;
+        const res = await fetch(`${API}/${activeNote.uid}/retry`, {method: 'POST'});
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { alert(d.detail || '다시 시도에 실패했습니다'); return; }
+        openNote(activeNote.uid);
+        loadNotes();
+    }
+
+    function exportNote(fmt) {
+        if (!activeNote) return;
+        const a = document.createElement('a');
+        a.href = `${API}/${activeNote.uid}/export?fmt=${fmt}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    async function copyTranscript(btn) {
+        if (!activeNote) return;
+        const text = activeNote.text || (activeNote.segments || []).map(s => s.text).join(' ');
+        try {
+            await navigator.clipboard.writeText(text);
+            const old = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>복사됨!';
+            setTimeout(() => { btn.innerHTML = old; }, 1500);
+        } catch (e) { alert('클립보드 복사에 실패했습니다'); }
+    }
+
+    /* ══════════ 업로드 ══════════ */
+    function openUploadModal() {
+        pendingFiles = [];
+        renderFileList();
+        document.getElementById('upload-progress-list').innerHTML = '';
+        document.getElementById('upload-start-btn').disabled = false;
+        document.getElementById('upload-modal').style.display = 'flex';
+    }
+    function closeUploadModal() {
+        if (uploading) return;
+        document.getElementById('upload-modal').style.display = 'none';
+    }
+
+    function extOf(name) {
+        const i = name.lastIndexOf('.');
+        return i >= 0 ? name.slice(i).toLowerCase() : '';
+    }
+
+    function addFiles(fileList) {
+        for (const f of fileList) {
+            if (!ALLOWED_EXTS.includes(extOf(f.name))) {
+                alert(`지원하지 않는 형식입니다: ${f.name}`);
+                continue;
+            }
+            if (f.size > 2 * 1024 * 1024 * 1024) {
+                alert(`파일이 너무 큽니다 (최대 2GB): ${f.name}`);
+                continue;
+            }
+            if (!pendingFiles.some(p => p.name === f.name && p.size === f.size)) {
+                pendingFiles.push(f);
+            }
+        }
+        renderFileList();
+    }
+
+    function renderFileList() {
+        document.getElementById('file-list').innerHTML = pendingFiles.map((f, i) => `
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-xs text-white/70">
+                <span class="flex-1 min-w-0 truncate font-bold">${esc(f.name)}</span>
+                <span class="text-white/40 flex-shrink-0">${fmtSize(f.size)}</span>
+                <button class="text-red-300 hover:text-red-400 flex-shrink-0" onclick="pendingFiles.splice(${i},1);renderFileList();"><i class="fas fa-times"></i></button>
+            </div>`).join('');
+    }
+
+    function uploadOne(file, language, model, onProgress) {
+        return new Promise((resolve, reject) => {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('language', language);
+            fd.append('model', model);
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', API);
+            xhr.upload.onprogress = e => {
+                if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100));
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(JSON.parse(xhr.responseText));
+                } else {
+                    let msg = '업로드 실패';
+                    try { msg = JSON.parse(xhr.responseText).detail || msg; } catch (e) {}
+                    reject(new Error(msg));
+                }
+            };
+            xhr.onerror = () => reject(new Error('네트워크 오류'));
+            xhr.send(fd);
+        });
+    }
+
+    async function startUpload() {
+        if (!pendingFiles.length) { alert('파일을 선택해 주세요'); return; }
+        const language = document.getElementById('upload-language').value;
+        const model = document.getElementById('upload-model').value;
+        const listEl = document.getElementById('upload-progress-list');
+        const btn = document.getElementById('upload-start-btn');
+        btn.disabled = true;
+        uploading = true;
+
+        listEl.innerHTML = pendingFiles.map((f, i) => `
+            <div class="text-xs text-white/50">
+                <span>${esc(f.name)}</span> — <span id="up-pct-${i}">0%</span>
+                <div class="h-1.5 mt-1 rounded-full bg-white/10 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all" id="up-fill-${i}" style="width:0%"></div>
+                </div>
+            </div>`).join('');
+
+        let firstUid = null;
+        let hadError = false;
+        for (let i = 0; i < pendingFiles.length; i++) {
+            try {
+                const result = await uploadOne(pendingFiles[i], language, model, pct => {
+                    document.getElementById(`up-pct-${i}`).textContent = pct + '%';
+                    document.getElementById(`up-fill-${i}`).style.width = pct + '%';
+                });
+                document.getElementById(`up-pct-${i}`).textContent = '완료';
+                if (!firstUid) firstUid = result.uid;
+            } catch (e) {
+                hadError = true;
+                document.getElementById(`up-pct-${i}`).textContent = '실패: ' + e.message;
+            }
+        }
+
+        uploading = false;
+        pendingFiles = [];
+        renderFileList();
+        await loadNotes();
+        if (!hadError) {
+            document.getElementById('upload-modal').style.display = 'none';
+        } else {
+            btn.disabled = false;
+        }
+        if (firstUid) openNote(firstUid);
+    }
+
+    /* 전체 화면 드래그&드롭 */
+    let dragDepth = 0;
+    window.addEventListener('dragenter', e => {
+        if (e.dataTransfer && [...(e.dataTransfer.items || [])].some(i => i.kind === 'file')) {
+            dragDepth++;
+            document.getElementById('drop-overlay').classList.add('on');
+        }
+    });
+    window.addEventListener('dragleave', () => {
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (!dragDepth) document.getElementById('drop-overlay').classList.remove('on');
+    });
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => {
+        e.preventDefault();
+        dragDepth = 0;
+        document.getElementById('drop-overlay').classList.remove('on');
+        if (e.dataTransfer && e.dataTransfer.files.length) {
+            if (document.getElementById('upload-modal').style.display !== 'flex') openUploadModal();
+            addFiles(e.dataTransfer.files);
+        }
+    });
+    const dz = document.getElementById('dropzone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('border-blue-400/60'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('border-blue-400/60'));
+    dz.addEventListener('drop', () => dz.classList.remove('border-blue-400/60'));
+
+    /* ══════════ 모바일: 앱 사이드바 + 노트 목록 패널 ══════════ */
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    function toggleSidebar(open) {
+        if (open) {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.remove('hidden');
+            requestAnimationFrame(() => sidebarOverlay.classList.remove('opacity-0'));
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('opacity-0');
+            setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+        }
+    }
+    document.getElementById('openSidebarBtn').addEventListener('click', () => toggleSidebar(true));
+    document.getElementById('closeSidebarBtn').addEventListener('click', () => toggleSidebar(false));
+    sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
+
+    function toggleSidebarPanel() {
+        // 모바일에서 노트 목록 패널을 화면 전환 방식으로 토글
+        const panel = document.getElementById('note-panel');
+        panel.classList.toggle('hidden');
+        panel.classList.toggle('flex');
+        panel.classList.toggle('absolute');
+        panel.classList.toggle('inset-4');
+        panel.classList.toggle('z-30');
+    }
+
+    /* 스페이스바로 재생/일시정지 */
+    window.addEventListener('keydown', e => {
+        if (e.code === 'Space' && activeNote && activeNote.status === 'done'
+            && !['INPUT','TEXTAREA','SELECT','BUTTON'].includes(document.activeElement.tagName)) {
+            e.preventDefault();
+            togglePlay();
+        }
+    });
+
+    /* ══════════ GPU 모니터 위젯 ══════════ */
+    function fmtGB(mib) { return (mib / 1024).toFixed(1); }
+
+    async function pollGpuStats() {
+        try {
+            const res = await fetch('/api/whisper/gpu-stats');
+            if (!res.ok) return;
+            const data = await res.json();
+            const gpus = data.gpus || [];
+            const w = document.getElementById('gpu-widget');
+            if (!gpus.length) { w.style.display = 'none'; return; }
+            w.style.display = 'block';
+            document.getElementById('gpu-body').innerHTML = gpus.map(g => {
+                const memPct = g.mem_total ? Math.round(g.mem_used / g.mem_total * 100) : 0;
+                return `
+                <div class="mt-1.5 first:mt-0">
+                    <div class="flex justify-between gap-2 text-white/80 font-bold whitespace-nowrap">
+                        <span>GPU${g.index} <span class="text-white/40 font-normal" title="${esc(g.name)}">${esc(g.name).slice(0, 18)}</span></span>
+                        <span>${g.util ?? 0}%</span>
+                    </div>
+                    <div class="h-1 mt-1 rounded-full bg-white/10 overflow-hidden" title="GPU 사용률 ${g.util ?? 0}%">
+                        <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500" style="width:${g.util ?? 0}%"></div>
+                    </div>
+                    <div class="h-1 mt-1 rounded-full bg-white/10 overflow-hidden" title="VRAM ${fmtGB(g.mem_used ?? 0)} / ${fmtGB(g.mem_total ?? 0)} GB">
+                        <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" style="width:${memPct}%"></div>
+                    </div>
+                    <div class="flex gap-2 flex-wrap text-[10px] text-white/40 mt-0.5">
+                        <span>VRAM ${fmtGB(g.mem_used ?? 0)}/${fmtGB(g.mem_total ?? 0)}GB</span>
+                        <span>${g.temp ?? '-'}°C</span>
+                        <span>${g.power != null ? Math.round(g.power) : '-'}W${g.power_limit ? '/' + Math.round(g.power_limit) + 'W' : ''}</span>
+                        ${g.fan != null ? `<span>팬 ${g.fan}%</span>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        } catch (e) { /* 다음 폴링에서 회복 */ }
+    }
+    pollGpuStats();
+    setInterval(pollGpuStats, 3000);
+
+    /* ══════════ 초기화 ══════════ */
+    document.getElementById('upload-language').value = '{{ default_language }}';
+    document.getElementById('upload-model').value = '{{ default_model }}';
+    if (!document.getElementById('upload-language').value) document.getElementById('upload-language').value = 'auto';
+
+    loadNotes();
+    setInterval(() => {
+        if (notes.some(n => n.status === 'queued' || n.status === 'processing')) loadNotes();
+    }, 4000);
+</script>
+<script src="/static/shared/theme.js"></script>
+</body>
+</html>

@@ -41,8 +41,9 @@ Create a `.env` file in the root directory. There exists `.env.example` in root 
 
 Set `GENERATE_PDF=true` to also produce `result.pdf` for each analysis (off by default).
 
-Speech-to-text for lecture recordings uses the OpenAI Audio API with each user's own OpenAI API key (registered in Settings).
-`OPENAI_STT_MODEL` selects the model (default `gpt-transcribe`); long recordings are split automatically.
+Speech-to-text for lecture recordings is chosen per user in Settings: `custom` uses the manager server's GPU Whisper
+(`AUDIO_LLM_URL`, `AUDIO_LLM_TOKEN`, optional `AUDIO_PROGRESS_URL` for live progress; free), `openai` uses the OpenAI Audio API with
+the user's own API key (`OPENAI_STT_MODEL`, default `gpt-transcribe`; long recordings are split automatically). `STT_DEFAULT_PROVIDER` sets the default.
 
 ### 4) Run the Server
 
