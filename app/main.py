@@ -14,7 +14,7 @@ from app.routes import (
 from app.services.whisper_notes import requeue_interrupted
 import os
 
-app = FastAPI(title="LecAI")
+app = FastAPI(title="LecAI", docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.on_event("startup")
