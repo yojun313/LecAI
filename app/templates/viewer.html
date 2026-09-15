@@ -132,8 +132,6 @@
         .katex { font-size: 1.08em; }
         .prose p .katex, .prose li .katex, .prose td .katex { white-space: nowrap; }
         
-        #dragOverlay { transition: all 0.2s ease; opacity: 0; visibility: hidden; pointer-events: none; z-index: 9999; }
-        #dragOverlay.active { opacity: 1; visibility: visible; pointer-events: auto; }
 
         /* Sidebar Styles */
 
@@ -142,9 +140,9 @@
             transition: margin-left 0.3s ease; 
         }
 
-        /* 사이드바 닫혔을 때 (PC/모바일 공통) */
-        .sidebar-closed #sidebar { 
-            margin-left: -260px; 
+        /* 사이드바 닫혔을 때 (PC): 너비를 바꿔 두었어도 완전히 숨긴다 */
+        .sidebar-closed #sidebar {
+            display: none !important;
         }
 
         /* Presentation Mode: 모바일에서도 가로 분할 유지 */
@@ -270,6 +268,14 @@
         #nodeList.root-drop-target { background: rgba(59,130,246,0.08); outline: 2px dashed rgba(59,130,246,0.5); outline-offset: -4px; border-radius: 0.75rem; }
         #nodeList.root-drop-target::after { content: '여기에 놓으면 최상위로 이동'; display: block; text-align: center; font-size: 0.7rem; color: #60a5fa; padding: 0.75rem 0; }
         .invisible { visibility: hidden; }
+        .no-scrollbar { scrollbar-width: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        #toolbar > * { flex-shrink: 0; }
+        @media (max-width: 640px) {
+            .split-text-container { padding: 1rem !important; }
+            #activeJobsPanel { right: 0.75rem; left: 0.75rem; bottom: 4.5rem; width: auto; }
+            #viewerToast { max-width: 94vw; }
+        }
         .sidebar-closed #resizer {
             display: none !important;
         }
@@ -279,12 +285,6 @@
 <body class="text-notion-text font-sans h-screen flex overflow-hidden relative transition-colors duration-300">
 
     <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
-
-    <div id="dragOverlay" class="fixed inset-0 bg-black/80 flex flex-col items-center justify-center text-white backdrop-blur-sm border-4 border-dashed border-blue-500/50 m-4 rounded-xl">
-        <i class="fas fa-cloud-upload-alt text-7xl mb-6 animate-bounce text-blue-400"></i>
-        <h2 class="text-4xl font-bold mb-2">ZIP 파일을 놓으세요</h2>
-        <p class="text-notion-muted text-lg">현재 폴더에 자동으로 업로드됩니다.</p>
-    </div>
 
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 glass-strong border-r flex flex-col md:relative transform -translate-x-full md:translate-x-0 flex-shrink-0">
         <div class="p-4 flex justify-between items-center group">
@@ -300,18 +300,28 @@
             <button onclick="createFolder(event, 'root')" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded-lg border border-notion-border transition" title="최상위에 새 폴더">
                 <i class="fas fa-folder-plus"></i>
             </button>
+            <button onclick="openArchiveModal()" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded-lg border border-notion-border transition relative" title="보관함">
+                <i class="fas fa-box-archive"></i>
+            </button>
             <button onclick="openHistoryModal()" class="flex-1 bg-notion-hover hover:bg-opacity-80 text-sm py-1.5 rounded-lg border border-notion-border text-notion-text transition">
                 <i class="fas fa-history mr-1 text-purple-400"></i> 불러오기
             </button>
-            <button onclick="document.getElementById('zipInput').click()" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-sm py-1.5 rounded-lg shadow-md" id="uploadBtn">
-                <i class="fas fa-upload mr-1"></i> 업로드
+            <button onclick="document.getElementById('viewerUploadInput').click()" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-sm py-1.5 rounded-lg shadow-md" id="uploadBtn" title="PDF/PPT 를 AI 분석해 문서함에 저장">
+                <i class="fas fa-wand-magic-sparkles mr-1"></i> AI 분석
             </button>
-            <input type="file" id="zipInput" class="hidden" accept=".zip">
         </div>
         <div class="px-4 py-2 text-xs font-bold text-notion-muted uppercase tracking-wider mt-2 mb-1">
             Explorer
         </div>
         <div id="nodeList" class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5 custom-scrollbar"></div>
+        <div class="px-3 pb-3 pt-2 border-t border-notion-border">
+            <div id="viewerUploadZone" class="border-2 border-dashed border-notion-border rounded-xl p-3 text-center cursor-pointer transition hover:border-blue-400/60 hover:bg-blue-500/5">
+                <i class="fas fa-wand-magic-sparkles text-blue-400 mb-1"></i>
+                <p class="text-xs font-bold text-notion-text">PDF/PPT 를 여기에 놓으면 AI 분석</p>
+                <p class="text-[10px] text-notion-muted mt-0.5">폴더 지정 → 녹음본(선택) → 완료 시 문서함에 자동 저장</p>
+                <input type="file" id="viewerUploadInput" class="hidden" multiple accept=".pdf,.ppt,.pptx">
+            </div>
+        </div>
     </aside>
     <div id="resizer" class="hidden md:block w-1 hover:w-1.5 active:w-1.5 bg-transparent hover:bg-blue-500/50 active:bg-blue-600 cursor-col-resize z-50 transition-colors flex-shrink-0"></div>
 
@@ -321,7 +331,13 @@
                 <i class="fas fa-bars text-xl"></i>
             </button>
 
-            <div class="flex-1 flex justify-end items-center space-x-2" id="toolbar" style="display: none;">
+            <div class="flex-1 flex justify-end items-center space-x-2 min-w-0 overflow-x-auto flex-nowrap no-scrollbar" id="toolbar" style="display: none;">
+                <button id="addTranscriptToolbarBtn" onclick="addTranscriptForActiveDoc()" class="text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition shadow-md mr-2" title="이 문서에 강의 녹음본 추가 (텍스트 붙여넣기 / 텍스트 파일 / 녹음 파일)">
+                    <i class="fas fa-microphone-lines"></i> <span class="hidden sm:inline">녹음본 추가</span>
+                </button>
+                <button id="transcriptListToolbarBtn" onclick="openTranscriptListForActiveDoc()" class="text-notion-text bg-notion-hover border border-notion-border px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-opacity-80 transition shadow-sm mr-2" title="이 문서에 추가된 녹음본 목록 (재생 / 다운로드)">
+                    <i class="fas fa-list-check text-purple-400"></i> <span class="hidden sm:inline">녹음본 목록</span>
+                </button>
                 <button onclick="openShortcutModal()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded-lg hover:bg-opacity-80 transition shadow-sm mr-2" title="단축키 안내">
                     <i class="fas fa-keyboard"></i>
                 </button>
@@ -397,6 +413,56 @@
     </main>
 
     {% include "_transcript_picker.html" %}
+
+    <!-- 문서의 녹음본 목록 모달 -->
+    <div id="transcriptListModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] hidden items-center justify-center p-4">
+        <div class="glass-strong w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-notion-border flex justify-between items-center">
+                <h3 class="font-bold text-sm text-notion-text truncate"><i class="fas fa-list-check mr-2 text-purple-400"></i>녹음본 목록 <span id="transcriptListTarget" class="text-notion-muted font-normal ml-1"></span></h3>
+                <button onclick="closeTranscriptListModal()" class="text-notion-muted hover:text-notion-text"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="transcriptListBody" class="p-4 space-y-2 overflow-y-auto custom-scrollbar flex-1"></div>
+        </div>
+    </div>
+
+    <!-- 보관함 모달 -->
+    <div id="archiveModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] hidden items-center justify-center p-4">
+        <div class="glass-strong w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-notion-border flex justify-between items-center">
+                <h3 class="font-bold text-sm text-notion-text"><i class="fas fa-box-archive mr-2 text-amber-400"></i>보관함 <span id="archiveModalCount" class="text-notion-muted font-normal ml-1"></span></h3>
+                <button onclick="closeArchiveModal()" class="text-notion-muted hover:text-notion-text"><i class="fas fa-times"></i></button>
+            </div>
+            <p class="px-4 pt-3 text-[11px] text-notion-muted">보관한 문서와 폴더는 Explorer 에 보이지 않습니다. 복원하면 원래 폴더로 돌아가고, 원래 폴더가 없거나 보관 중이면 최상위로 이동합니다.</p>
+            <div id="archiveList" class="p-4 space-y-1 overflow-y-auto custom-scrollbar flex-1"></div>
+        </div>
+    </div>
+
+    <!-- 저장 폴더 선택 모달 (뷰어 업로드용) -->
+    <div id="folderPickModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] hidden items-center justify-center p-4">
+        <div class="glass-strong w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-notion-border flex justify-between items-center">
+                <h3 class="font-bold text-sm text-notion-text"><i class="fas fa-folder-open mr-2 text-yellow-500"></i>저장할 폴더 선택</h3>
+                <button onclick="resolveFolderPick(null)" class="text-notion-muted hover:text-notion-text"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4">
+                <div class="text-xs text-notion-muted mb-2 truncate" id="folderPickTarget"></div>
+                <div id="folderPickList" class="max-h-72 overflow-y-auto space-y-0.5 custom-scrollbar"></div>
+            </div>
+            <div class="p-4 border-t border-notion-border flex justify-end space-x-2">
+                <button onclick="resolveFolderPick(null)" class="px-4 py-2 text-xs rounded-lg bg-notion-hover text-notion-text transition">취소</button>
+                <button onclick="resolveFolderPick(folderPickSelected)" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-md transition">이 폴더에 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 진행 중 작업 패널: 서버 작업 목록을 주기적으로 조회해 새로고침해도 유지 -->
+    <div id="activeJobsPanel" class="fixed bottom-6 right-6 z-[115] hidden w-80 max-w-[90vw] glass-strong border border-blue-400/40 rounded-xl shadow-2xl overflow-hidden">
+        <div class="px-3 py-2 border-b border-notion-border flex items-center justify-between">
+            <span class="text-xs font-bold text-notion-text"><i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i>진행 중 작업 <span id="activeJobsCount" class="text-notion-muted font-normal"></span></span>
+            <button onclick="toggleActiveJobsPanel()" id="activeJobsToggle" class="text-notion-muted hover:text-notion-text text-xs" title="접기/펼치기"><i class="fas fa-chevron-down"></i></button>
+        </div>
+        <div id="activeJobsList" class="max-h-64 overflow-y-auto custom-scrollbar divide-y divide-notion-border"></div>
+    </div>
 
     <div id="viewerToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[120] hidden glass-strong border border-blue-400/40 text-sm text-notion-text px-4 py-2.5 rounded-xl shadow-2xl max-w-[90vw]"></div>
 
@@ -480,6 +546,7 @@
         // ==========================================
         const themeIcon = document.getElementById('themeIcon');
         let draggedNodeId = null;
+        const escapeHtml = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
         // 초기화: 저장된 테마 불러오기
         function initTheme() {
@@ -517,8 +584,6 @@
 
         // DOM 요소 참조
         const nodeList = document.getElementById('nodeList');
-        const zipInput = document.getElementById('zipInput');
-        const dragOverlay = document.getElementById('dragOverlay');
         const toolbar = document.getElementById('toolbar');
         const tabBar = document.getElementById('tabBar');
         const emptyView = document.getElementById('emptyView');
@@ -740,6 +805,7 @@
                     <button onclick="renameNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-blue-400 p-1" title="이름 변경"><i class="fas fa-pen text-xs"></i></button>
                     ${!isFolder ? `<button onclick="event.stopPropagation(); openAddTranscriptModal('doc', '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-purple-400 p-1" title="강의 녹음본 추가"><i class="fas fa-microphone-lines text-xs"></i></button>` : ''}
                     ${!isFolder ? `<button onclick="downloadFile(event, '${node.id}')" class="text-notion-muted hover:text-green-400 p-1" title="다운로드"><i class="fas fa-download text-xs"></i></button>` : ''}
+                    <button onclick="archiveNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-amber-400 p-1" title="보관함으로 이동 (Explorer 에서 숨김)"><i class="fas fa-box-archive text-xs"></i></button>
                     <button onclick="deleteNode(event, '${node.id}')" class="text-notion-muted hover:text-red-400 p-1" title="삭제"><i class="fas fa-trash-alt text-xs"></i></button>
                 </div>
             `;
@@ -1194,7 +1260,16 @@
             }
         });
         openSidebarBtn.addEventListener('click', () => {
-            if (body.classList.contains('sidebar-closed')) { body.classList.remove('sidebar-closed'); localStorage.setItem('sidebarClosed', 'false'); } else toggleSidebar(true);
+            const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+            if (isDesktop) {
+                // PC: 사이드바 접기/펼치기 (상태 기억)
+                const closed = body.classList.toggle('sidebar-closed');
+                localStorage.setItem('sidebarClosed', closed ? 'true' : 'false');
+            } else {
+                // 모바일: 슬라이드 열기/닫기
+                body.classList.remove('sidebar-closed');
+                toggleSidebar(sidebar.classList.contains('-translate-x-full'));
+            }
         });
         function toggleSidebar(show) {
             if (show) { sidebar.classList.remove('-translate-x-full'); sidebarOverlay.classList.remove('hidden'); setTimeout(()=>sidebarOverlay.classList.remove('opacity-0'),10); }
@@ -1206,29 +1281,10 @@
         // ==========================================
         // 9. File Operations (Upload, Rename, Delete)
         // ==========================================
-        let dragCounter = 0;
-        body.addEventListener('dragenter', (e) => { 
-            if (draggedNodeId) return; 
-            if (e.dataTransfer.types && !Array.from(e.dataTransfer.types).includes('Files')) return;
-            e.preventDefault(); dragCounter++; dragOverlay.classList.add('active'); 
-        });
-        body.addEventListener('dragleave', (e) => { 
-            if (draggedNodeId) return; 
-            e.preventDefault(); dragCounter--; if (dragCounter === 0) dragOverlay.classList.remove('active'); 
-        });
-        body.addEventListener('dragover', (e) => { if (draggedNodeId) return; e.preventDefault(); });
-        body.addEventListener('drop', async (e) => {
-            if (draggedNodeId) return; 
-            e.preventDefault(); dragCounter = 0; dragOverlay.classList.remove('active');
-            if (e.dataTransfer.files[0]) handleFileUpload(e.dataTransfer.files[0]);
-        });
+        // 페이지 전체에 파일을 놓으면 브라우저가 파일을 열어버리므로 막기만 한다 (업로드는 Explorer 아래 드롭존에서만)
+        body.addEventListener('dragover', (e) => { if (!draggedNodeId) e.preventDefault(); });
+        body.addEventListener('drop', (e) => { if (!draggedNodeId) e.preventDefault(); });
 
-        async function handleFileUpload(file) {
-            const formData = new FormData(); formData.append('file', file); formData.append('parent_id', 'root');
-            const btn = document.getElementById('uploadBtn'); const org = btn.innerHTML; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>'; btn.disabled=true;
-            try { const res = await fetch('/api/docs/upload', {method:'POST',body:formData}); if(!res.ok) throw new Error; loadTreeRoot(); }
-            catch(e){ alert('업로드 실패'); } finally{ btn.innerHTML=org; btn.disabled=false; }
-        }
         // parentId: 'root' = 최상위(상단 버튼), 폴더 id = 해당 폴더 안(폴더 행의 호버 버튼)
         async function createFolder(event, parentId = 'root') {
             if (event) event.stopPropagation();
@@ -1378,7 +1434,15 @@
             try { const res = await fetch(`/api/docs/import/${jobId}`, { method: 'POST', body: formData }); if (!res.ok) throw new Error; closeHistoryModal(); loadTreeRoot(); } catch (err) { alert('실패'); }
         }
 
-        // ---- 사후 녹음본 추가 (문서 행 버튼) ----
+        // ---- 사후 녹음본 추가: 툴바 버튼 (열려 있는 문서에 적용) ----
+        function addTranscriptForActiveDoc() {
+            const tab = openedTabs.find(t => t.id === activeTabId);
+            if (!tab) { showToast('먼저 문서를 열어 주세요.', 3000); return; }
+            const name = tab.name.includes('/') ? tab.name.substring(tab.name.lastIndexOf('/') + 1) : tab.name;
+            openAddTranscriptModal('doc', tab.id, name);
+        }
+
+        // ---- 사후 녹음본 추가 (문서 행 버튼 / 툴바 버튼 공용) ----
         async function openAddTranscriptModal(type, id, name) {
             const choice = await pickTranscript({ mode: 'post', targetName: name });
             if (!choice || choice.kind === 'none') return;
@@ -1437,6 +1501,341 @@
             await openDoc(meta, index, parentName, zoom);
             if (!wasActive && openedTabs.length > 1) switchTab(openedTabs[0].id);
         }
+
+        // ==========================================
+        // 진행 중 작업 패널: /api/jobs 를 폴링해 분석/녹음본 작업의 진행률을 항상 표시 (새로고침해도 유지)
+        // ==========================================
+        const activeJobsPanel = document.getElementById('activeJobsPanel');
+        const activeJobsList = document.getElementById('activeJobsList');
+        let knownActiveJobIds = null; // null = 첫 조회 전
+        let activeJobsCollapsed = false;
+        try { activeJobsCollapsed = localStorage.getItem('viewer_jobs_panel_collapsed') === '1'; } catch (e) {}
+
+        function toggleActiveJobsPanel() {
+            activeJobsCollapsed = !activeJobsCollapsed;
+            try { localStorage.setItem('viewer_jobs_panel_collapsed', activeJobsCollapsed ? '1' : '0'); } catch (e) {}
+            applyActiveJobsCollapsed();
+        }
+        function applyActiveJobsCollapsed() {
+            activeJobsList.classList.toggle('hidden', activeJobsCollapsed);
+            document.getElementById('activeJobsToggle').innerHTML = `<i class="fas fa-chevron-${activeJobsCollapsed ? 'up' : 'down'}"></i>`;
+        }
+
+        function lastLogOf(job) {
+            const l = (job.logs && job.logs.length) ? job.logs[job.logs.length - 1] : '';
+            return l.includes(']') ? l.substring(l.indexOf(']') + 1).trim() : l;
+        }
+
+        async function pollActiveJobs() {
+            if (document.hidden) return;
+            let jobs = [];
+            try { const res = await fetch('/api/jobs'); if (!res.ok) return; jobs = await res.json(); } catch (err) { return; }
+            const active = jobs.filter(j => j.status === 'pending' || j.status === 'processing');
+            const activeIds = new Set(active.map(j => j.id));
+
+            // 직전 조회에서 진행 중이던 작업이 끝났으면 알림 + 트리 갱신
+            if (knownActiveJobIds) {
+                for (const id of knownActiveJobIds) {
+                    if (activeIds.has(id)) continue;
+                    const job = jobs.find(j => j.id === id);
+                    if (!job) continue;
+                    if (job.status === 'completed') { showToast(`완료: ${job.filename}`, 6000); loadTreeRoot(); }
+                    else if (job.status === 'failed') showToast(`실패: ${job.filename} · ${job.error || lastLogOf(job)}`, 10000);
+                }
+            }
+            knownActiveJobIds = activeIds;
+
+            if (!active.length) { activeJobsPanel.classList.add('hidden'); return; }
+            document.getElementById('activeJobsCount').textContent = `(${active.length})`;
+            activeJobsList.innerHTML = active.map(job => {
+                const isTranscript = job.kind === 'transcript' || (job.filename || '').startsWith('[녹음본 추가]');
+                const icon = isTranscript ? 'fas fa-microphone-lines text-purple-400' : 'fas fa-wand-magic-sparkles text-blue-400';
+                const pct = Math.max(0, Math.min(100, job.progress || 0));
+                const waiting = job.status === 'pending';
+                return `<div class="px-3 py-2">
+                    <div class="flex items-center text-xs">
+                        <i class="${icon} mr-2"></i>
+                        <span class="flex-1 truncate text-notion-text" title="${escapeHtml(job.filename || '')}">${escapeHtml(job.filename || '')}</span>
+                        <span class="ml-2 font-mono text-notion-muted">${waiting ? '대기' : pct + '%'}</span>
+                    </div>
+                    <div class="w-full bg-notion-hover rounded-full h-1 mt-1.5 overflow-hidden">
+                        <div class="h-full rounded-full ${waiting ? 'bg-amber-500 animate-pulse' : 'bg-blue-500'} transition-all duration-500" style="width:${waiting ? 100 : pct}%"></div>
+                    </div>
+                    <div class="text-[10px] text-notion-muted truncate mt-1" title="${escapeHtml(lastLogOf(job))}">${escapeHtml(lastLogOf(job)) || '준비 중...'}</div>
+                </div>`;
+            }).join('');
+            applyActiveJobsCollapsed();
+            activeJobsPanel.classList.remove('hidden');
+        }
+        setInterval(pollActiveJobs, 4000);
+        pollActiveJobs();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) pollActiveJobs(); });
+
+        // ==========================================
+        // 문서함 자동 새로고침: AI 분석이 끝나 문서가 추가되면(대시보드에서 시작한 작업 포함) 트리를 다시 불러온다
+        // ==========================================
+        let docsChangeSignature = null;
+        async function checkDocsChanges() {
+            if (document.hidden) return; // 탭이 보이지 않으면 건너뜀
+            try {
+                const res = await fetch('/api/docs/changes');
+                if (!res.ok) return;
+                const data = await res.json();
+                const sig = `${data.count}|${data.latest ? data.latest.id : ''}`;
+                if (docsChangeSignature === null) { docsChangeSignature = sig; return; }
+                if (sig === docsChangeSignature) return;
+                docsChangeSignature = sig;
+                const latest = data.latest;
+                if (latest && latest.parent_id && !latest.archived) {
+                    expandedFolderIds.add(latest.parent_id);
+                    localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds]));
+                }
+                await loadTreeRoot();
+                if (latest && !latest.archived) showToast(`문서함 갱신: ${latest.name}`, 4000);
+            } catch (err) { /* 다음 주기에 재시도 */ }
+        }
+        setInterval(checkDocsChanges, 8000);
+        checkDocsChanges();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDocsChanges(); });
+
+        // ==========================================
+        // 문서의 녹음본 목록: 텍스트/원본 다운로드, 음성 웹 재생
+        // ==========================================
+        const transcriptListModal = document.getElementById('transcriptListModal');
+        function closeTranscriptListModal() {
+            transcriptListModal.querySelectorAll('audio').forEach(a => a.pause());
+            transcriptListModal.classList.add('hidden'); transcriptListModal.classList.remove('flex');
+        }
+        transcriptListModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTranscriptListModal(); });
+        transcriptListModal.addEventListener('click', (e) => { if (e.target === transcriptListModal) closeTranscriptListModal(); });
+
+        function openTranscriptListForActiveDoc() {
+            const tab = openedTabs.find(t => t.id === activeTabId);
+            if (!tab) { showToast('먼저 문서를 열어 주세요.', 3000); return; }
+            const name = tab.name.includes('/') ? tab.name.substring(tab.name.lastIndexOf('/') + 1) : tab.name;
+            openTranscriptListModal(tab.id, name);
+        }
+
+        const fmtBytes = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n || 0} B`;
+        const KIND_LABEL = { audio: ['fas fa-file-audio text-purple-400', '녹음 파일'], text_doc: ['fas fa-file-alt text-blue-400', '텍스트 파일'], paste: ['fas fa-paste text-emerald-400', '붙여넣은 텍스트'] };
+
+        async function openTranscriptListModal(docId, name) {
+            document.getElementById('transcriptListTarget').textContent = name;
+            const body = document.getElementById('transcriptListBody');
+            body.innerHTML = '<div class="text-xs text-notion-muted p-2">불러오는 중...</div>';
+            transcriptListModal.classList.remove('hidden'); transcriptListModal.classList.add('flex');
+            let items = [];
+            try { const res = await fetch(`/api/docs/${docId}/transcripts`); if (res.ok) items = await res.json(); } catch (err) {}
+            if (!items.length) {
+                body.innerHTML = `<div class="text-sm text-notion-muted text-center py-10"><i class="fas fa-microphone-slash text-3xl mb-3 block opacity-40"></i>이 문서에 추가된 녹음본이 없습니다.<br><span class="text-xs">툴바의 "녹음본 추가"로 텍스트, 텍스트 파일, 녹음 파일을 추가할 수 있습니다.</span></div>`;
+                return;
+            }
+            body.innerHTML = items.map(item => {
+                const [icon, kindLabel] = KIND_LABEL[item.kind] || KIND_LABEL.paste;
+                const meta = [kindLabel, item.original_name ? escapeHtml(item.original_name) : null, `${(item.chars || 0).toLocaleString()}자`, item.size ? fmtBytes(item.size) : null, item.added_at ? escapeHtml(item.added_at).replace('T', ' ') : null].filter(Boolean).join(' · ');
+                const player = item.playable ? `<audio controls preload="none" class="w-full mt-2" src="${item.original_url}"></audio>` : (item.kind === 'audio' ? `<p class="text-[11px] text-notion-muted mt-1">이 형식은 브라우저에서 바로 재생되지 않습니다. 원본을 내려받아 재생하세요.</p>` : '');
+                return `<div class="rounded-xl border border-notion-border p-3">
+                    <div class="flex items-center">
+                        <i class="${icon} mr-3 w-4 text-center"></i>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm text-notion-text truncate" title="${escapeHtml(item.label)}">#${item.seq} ${escapeHtml(item.label)}</div>
+                            <div class="text-[11px] text-notion-muted truncate">${meta}</div>
+                        </div>
+                        <a href="${item.text_url}" download class="text-xs px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 transition mr-1" title="전사 텍스트(.txt) 저장"><i class="fas fa-file-lines mr-1"></i>텍스트</a>
+                        ${item.original_url ? `<a href="${item.original_url}" download class="text-xs px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 hover:bg-purple-500/30 border border-purple-500/30 transition" title="원본 파일 저장"><i class="fas fa-download mr-1"></i>원본</a>` : ''}
+                    </div>
+                    ${player}
+                </div>`;
+            }).join('');
+        }
+
+        // ==========================================
+        // 보관함 (archive): Explorer 에서 숨기고 따로 관리
+        // ==========================================
+        const archiveModal = document.getElementById('archiveModal');
+
+        async function archiveNode(event, id, name) {
+            event.stopPropagation();
+            if (!confirm(`'${name}' 을(를) 보관함으로 이동할까요?\nExplorer 에서 숨겨지며 보관함에서 언제든 복원할 수 있습니다.`)) return;
+            try {
+                const res = await fetch('/api/docs/archive', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node_id: id }) });
+                if (!res.ok) throw new Error();
+                if (openedTabs.some(t => t.id === id)) closeTab(id);
+                loadTreeRoot();
+                showToast(`보관함으로 이동: ${name}`, 3000);
+            } catch (err) { alert('보관 실패'); }
+        }
+
+        async function openArchiveModal() {
+            archiveModal.classList.remove('hidden'); archiveModal.classList.add('flex');
+            await renderArchiveList();
+        }
+        function closeArchiveModal() { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); }
+        archiveModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeArchiveModal(); });
+        archiveModal.addEventListener('click', (e) => { if (e.target === archiveModal) closeArchiveModal(); });
+
+        async function renderArchiveList() {
+            const list = document.getElementById('archiveList');
+            list.innerHTML = '<div class="text-xs text-notion-muted p-2">불러오는 중...</div>';
+            let items = [];
+            try { const res = await fetch('/api/docs/archived'); if (res.ok) items = await res.json(); } catch (err) {}
+            document.getElementById('archiveModalCount').textContent = items.length ? `(${items.length})` : '';
+            if (!items.length) {
+                list.innerHTML = '<div class="text-sm text-notion-muted text-center py-10"><i class="fas fa-box-open text-3xl mb-3 block opacity-40"></i>보관된 항목이 없습니다.<br><span class="text-xs">Explorer 에서 문서나 폴더에 마우스를 올리고 <i class="fas fa-box-archive"></i> 아이콘을 누르면 보관됩니다.</span></div>';
+                return;
+            }
+            list.innerHTML = items.map(item => {
+                const isFolder = item.type === 'folder';
+                const icon = isFolder ? 'fas fa-folder text-yellow-500' : 'fas fa-file-lines text-blue-400';
+                const meta = [item.path ? `원래 위치: ${escapeHtml(item.path)}` : '원래 위치: 최상위',
+                              isFolder ? `하위 항목 ${item.child_count || 0}개` : null,
+                              item.archived_at ? `보관 ${escapeHtml(item.archived_at).replace('T', ' ')}` : null].filter(Boolean).join(' · ');
+                return `<div class="flex items-center px-3 py-2 rounded-lg hover:bg-notion-hover group">
+                    <i class="${icon} mr-3 w-4 text-center"></i>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm text-notion-text truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+                        <div class="text-[11px] text-notion-muted truncate">${meta}</div>
+                    </div>
+                    <button onclick="unarchiveNode('${item.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 transition mr-1" title="복원"><i class="fas fa-rotate-left mr-1"></i>복원</button>
+                    <button onclick="deleteArchived('${item.id}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')" class="text-xs px-2.5 py-1 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/25 border border-red-500/30 transition" title="영구 삭제"><i class="fas fa-trash-alt mr-1"></i>삭제</button>
+                </div>`;
+            }).join('');
+        }
+
+        async function unarchiveNode(id) {
+            try {
+                const res = await fetch('/api/docs/unarchive', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node_id: id }) });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                if (data.parent_id && data.parent_id !== 'root') { expandedFolderIds.add(data.parent_id); localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds])); }
+                await renderArchiveList(); loadTreeRoot();
+                showToast('복원되었습니다.', 2500);
+            } catch (err) { alert('복원 실패'); }
+        }
+
+        async function deleteArchived(id, name) {
+            if (!confirm(`'${name}' 을(를) 영구 삭제할까요? 폴더면 하위 항목도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
+            try {
+                const res = await fetch(`/api/docs/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
+                await renderArchiveList();
+            } catch (err) { alert('삭제 실패'); }
+        }
+
+        // ==========================================
+        // 뷰어에서 바로 업로드 → AI 분석 → 지정 폴더에 자동 저장
+        // ==========================================
+        const folderPickModal = document.getElementById('folderPickModal');
+        let folderPickResolver = null, folderPickSelected = 'root';
+
+        function currentFolderIdFromTree() {
+            const active = document.querySelector('.tree-content.active');
+            if (!active) return 'root';
+            const isFolder = !!active.parentElement.querySelector('.tree-children');
+            return isFolder ? active.getAttribute('data-node-id') : getParentFolderId(active);
+        }
+
+        async function pickFolder(targetName) {
+            let folders = [];
+            try { const res = await fetch('/api/docs/folders'); if (res.ok) folders = await res.json(); } catch (e) {}
+            const byId = Object.fromEntries(folders.map(f => [f.id, f]));
+            const depthOf = (f) => { let d = 0, cur = f; while (cur && cur.parent_id && byId[cur.parent_id]) { d++; cur = byId[cur.parent_id]; if (d > 20) break; } return d; };
+            const children = (pid) => folders.filter(f => (f.parent_id || null) === pid).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+            const ordered = []; (function walk(pid) { for (const f of children(pid)) { ordered.push(f); walk(f.id); } })(null);
+            folderPickSelected = currentFolderIdFromTree();
+            if (folderPickSelected !== 'root' && !byId[folderPickSelected]) folderPickSelected = 'root';
+            document.getElementById('folderPickTarget').textContent = targetName;
+            const list = document.getElementById('folderPickList');
+            const row = (id, name, depth, icon) => `<button type="button" data-folder-id="${id}" class="folder-pick-row w-full text-left px-3 py-2 rounded-lg text-sm flex items-center transition hover:bg-notion-hover" style="padding-left:${0.75 + depth * 1.1}rem"><i class="${icon} mr-2 text-yellow-500"></i><span class="truncate">${name}</span></button>`;
+            list.innerHTML = row('root', '최상위 (Explorer 루트)', 0, 'fas fa-house') + ordered.map(f => row(f.id, f.name, depthOf(f) + 1, 'fas fa-folder')).join('');
+            const highlight = () => list.querySelectorAll('.folder-pick-row').forEach(b => b.classList.toggle('bg-blue-500/20', b.dataset.folderId === folderPickSelected));
+            list.querySelectorAll('.folder-pick-row').forEach(b => b.addEventListener('click', () => { folderPickSelected = b.dataset.folderId; highlight(); }));
+            list.querySelectorAll('.folder-pick-row').forEach(b => b.addEventListener('dblclick', () => resolveFolderPick(b.dataset.folderId)));
+            highlight();
+            folderPickModal.classList.remove('hidden'); folderPickModal.classList.add('flex');
+            return new Promise((resolve) => { folderPickResolver = resolve; });
+        }
+        function resolveFolderPick(value) {
+            folderPickModal.classList.add('hidden'); folderPickModal.classList.remove('flex');
+            const r = folderPickResolver; folderPickResolver = null;
+            if (r) r(value);
+        }
+        folderPickModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') resolveFolderPick(null); });
+
+        const VIEWER_SLIDE_EXTS = ['.pdf', '.ppt', '.pptx'];
+        const isSlideUpload = (f) => VIEWER_SLIDE_EXTS.some(ext => (f.name || '').toLowerCase().endsWith(ext));
+
+        async function handleViewerUploads(files) {
+            for (const file of Array.from(files || [])) {
+                if (isSlideUpload(file)) {
+                    const folderId = await pickFolder(file.name);
+                    if (folderId === null) continue;
+                    const choice = await pickTranscript({ mode: 'pre', targetName: file.name });
+                    if (choice === null) continue;
+                    await uploadSlideFromViewer(file, folderId, choice);
+                } else {
+                    showToast(`지원하지 않는 파일입니다: ${file.name} (PDF, PPT, PPTX 만 가능)`, 4000);
+                }
+            }
+        }
+
+        async function uploadSlideFromViewer(file, folderId, transcriptChoice) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('auto_import_parent_id', folderId);
+            applyTranscriptChoice(formData, transcriptChoice);
+            showToast(`업로드 중: ${file.name}`, 0);
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
+                showToast(`AI 분석 시작: ${file.name} (대시보드에서도 진행 상황을 볼 수 있습니다)`, 0);
+                watchAnalysisJob(data.job_id, file.name, folderId);
+            } catch (err) {
+                showToast('업로드 실패: ' + err.message, 6000);
+            }
+        }
+
+        // 분석 작업 진행 상황을 폴링하고, 완료되면 트리를 새로 고쳐 자동 저장된 문서를 보여준다
+        function watchAnalysisJob(jobId, name, folderId) {
+            const timer = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/status/${jobId}`);
+                    if (!res.ok) return;
+                    const job = await res.json();
+                    const last = (job.logs && job.logs.length) ? job.logs[job.logs.length - 1].replace(/^\[[^\]]*\]\s*/, '') : '';
+                    if (job.status === 'completed') {
+                        if (!job.imported_doc_id && !/자동 저장/.test(last)) return; // 자동 저장 로그가 아직 안 올라온 경우 한 번 더
+                        clearInterval(timer);
+                        if (folderId !== 'root') { expandedFolderIds.add(folderId); localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds])); }
+                        await loadTreeRoot();
+                        showToast(job.imported_doc_id ? `분석 완료, 문서함에 저장됨: ${name}` : `분석 완료: ${name} · ${last}`, 8000);
+                    } else if (job.status === 'failed') {
+                        clearInterval(timer);
+                        showToast(`분석 실패: ${name} · ${job.error || last}`, 10000);
+                    } else {
+                        showToast(`분석 중 (${job.progress || 0}%) ${name} · ${last}`, 0);
+                    }
+                } catch (err) { /* 다음 폴링에서 재시도 */ }
+            }, 4000);
+        }
+
+        const viewerUploadZone = document.getElementById('viewerUploadZone');
+        const viewerUploadInput = document.getElementById('viewerUploadInput');
+        viewerUploadZone.addEventListener('click', () => viewerUploadInput.click());
+        viewerUploadInput.addEventListener('change', () => { handleViewerUploads(viewerUploadInput.files); viewerUploadInput.value = ''; });
+        ['dragenter', 'dragover'].forEach(ev => viewerUploadZone.addEventListener(ev, (e) => {
+            if (draggedNodeId) return; // 트리 노드 이동은 여기서 처리하지 않음
+            e.preventDefault(); e.stopPropagation();
+            viewerUploadZone.classList.add('border-blue-400', 'bg-blue-500/10');
+        }));
+        viewerUploadZone.addEventListener('dragleave', (e) => { e.stopPropagation(); viewerUploadZone.classList.remove('border-blue-400', 'bg-blue-500/10'); });
+        viewerUploadZone.addEventListener('drop', (e) => {
+            if (draggedNodeId) return;
+            e.preventDefault(); e.stopPropagation();
+            viewerUploadZone.classList.remove('border-blue-400', 'bg-blue-500/10');
+            handleViewerUploads(e.dataTransfer.files);
+        });
 
         // Tree Drag & Drop (이동)
         const rootDropZone = document.getElementById('nodeList');

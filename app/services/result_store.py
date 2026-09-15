@@ -251,6 +251,7 @@ def save_transcript(result_dir: str, transcript: str, label: str = "") -> dict:
             "label": label or f"녹음본 {seq}",
             "file": f"{seq:03d}_{safe_label}.txt",
             "chars": len(transcript),
+            "kind": "paste",  # paste | audio | text_doc (원본이 붙으면 갱신)
             "added_at": datetime.now().isoformat(timespec="seconds"),
         }
         entries.append(entry)
@@ -272,6 +273,89 @@ def save_transcript(result_dir: str, transcript: str, label: str = "") -> dict:
 
 def save_transcript_copy(result_dir: str, transcript: str, label: str = ""):
     return save_transcript(result_dir, transcript, label)
+
+
+AUDIO_ORIGINAL_EXTS = (
+    ".mp3",
+    ".m4a",
+    ".m4b",
+    ".wav",
+    ".flac",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".webm",
+    ".aac",
+    ".wma",
+    ".amr",
+    ".aiff",
+    ".aif",
+    ".caf",
+    ".mp4",
+    ".mov",
+    ".mkv",
+)
+# 브라우저 <audio> 로 바로 재생 가능한 형식
+BROWSER_PLAYABLE_EXTS = (
+    ".mp3",
+    ".m4a",
+    ".m4b",
+    ".wav",
+    ".flac",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".webm",
+    ".aac",
+    ".mp4",
+)
+
+
+def attach_original(
+    result_dir: str, entry: dict, src_path: str, original_name: str
+) -> dict:
+    """
+    녹음본의 원본 파일(음성 또는 텍스트 문서)을 transcripts/ 로 옮겨 index 에 기록한다.
+    같은 sid 로 다시 추가되면 원본을 덮어쓴다. 반환: 갱신된 index 항목
+    """
+    if not src_path or not os.path.exists(src_path):
+        return entry
+    ext = os.path.splitext(original_name or src_path)[1].lower()
+    base = os.path.splitext(entry["file"])[0]
+    dest_name = f"{base}{ext}"
+    dest = os.path.join(result_dir, TRANSCRIPTS_DIR, dest_name)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    shutil.move(src_path, dest)
+
+    entries = list_transcripts(result_dir)
+    for e in entries:
+        if e.get("sid") == entry["sid"]:
+            e["original"] = dest_name
+            e["original_name"] = original_name or dest_name
+            e["kind"] = "audio" if ext in AUDIO_ORIGINAL_EXTS else "text_doc"
+            e["size"] = os.path.getsize(dest)
+            entry = e
+            break
+    with open(_index_path(result_dir), "w", encoding="utf-8") as f:
+        json.dump(entries, f, ensure_ascii=False, indent=2)
+    return entry
+
+
+def describe_transcripts(result_dir: str, url_base: str) -> list:
+    """뷰어 목록용: index 항목에 다운로드/재생 URL 을 붙인다."""
+    items = []
+    for e in list_transcripts(result_dir):
+        item = dict(e)
+        item["text_url"] = f"{url_base}/{TRANSCRIPTS_DIR}/{e['file']}"
+        if e.get("original"):
+            item["original_url"] = f"{url_base}/{TRANSCRIPTS_DIR}/{e['original']}"
+            ext = os.path.splitext(e["original"])[1].lower()
+            item["playable"] = ext in BROWSER_PLAYABLE_EXTS
+        else:
+            item["original_url"] = None
+            item["playable"] = False
+        items.append(item)
+    return items
 
 
 def render_pdf(result_dir: str, md_content: str = None):

@@ -72,9 +72,79 @@ class DocManager:
 
     @staticmethod
     def get_nodes(owner: str, parent_id: str = None):
-        query = {"owner": owner, "parent_id": parent_id}
+        # 보관된 항목은 Explorer 에 보이지 않는다 (보관된 폴더의 하위 항목은 폴더가 숨겨지므로 함께 숨겨짐)
+        query = {"owner": owner, "parent_id": parent_id, "archived": {"$ne": True}}
         nodes = list(docs_col.find(query, {"_id": 0}))
         return sorted(nodes, key=lambda x: (x["type"] != "folder", x["name"]))
+
+    # ---------- 보관함 ----------
+    @staticmethod
+    def _path_of(owner: str, parent_id):
+        """상위 폴더 경로 문자열 (예: '2026-2 / 데이터와 경제학'). 최상위면 ''"""
+        names, cur, guard = [], parent_id, 0
+        while cur and guard < 30:
+            node = docs_col.find_one(
+                {"id": cur, "owner": owner}, {"name": 1, "parent_id": 1}
+            )
+            if not node:
+                break
+            names.append(node["name"])
+            cur = node.get("parent_id")
+            guard += 1
+        return " / ".join(reversed(names))
+
+    @staticmethod
+    def archive_node(owner: str, node_id: str):
+        node = docs_col.find_one({"id": node_id, "owner": owner})
+        if not node:
+            return False
+        docs_col.update_one(
+            {"id": node_id},
+            {
+                "$set": {
+                    "archived": True,
+                    "archived_at": datetime.now().isoformat(timespec="seconds"),
+                }
+            },
+        )
+        return True
+
+    @staticmethod
+    def unarchive_node(owner: str, node_id: str):
+        """복원. 원래 있던 폴더가 사라졌거나 보관 중이면 최상위로 옮긴다. 반환: 복원된 위치의 parent_id"""
+        node = docs_col.find_one({"id": node_id, "owner": owner})
+        if not node:
+            return None
+        parent_id = node.get("parent_id")
+        if parent_id:
+            parent = docs_col.find_one(
+                {"id": parent_id, "owner": owner, "type": "folder"}
+            )
+            if not parent or parent.get("archived"):
+                parent_id = None
+        docs_col.update_one(
+            {"id": node_id},
+            {
+                "$set": {"parent_id": parent_id},
+                "$unset": {"archived": "", "archived_at": ""},
+            },
+        )
+        return parent_id or "root"
+
+    @staticmethod
+    def get_archived(owner: str):
+        items = list(
+            docs_col.find({"owner": owner, "archived": True}, {"_id": 0}).sort(
+                "archived_at", -1
+            )
+        )
+        for item in items:
+            item["path"] = DocManager._path_of(owner, item.get("parent_id"))
+            if item["type"] == "folder":
+                item["child_count"] = docs_col.count_documents(
+                    {"parent_id": item["id"]}
+                )
+        return items
 
     @staticmethod
     def create_folder(owner: str, name: str, parent_id: str = None):

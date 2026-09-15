@@ -1,14 +1,12 @@
 # app/routes/doc_routes.py
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Body
+from fastapi import APIRouter, Form, Depends, HTTPException, Body
 from typing import Optional
 from fastapi.responses import FileResponse
 from app.services.doc_manager import DocManager
 from app.services.job_manager import JobManager
-from app.services.auth_manager import AuthManager
 from app.core.config import settings
 from app.db import docs_col, users_col
 from app.routes.deps import get_current_user
-import shutil
 import os
 
 router = APIRouter()
@@ -17,7 +15,11 @@ router = APIRouter()
 @router.get("/docs/folders")
 async def get_folders(user: str = Depends(get_current_user)):
     try:
-        folders = list(docs_col.find({"owner": user, "type": "folder"}, {"_id": 0}))
+        folders = list(
+            docs_col.find(
+                {"owner": user, "type": "folder", "archived": {"$ne": True}}, {"_id": 0}
+            )
+        )
         return folders
     except Exception as e:
         print(f"[Error] get_folders: {e}")
@@ -37,6 +39,54 @@ async def rename_node(
         )
 
     return {"status": "success", "name": new_name}
+
+
+@router.get("/docs/changes")
+async def get_docs_changes(user: str = Depends(get_current_user)):
+    """뷰어 자동 새로고침용 경량 시그니처: 문서 수 + 가장 최근 생성 문서"""
+    count = docs_col.count_documents({"owner": user})
+    latest = docs_col.find_one(
+        {"owner": user, "type": "file"},
+        {"_id": 0, "id": 1, "name": 1, "parent_id": 1, "created_at": 1, "archived": 1},
+        sort=[("created_at", -1)],
+    )
+    return {"count": count, "latest": latest}
+
+
+@router.get("/docs/{doc_id}/transcripts")
+async def get_doc_transcripts(doc_id: str, user: str = Depends(get_current_user)):
+    """문서에 추가된 녹음본 목록 (텍스트/원본 다운로드 URL, 웹 재생 가능 여부)"""
+    from app.services import result_store as rs
+
+    target = docs_col.find_one({"id": doc_id, "owner": user, "type": "file"})
+    if not target:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc_dir = os.path.join(settings.DOCS_STATIC_DIR, user, doc_id)
+    return rs.describe_transcripts(doc_dir, target["path"])
+
+
+@router.get("/docs/archived")
+async def get_archived(user: str = Depends(get_current_user)):
+    return DocManager.get_archived(user)
+
+
+@router.put("/docs/archive")
+async def archive_node(
+    node_id: str = Body(..., embed=True), user: str = Depends(get_current_user)
+):
+    if not DocManager.archive_node(user, node_id):
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
+    return {"status": "archived"}
+
+
+@router.put("/docs/unarchive")
+async def unarchive_node(
+    node_id: str = Body(..., embed=True), user: str = Depends(get_current_user)
+):
+    parent_id = DocManager.unarchive_node(user, node_id)
+    if parent_id is None:
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
+    return {"status": "restored", "parent_id": parent_id}
 
 
 @router.put("/docs/move")
@@ -74,29 +124,6 @@ async def create_folder(
     if parent_id == "root":
         parent_id = None
     return DocManager.create_folder(user, name, parent_id)
-
-
-@router.post("/docs/upload")
-async def upload_doc(
-    file: UploadFile = File(...),
-    parent_id: str = Form(None),
-    user: str = Depends(get_current_user),
-):
-    if parent_id == "root":
-        parent_id = None
-
-    temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{file.filename}")
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    try:
-        new_doc = DocManager.upload_zip_doc(user, temp_path, file.filename, parent_id)
-        return new_doc
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
 
 
 @router.delete("/docs/{node_id}")

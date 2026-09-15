@@ -577,6 +577,27 @@ def transcript_path(job_id: str) -> str:
     return os.path.join(settings.UPLOAD_DIR, f"{job_id}.transcript.txt")
 
 
+def _attach_original_if_any(job: dict, result_dir: str, entry: dict) -> dict:
+    """작업에 딸린 녹음본 원본(음성/텍스트 문서)을 결과 폴더 transcripts/ 로 옮긴다."""
+    path = (job or {}).get("transcript_original_path")
+    if path and os.path.exists(path):
+        return rs.attach_original(
+            result_dir, entry, path, job.get("transcript_source") or ""
+        )
+    return entry
+
+
+def _cleanup_transcript_inputs(job_id: str):
+    """작업 종료 시 UPLOAD_DIR 에 남은 녹음본 입력 파일 정리 (성공 시엔 이미 결과 폴더로 이동됨)"""
+    if os.path.exists(transcript_path(job_id)):
+        os.remove(transcript_path(job_id))
+    job = JobManager.get_job(job_id) or {}
+    for key in ("transcript_original_path", "transcript_audio_path"):
+        path = job.get(key)
+        if path and os.path.exists(path):
+            os.remove(path)
+
+
 def load_transcript(job_id: str):
     path = transcript_path(job_id)
     if not os.path.exists(path):
@@ -626,8 +647,7 @@ def resolve_transcript_for_job(job_id: str, user_settings: dict):
                 f"[STT] 완료: {len(text):,}자 ({result.get('provider', '?')} / {result.get('model', '?')})",
             )
         finally:
-            if os.path.exists(audio_path):
-                os.remove(audio_path)
+            pass  # 음성 원본은 보관을 위해 남겨 둔다 (결과 폴더로 이동)
     text = load_transcript(job_id)
     return normalize_transcript(text) if text else None
 
@@ -1008,6 +1028,7 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
                 transcript,
                 job_doc.get("transcript_source") or "업로드 시 녹음본",
             )
+            _attach_original_if_any(job_doc, result_base, entry)
             results_map = {
                 idx: (fname, rs.mark_transcript_section(text, entry["sid"]))
                 for idx, (fname, text) in results_map.items()
@@ -1049,6 +1070,9 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
 
         JobManager.mark_completed(job_id, f"/static/results/{owner}/{job_id}.zip")
 
+        # 5. 뷰어에서 올린 작업이면 문서함의 지정 폴더로 자동 저장
+        _auto_import_to_docs(job_id, owner)
+
     except Exception as e:
         JobManager.mark_failed(job_id, str(e))
     finally:
@@ -1057,8 +1081,7 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
             shutil.rmtree(work_dir)
         if os.path.exists(file_path):
             os.remove(file_path)
-        if os.path.exists(transcript_path(job_id)):
-            os.remove(transcript_path(job_id))
+        _cleanup_transcript_inputs(job_id)
 
 
 # ==========================================
@@ -1266,6 +1289,7 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
         # 출처 식별: 같은 녹음본을 다시 넣으면 해당 출처의 절만 교체되고, 다른 녹음본이면 누적된다
         source_label = (job.get("transcript_source") or "붙여넣은 텍스트").strip()
         entry = rs.save_transcript(result_dir, transcript, source_label)
+        entry = _attach_original_if_any(job, result_dir, entry)
         sid = entry["sid"]
         label = f"{entry['label']} · {entry['added_at'][:10]}"
         prior = [e for e in rs.list_transcripts(result_dir) if e["sid"] != sid]
@@ -1377,8 +1401,50 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
     finally:
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
-        if os.path.exists(transcript_path(job_id)):
-            os.remove(transcript_path(job_id))
+        _cleanup_transcript_inputs(job_id)
+
+
+def _auto_import_to_docs(job_id: str, owner: str):
+    """job 에 auto_import_parent_id 가 있으면 결과 zip 을 문서함 폴더로 가져온다 (실패해도 작업은 완료 상태 유지)"""
+    job = JobManager.get_job(job_id) or {}
+    parent = (job.get("auto_import_parent_id") or "").strip()
+    if not parent:
+        return
+    try:
+        from app.services.doc_manager import DocManager
+
+        parent_id = None if parent == "root" else parent
+        folder_name = "최상위"
+        if parent_id:
+            folder = docs_col.find_one(
+                {"id": parent_id, "owner": owner, "type": "folder"}
+            )
+            if not folder:
+                raise RuntimeError("지정한 폴더가 더 이상 존재하지 않습니다.")
+            folder_name = folder["name"]
+        zip_path = os.path.join(settings.RESULT_DIR, owner, f"{job_id}.zip")
+        doc = DocManager.upload_zip_doc(
+            owner=owner,
+            file_path=zip_path,
+            filename=job.get("filename", "document"),
+            parent_id=parent_id,
+            source_job_id=job_id,
+        )
+        JobManager.update_fields(job_id, {"imported_doc_id": doc["id"]})
+        JobManager.update_progress(
+            job_id,
+            100,
+            100,
+            f"문서함 '{folder_name}' 폴더에 자동 저장됨 → 뷰어에서 바로 열 수 있습니다.",
+        )
+    except Exception as e:
+        print(f"[AUTO IMPORT] failed for {job_id}: {e}")
+        JobManager.update_progress(
+            job_id,
+            100,
+            100,
+            f"문서함 자동 저장 실패: {e} (대시보드에서 'Viewer로 보내기'로 수동 저장 가능)",
+        )
 
 
 def process_file_task(job_id: str, file_path: str):

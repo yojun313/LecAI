@@ -35,9 +35,20 @@ async def upload_file(
     transcript: str = Form(""),
     transcript_file: Optional[UploadFile] = File(None),
     audio_language: str = Form(""),
+    auto_import_parent_id: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     ext = os.path.splitext(file.filename)[1].lower()
+    # 뷰어에서 업로드한 경우: 완료 후 문서함의 지정 폴더로 자동 저장
+    auto_import_parent_id = (auto_import_parent_id or "").strip()
+    if auto_import_parent_id and auto_import_parent_id != "root":
+        folder = docs_col.find_one(
+            {"id": auto_import_parent_id, "owner": user, "type": "folder"}
+        )
+        if not folder:
+            raise HTTPException(
+                status_code=404, detail="저장할 폴더를 찾을 수 없습니다."
+            )
     needs_stt = ext in AUDIO_EXTS or (
         transcript_file
         and transcript_file.filename
@@ -61,6 +72,10 @@ async def upload_file(
             )
         background_tasks.add_task(process_audio_task, job_id, file_path)
     else:
+        if auto_import_parent_id:
+            JobManager.update_fields(
+                job_id, {"auto_import_parent_id": auto_import_parent_id}
+            )
         # 강의 녹음본: 붙여넣은 텍스트 / 텍스트 문서 / 음성 파일 중 하나 (선택)
         try:
             _store_transcript_input(job_id, transcript, transcript_file, audio_language)
@@ -89,35 +104,41 @@ def _store_transcript_input(
     if has_file:
         fname = transcript_file.filename
         ext = ti.ext_of(fname)
+        # 원본 파일은 보관 대상: 처리기가 결과 폴더 transcripts/ 로 옮긴다 (음성은 STT 입력이기도 함)
+        original_path = os.path.join(
+            settings.UPLOAD_DIR, f"{job_id}.transcript_original{ext}"
+        )
         if ti.is_audio(fname):
-            audio_path = os.path.join(
-                settings.UPLOAD_DIR, f"{job_id}.transcript_audio{ext}"
-            )
-            with open(audio_path, "wb") as buffer:
+            with open(original_path, "wb") as buffer:
                 shutil.copyfileobj(transcript_file.file, buffer)
-            fields = {"transcript_audio_path": audio_path, "transcript_source": fname}
+            fields = {
+                "transcript_audio_path": original_path,
+                "transcript_original_path": original_path,
+                "transcript_source": fname,
+            }
             if (audio_language or "").strip():
                 fields["transcript_language"] = (
                     audio_language.strip()
-                )  # 이번 파일에만 적용되는 언어
+                )  # 이번 파일에만 적용
             JobManager.update_fields(job_id, fields)
             return "audio"
         if ti.is_text_doc(fname):
-            tmp_path = os.path.join(
-                settings.UPLOAD_DIR, f"{job_id}.transcript_doc{ext}"
-            )
-            with open(tmp_path, "wb") as buffer:
+            with open(original_path, "wb") as buffer:
                 shutil.copyfileobj(transcript_file.file, buffer)
             try:
-                transcript = ti.extract_text(tmp_path, fname)
+                transcript = ti.extract_text(original_path, fname)
             except Exception as e:
+                if os.path.exists(original_path):
+                    os.remove(original_path)
                 raise ValueError(f"텍스트 문서에서 본문을 추출하지 못했습니다: {e}")
-            finally:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
             if not transcript:
+                if os.path.exists(original_path):
+                    os.remove(original_path)
                 raise ValueError("텍스트 문서에서 추출된 본문이 비어 있습니다.")
-            JobManager.update_fields(job_id, {"transcript_source": fname})
+            JobManager.update_fields(
+                job_id,
+                {"transcript_source": fname, "transcript_original_path": original_path},
+            )
         else:
             raise ValueError(f"지원하지 않는 파일 형식입니다: {ext or fname}")
 
