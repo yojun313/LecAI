@@ -94,6 +94,9 @@ def get_headers(api_key=None, content_type="application/json"):
 def get_target_model(user_settings):
     pref = user_settings.get("preferred_model", DEFAULT_MODEL)
     user_key = user_settings.get("openai_api_key", "")
+    if not settings.ENABLE_LOCAL_LLM and not str(pref).startswith("gpt"):
+        # 로컬 서버 기능이 꺼져 있으면 예전에 저장된 'local' 설정은 기본 OpenAI 모델로 대체
+        pref = DEFAULT_MODEL
 
     system_prompt = user_settings.get("custom_prompt", "")
     user_prompt_template = user_settings.get("custom_user_prompt", "")

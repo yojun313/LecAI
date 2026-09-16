@@ -1,0 +1,50 @@
+{# OpenAI API Key 미등록 안내 팝업: 키가 없고 '다시 보지 않기'를 누르지 않은 사용자에게 표시 #}
+{% if settings and not settings.openai_api_key and not settings.hide_api_key_notice %}
+<div id="apiKeyNotice" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[130] hidden items-center justify-center p-4">
+    <div class="glass-strong w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-white/10 flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-key text-blue-300"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-white">OpenAI API Key 를 등록해 주세요</h3>
+                <p class="text-xs text-white/50 mt-0.5">아직 등록된 키가 없습니다.</p>
+            </div>
+        </div>
+        <div class="p-5 text-sm text-white/80 leading-relaxed space-y-3">
+            <p>LecAI 는 <b>내 OpenAI API Key</b> 로 슬라이드를 분석합니다. 키가 없으면 AI 분석과 OpenAI 음성 인식을 사용할 수 없습니다.</p>
+            <ol class="list-decimal list-inside text-white/70 space-y-1 text-[13px]">
+                <li>OpenAI 계정에서 API Key 를 발급합니다. (<a href="/guide/openai" target="_blank" class="text-blue-300 hover:underline">발급 방법 보기</a>)</li>
+                <li>설정 화면의 "OpenAI API Key" 칸에 붙여 넣으면 자동으로 저장됩니다.</li>
+                <li>분석 모델은 기본값(GPT-5.6 Luna)이 가장 저렴합니다. 강의 1편(60장) 분석 비용은 보통 수십 원 수준입니다.</li>
+            </ol>
+            <p class="text-[12px] text-white/45">키는 본인 계정에만 저장되며 본인의 분석에만 사용됩니다.</p>
+        </div>
+        <div class="p-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center gap-2 glass-soft">
+            <button type="button" onclick="dismissApiKeyNotice(true)" class="text-xs text-white/40 hover:text-white/80 transition sm:mr-auto text-left">다시 보지 않기</button>
+            <button type="button" onclick="dismissApiKeyNotice(false)" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">나중에</button>
+            <a href="/settings" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-md transition text-center">
+                <i class="fas fa-gear mr-1"></i> 설정에서 등록하기
+            </a>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const notice = document.getElementById('apiKeyNotice');
+    if (!notice) return;
+    let laterDismissed = false;
+    try { laterDismissed = sessionStorage.getItem('apiKeyNoticeLater') === '1'; } catch (e) {}
+    if (!laterDismissed) { notice.classList.remove('hidden'); notice.classList.add('flex'); }
+
+    window.dismissApiKeyNotice = async (forever) => {
+        notice.classList.add('hidden'); notice.classList.remove('flex');
+        if (forever) {
+            try { await fetch('/api/settings/api-key-notice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hide: true }) }); } catch (e) {}
+        } else {
+            try { sessionStorage.setItem('apiKeyNoticeLater', '1'); } catch (e) {}
+        }
+    };
+})();
+</script>
+{% endif %}

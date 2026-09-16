@@ -203,7 +203,7 @@
                                         <option class="bg-[#0f1424]" value="gpt-5.6-luna">OpenAI - GPT-5.6 Luna (기본 / $0.20·$1.20 per 1M)</option>
                                         <option class="bg-[#0f1424]" value="gpt-5.6-terra">OpenAI - GPT-5.6 Terra ($2.00·$12.00 per 1M)</option>
                                         <option class="bg-[#0f1424]" value="gpt-5.6-sol">OpenAI - GPT-5.6 Sol ($4.00·$20.00 per 1M)</option>
-                                        <option class="bg-[#0f1424]" value="local">Local Server (무료/대기열 있음)</option>
+                                        <option class="bg-[#0f1424]" value="local" {% if not enable_local_llm %}disabled{% endif %}>Local Server{% if enable_local_llm %} (무료/대기열 있음){% else %} (현재 사용 불가){% endif %}</option>
                                     </select>
                                 </div>
 
@@ -409,7 +409,8 @@
         const currentPrompt = {{ settings.custom_prompt | tojson | safe }};
         const currentUserPrompt = {{ settings.custom_user_prompt | tojson | safe }};
 
-        document.getElementById('modelSelect').value = currentModel || 'gpt-5.6-luna';
+        const localEnabled = {{ 'true' if enable_local_llm else 'false' }};
+        document.getElementById('modelSelect').value = (!currentModel || (currentModel === 'local' && !localEnabled)) ? 'gpt-5.6-luna' : currentModel;
         document.getElementById('apiKeyInput').value = currentKey || '';
         document.getElementById('useBatchCheckbox').checked = currentUseBatch;
         document.getElementById('audioLangSelect').value = "{{ settings.audio_language or 'auto' }}" || 'auto';

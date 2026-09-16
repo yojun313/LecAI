@@ -43,6 +43,14 @@ class Settings:
 
     MAIL_SENDER = os.getenv("MAIL_SENDER", "")
 
+    # 슬라이드 설명용 로컬 LLM 서버(PPT_LLM_URL) 선택 허용 여부. 기본 꺼짐 (OpenAI 모델만 선택 가능)
+    ENABLE_LOCAL_LLM = os.getenv("ENABLE_LOCAL_LLM", "false").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
     # 결과물 PDF(result.pdf) 생성 여부. 기본 꺼짐. (.env: GENERATE_PDF=true)
     GENERATE_PDF = os.getenv("GENERATE_PDF", "false").strip().lower() in (
         "1",

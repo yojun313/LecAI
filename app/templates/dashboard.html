@@ -142,7 +142,7 @@
                                 <option class="bg-[#0f1424]" value="gpt-5.6-luna">OpenAI GPT-5.6 Luna (기본)</option>
                                 <option class="bg-[#0f1424]" value="gpt-5.6-terra">OpenAI GPT-5.6 Terra</option>
                                 <option class="bg-[#0f1424]" value="gpt-5.6-sol">OpenAI GPT-5.6 Sol</option>
-                                <option class="bg-[#0f1424]" value="local">Local Server (Free)</option>
+                                <option class="bg-[#0f1424]" value="local" {% if not enable_local_llm %}disabled{% endif %}>Local Server{% if enable_local_llm %} (Free){% else %} (현재 사용 불가){% endif %}</option>
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white/40">
                                 <i class="fas fa-chevron-down text-xs"></i>
@@ -204,6 +204,7 @@
     </main>
 
     {% include "_transcript_picker.html" %}
+    {% include "_api_key_notice.html" %}
 
     <div id="folderModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center backdrop-blur-md">
         <div class="glass-strong w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0" id="folderModalContent">
@@ -304,7 +305,8 @@
 
         // --- 1. Model Selection Logic ---
         const initialModel = "{{ settings.preferred_model }}";
-        if(quickModelSelect && initialModel) quickModelSelect.value = initialModel;
+        const localLlmEnabled = {{ 'true' if enable_local_llm else 'false' }};
+        if (quickModelSelect) quickModelSelect.value = (!initialModel || (initialModel === 'local' && !localLlmEnabled)) ? 'gpt-5.6-luna' : initialModel;
 
         if(quickModelSelect) {
             let lastConfirmedModel = quickModelSelect.value;

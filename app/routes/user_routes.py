@@ -3,6 +3,7 @@ from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from typing import Optional, Any
 from pydantic import BaseModel
 from app.services.auth_manager import AuthManager
+from app.core.config import settings
 from app.routes.deps import get_current_user
 from app.db.prompt import default_system_prompt, default_user_prompt
 import shutil
@@ -13,6 +14,17 @@ router = APIRouter()
 
 class ModelUpdateRequest(BaseModel):
     preferred_model: str
+
+
+class NoticeRequest(BaseModel):
+    hide: bool = True
+
+
+@router.post("/settings/api-key-notice")
+async def set_api_key_notice(req: NoticeRequest, user: str = Depends(get_current_user)):
+    """OpenAI API Key 미등록 안내 팝업 '다시 보지 않기'"""
+    AuthManager.set_hide_api_key_notice(user, req.hide)
+    return {"status": "success", "hide": req.hide}
 
 
 @router.post("/settings")
@@ -28,6 +40,10 @@ async def save_settings(
     profile_img: Optional[UploadFile] = File(None),
     user: Any = Depends(get_current_user),
 ):
+    if model == "local" and not settings.ENABLE_LOCAL_LLM:
+        model = (
+            settings.DEFAULT_MODEL
+        )  # 로컬 서버 기능이 꺼져 있으면 기본 OpenAI 모델로 저장
     use_batch_api = use_batch.strip().lower() in ("1", "true", "on", "yes")
     profile_url = None
     if profile_img and profile_img.filename:
@@ -95,6 +111,11 @@ async def upload_profile_image(
 async def update_model_setting(
     req: ModelUpdateRequest, user: str = Depends(get_current_user)
 ):
+    if req.preferred_model == "local" and not settings.ENABLE_LOCAL_LLM:
+        raise HTTPException(
+            status_code=400,
+            detail="로컬 서버 분석은 현재 사용할 수 없습니다. OpenAI 모델을 선택해 주세요.",
+        )
     if req.preferred_model != "local":
         current_settings = AuthManager.get_user_settings(user)
         api_key = current_settings.get("openai_api_key")

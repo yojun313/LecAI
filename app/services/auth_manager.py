@@ -223,6 +223,13 @@ class AuthManager:
         return report
 
     @staticmethod
+    def set_hide_api_key_notice(username, hide: bool):
+        result = users_col.update_one(
+            {"username": username}, {"$set": {"hide_api_key_notice": bool(hide)}}
+        )
+        return result.matched_count > 0
+
+    @staticmethod
     def update_preferred_model(username, model_choice):
         result = users_col.update_one(
             {"username": username}, {"$set": {"preferred_model": model_choice}}
@@ -239,6 +246,7 @@ class AuthManager:
                 "preferred_model": user.get("preferred_model", DEFAULT_MODEL),
                 "use_batch_api": bool(user.get("use_batch_api", False)),
                 "stt_provider": user.get("stt_provider") or "",
+                "hide_api_key_notice": bool(user.get("hide_api_key_notice", False)),
                 "audio_language": user.get("audio_language", "auto"),
                 "audio_model_level": user.get("audio_model_level", 2),
                 "custom_prompt": user.get("custom_prompt", default_system_prompt),
@@ -253,6 +261,7 @@ class AuthManager:
             "preferred_model": DEFAULT_MODEL,
             "use_batch_api": False,
             "stt_provider": "",
+            "hide_api_key_notice": False,
             "audio_language": "auto",
             "audio_model_level": 2,
             "custom_prompt": default_system_prompt,

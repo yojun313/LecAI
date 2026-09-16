@@ -22,7 +22,13 @@ async def index(request: Request):
     user_settings = AuthManager.get_user_settings(user)
 
     return templates.TemplateResponse(
-        request, "dashboard.html", {"username": user, "settings": user_settings}
+        request,
+        "dashboard.html",
+        {
+            "username": user,
+            "settings": user_settings,
+            "enable_local_llm": settings.ENABLE_LOCAL_LLM,
+        },
     )
 
 
@@ -55,6 +61,7 @@ async def settings_page(request: Request):
             "default_user_prompt": default_user_prompt,
             "openai_stt_model": settings.OPENAI_STT_MODEL,
             "custom_stt_available": bool(settings.AUDIO_LLM_URL),
+            "enable_local_llm": settings.ENABLE_LOCAL_LLM,
             "default_stt_provider": settings.STT_DEFAULT_PROVIDER
             if settings.STT_DEFAULT_PROVIDER in ("custom", "openai")
             else "custom",
