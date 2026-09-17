@@ -84,12 +84,23 @@ def read_slides(result_dir: str) -> dict:
     return slides
 
 
+# 모델이 파일명을 제목으로 쓴 줄 (예: "## page_001.png", "# slide_3.jpg") - 뷰어/PDF 에서 숨긴다
+FILENAME_HEADING_RE = re.compile(
+    r"^\s*#{1,6}\s*(?:\*\*)?\s*(?:page|slide)?[_\- ]?\d{1,4}\.(?:png|jpe?g|webp)\s*(?:\*\*)?\s*$",
+    re.I | re.M,
+)
+
+
+def strip_filename_headings(text: str) -> str:
+    return FILENAME_HEADING_RE.sub("", text or "").lstrip("\n")
+
+
 def slide_block(result_dir: str, idx: int, text: str) -> str:
     """뷰어/PDF 용 슬라이드 블록. 이미지가 있으면 함께 넣는다."""
     img = image_for_slide(result_dir, idx)
     header = f"## Slide {idx}\n\n"
     image = f"![{img}](./{IMAGES_DIR}/{img})\n\n" if img else ""
-    return f"{header}{image}{text.strip()}\n\n---\n\n"
+    return f"{header}{image}{strip_filename_headings(text).strip()}\n\n---\n\n"
 
 
 def compose_markdown(result_dir: str) -> str:
@@ -129,6 +140,8 @@ def split_legacy_markdown(md_text: str) -> dict:
 def _normalize(text: str) -> str:
     # 이미지 줄은 비교에서 제외: compose 가 실제 존재하는 이미지로 다시 만들기 때문 (error.png 참조 등)
     text = re.sub(r"!\[[^\]]*\]\(\./images/[^)]+\)", "", text)
+    # 파일명 제목 줄도 제외: compose 가 뷰어/PDF 에서 숨기기 때문
+    text = strip_filename_headings(text)
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -227,7 +240,9 @@ def list_transcripts(result_dir: str) -> list:
         return []
 
 
-def save_transcript(result_dir: str, transcript: str, label: str = "") -> dict:
+def save_transcript(
+    result_dir: str, transcript: str, label: str = "", slide_range=None
+) -> dict:
     """
     녹음본 원문을 transcripts/NNN_<label>.txt 로 보관하고 index.json 에 기록한다.
     같은 내용(sid)이 이미 있으면 파일을 덮어쓰고 기존 항목을 갱신한다. 반환: index 항목
@@ -243,6 +258,11 @@ def save_transcript(result_dir: str, transcript: str, label: str = "") -> dict:
         entry = existing
         entry["label"] = label or entry.get("label", "")
         entry["updated_at"] = datetime.now().isoformat(timespec="seconds")
+        if slide_range:
+            entry["slide_from"], entry["slide_to"] = slide_range
+        else:
+            entry.pop("slide_from", None)
+            entry.pop("slide_to", None)
     else:
         seq = len(entries) + 1
         entry = {
@@ -254,6 +274,8 @@ def save_transcript(result_dir: str, transcript: str, label: str = "") -> dict:
             "kind": "paste",  # paste | audio | text_doc (원본이 붙으면 갱신)
             "added_at": datetime.now().isoformat(timespec="seconds"),
         }
+        if slide_range:
+            entry["slide_from"], entry["slide_to"] = slide_range
         entries.append(entry)
     os.makedirs(os.path.join(result_dir, TRANSCRIPTS_DIR), exist_ok=True)
     with open(

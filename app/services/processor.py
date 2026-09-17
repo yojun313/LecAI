@@ -590,6 +590,24 @@ def _attach_original_if_any(job: dict, result_dir: str, entry: dict) -> dict:
     return entry
 
 
+def job_slide_range(job: dict):
+    """작업에 지정된 녹음본 적용 범위 (start, end) 또는 None"""
+    a, b = (
+        (job or {}).get("transcript_slide_from"),
+        (job or {}).get("transcript_slide_to"),
+    )
+    if a is None and b is None:
+        return None
+    try:
+        return (int(a or 1), int(b or 10**6))
+    except TypeError, ValueError:
+        return None
+
+
+def _range_label(rng, total: int) -> str:
+    return f"{rng[0]}~{min(rng[1], total)}장" if rng else "전체"
+
+
 def _cleanup_transcript_inputs(job_id: str):
     """작업 종료 시 UPLOAD_DIR 에 남은 녹음본 입력 파일 정리 (성공 시엔 이미 결과 폴더로 이동됨)"""
     if os.path.exists(transcript_path(job_id)):
@@ -744,7 +762,7 @@ def _file_content(base_url, api_key, file_id) -> str:
     return resp.text
 
 
-def _build_batch_chunks(items, model_config):
+def _build_batch_chunks(items, model_config, config_for_idx=None):
     """슬라이드별 요청을 JSONL 로 직렬화하고 파일 크기 한도에 맞춰 나눈다."""
     chunks, current, current_size = [], [], 0
     for idx, img_path in items:
@@ -753,7 +771,11 @@ def _build_batch_chunks(items, model_config):
                 "custom_id": f"slide-{idx}",
                 "method": "POST",
                 "url": "/v1/chat/completions",
-                "body": build_payload(img_path, model_config, for_batch=True),
+                "body": build_payload(
+                    img_path,
+                    config_for_idx(idx) if config_for_idx else model_config,
+                    for_batch=True,
+                ),
             },
             ensure_ascii=False,
         ).encode("utf-8")
@@ -780,7 +802,7 @@ BATCH_STATUS_KO = {
 }
 
 
-def _run_batch(state: AnalysisState, items, image_by_idx):
+def _run_batch(state: AnalysisState, items, image_by_idx, config_for_idx=None):
     """
     OpenAI Batch API 로 슬라이드를 처리한다. 진행률은 배치의 request_counts 를 폴링해
     JobManager 에 반영하므로 대시보드의 진행 표시는 실시간 처리와 동일하게 유지된다.
@@ -797,7 +819,7 @@ def _run_batch(state: AnalysisState, items, image_by_idx):
         state.total_pages,
         f"배치 요청 파일 생성 중 ({len(items)}개 슬라이드)",
     )
-    chunks = _build_batch_chunks(items, cfg)
+    chunks = _build_batch_chunks(items, cfg, config_for_idx)
 
     batches = []  # {"id", "input_file_id", "status", "counts"}
     try:
@@ -995,10 +1017,36 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
         items = list(enumerate(images, 1))
         image_by_idx = dict(items)
 
+        # 녹음본 적용 범위: 범위 밖 슬라이드는 녹음본 없는 설정으로 분석
+        slide_range = (
+            job_slide_range(JobManager.get_job(job_id)) if transcript else None
+        )
+        config_no_transcript = {
+            k: v for k, v in model_config.items() if k != "transcript"
+        }
+
+        def config_for_idx(idx):
+            if slide_range and not (slide_range[0] <= idx <= slide_range[1]):
+                return config_no_transcript
+            return model_config
+
+        if slide_range:
+            JobManager.update_progress(
+                job_id,
+                0,
+                total_pages,
+                f"녹음본 적용 범위: {_range_label(slide_range, total_pages)} (그 외 슬라이드는 녹음본 없이 분석)",
+            )
+        ranged_task = (
+            (lambda idx, item, cfg: describe_image(item, config_for_idx(idx)))
+            if slide_range
+            else None
+        )
+
         # 2. LLM 분석 (Batch / 병렬 / 순차)
         if model_config["provider"] == "openai" and model_config.get("use_batch"):
             try:
-                remaining = _run_batch(state, items, image_by_idx)
+                remaining = _run_batch(state, items, image_by_idx, config_for_idx)
             except BatchUnavailable as e:
                 print(f"[Batch] unavailable, falling back to realtime: {e}")
                 JobManager.update_progress(
@@ -1012,14 +1060,20 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
                     total_pages,
                     f"배치 미처리 슬라이드 {len(remaining)}개 → 실시간 재처리",
                 )
-                _run_realtime(state, remaining, PARALLEL_WORKERS, prefix="재처리 중")
+                _run_realtime(
+                    state,
+                    remaining,
+                    PARALLEL_WORKERS,
+                    prefix="재처리 중",
+                    task=ranged_task,
+                )
 
         elif model_config["provider"] == "openai":
-            _run_realtime(state, items, PARALLEL_WORKERS)
+            _run_realtime(state, items, PARALLEL_WORKERS, task=ranged_task)
 
         else:
             # Local LLM: 순차 처리 (GPU 보호)
-            _run_realtime(state, items, 1)
+            _run_realtime(state, items, 1, task=ranged_task)
 
         results_map = state.results_map
 
@@ -1030,6 +1084,7 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
                 result_base,
                 transcript,
                 job_doc.get("transcript_source") or "업로드 시 녹음본",
+                slide_range=job_slide_range(job_doc),
             )
             _attach_original_if_any(job_doc, result_base, entry)
             results_map = {
@@ -1176,6 +1231,11 @@ def enrich_slide(idx, item, model_config):
                 "role": "system",
                 "content": ENRICH_OUTLINE_HEADER.format(
                     outline=model_config.get("outline", "")
+                )
+                + (
+                    "\n\n[적용 범위] " + model_config["range_hint"]
+                    if model_config.get("range_hint")
+                    else ""
                 ),
             },
             {
@@ -1291,7 +1351,10 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
 
         # 출처 식별: 같은 녹음본을 다시 넣으면 해당 출처의 절만 교체되고, 다른 녹음본이면 누적된다
         source_label = (job.get("transcript_source") or "붙여넣은 텍스트").strip()
-        entry = rs.save_transcript(result_dir, transcript, source_label)
+        slide_range = job_slide_range(job)
+        entry = rs.save_transcript(
+            result_dir, transcript, source_label, slide_range=slide_range
+        )
         entry = _attach_original_if_any(job, result_dir, entry)
         sid = entry["sid"]
         label = f"{entry['label']} · {entry['added_at'][:10]}"
@@ -1317,8 +1380,28 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
             f"녹음본 {len(transcript):,}자(약 {approx_tokens:,} 토큰)를 {total}개 슬라이드에 대조 | "
             f"이미지 재전송 없음, 프롬프트 캐싱 적용",
         )
-        state = AnalysisState(job_id, model_config, total)
-        items = [(idx, (total, slides[idx])) for idx in sorted(slides)]
+        target_idxs = [
+            idx
+            for idx in sorted(slides)
+            if not slide_range or slide_range[0] <= idx <= slide_range[1]
+        ]
+        if not target_idxs:
+            raise RuntimeError(
+                f"적용 범위 {_range_label(slide_range, total)} 에 해당하는 슬라이드가 없습니다 (전체 {total}장)."
+            )
+        if slide_range:
+            model_config["range_hint"] = (
+                f"이 녹음본은 슬라이드 {_range_label(slide_range, total)} 구간의 강의입니다. "
+                "그 밖의 슬라이드 내용은 녹음본에 없다고 보십시오."
+            )
+            JobManager.update_progress(
+                job_id,
+                0,
+                total,
+                f"녹음본 적용 범위: {_range_label(slide_range, total)} → {len(target_idxs)}개 슬라이드만 대조",
+            )
+        state = AnalysisState(job_id, model_config, len(target_idxs))
+        items = [(idx, (total, slides[idx])) for idx in target_idxs]
         workers = PARALLEL_WORKERS if model_config["provider"] == "openai" else 1
         _run_realtime(state, items, workers, prefix="녹음본 대조 중", task=enrich_slide)
 
@@ -1390,11 +1473,15 @@ def enrich_transcript_task(job_id: str, target_type: str, target_id: str):
             usd_val, krw_val = state.cost()
             AuthManager.update_user_cumulative_usage(owner, usd_val)
             final_log = (
-                f"녹음본 #{entry['seq']} 반영 완료: {added}/{total}개 슬라이드에 발췌 추가 | "
+                f"녹음본 #{entry['seq']} 반영 완료: {added}/{len(target_idxs)}개 슬라이드에 발췌 추가"
+                f"{' (적용 범위 ' + _range_label(slide_range, total) + ')' if slide_range else ''} | "
                 f"비용: ${usd_val} (약 ₩{krw_val:,}) | 캐시 적중 토큰: {state.usage['cached']:,}"
             )
         else:
-            final_log = f"녹음본 #{entry['seq']} 반영 완료: {added}/{total}개 슬라이드에 발췌 추가"
+            final_log = (
+                f"녹음본 #{entry['seq']} 반영 완료: {added}/{len(target_idxs)}개 슬라이드에 발췌 추가"
+                f"{' (적용 범위 ' + _range_label(slide_range, total) + ')' if slide_range else ''}"
+            )
         JobManager.update_progress(job_id, total, total, final_log)
         JobManager.mark_completed(job_id, result_url)
 

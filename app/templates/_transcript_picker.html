@@ -12,6 +12,15 @@
             </div>
             <p id="tpHelp" class="text-[11px] text-white/45 leading-relaxed"></p>
 
+            <div id="tpRangeRow" class="flex flex-wrap items-center gap-2 glass-soft rounded-xl px-3 py-2">
+                <span class="text-xs font-bold text-white/70"><i class="fas fa-arrows-left-right mr-1 text-amber-400"></i> 적용 범위</span>
+                <input type="number" id="tpRangeFrom" min="1" placeholder="시작" class="w-20 p-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/90 outline-none focus:border-amber-400/60 text-center">
+                <span class="text-xs text-white/50">페이지 ~</span>
+                <input type="number" id="tpRangeTo" min="1" placeholder="끝" class="w-20 p-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/90 outline-none focus:border-amber-400/60 text-center">
+                <span class="text-xs text-white/50">페이지</span>
+                <span class="text-[11px] text-white/40 basis-full sm:basis-auto sm:ml-auto">비우면 전체 슬라이드. 이 녹음이 다루는 슬라이드 구간에만 발췌를 넣습니다.</span>
+            </div>
+
             <div class="flex space-x-1 glass-soft rounded-xl p-1 overflow-x-auto" role="tablist">
                 <button type="button" data-tp-tab="paste" class="tp-tab flex-1 shrink-0 whitespace-nowrap text-xs py-2 px-2 rounded-lg transition"><i class="fas fa-paste mr-1"></i> 텍스트 붙여넣기</button>
                 <button type="button" data-tp-tab="text" class="tp-tab flex-1 shrink-0 whitespace-nowrap text-xs py-2 px-2 rounded-lg transition"><i class="fas fa-file-alt mr-1"></i> 텍스트 파일</button>
@@ -93,6 +102,17 @@
 
     const modal = document.getElementById('transcriptPicker');
     const langSelect = document.getElementById('tpLang');
+    const rangeFrom = document.getElementById('tpRangeFrom');
+    const rangeTo = document.getElementById('tpRangeTo');
+    // 적용 범위 (시작~끝 페이지). 비어 있으면 null
+    function readRange() {
+        const a = rangeFrom.value.trim(), b = rangeTo.value.trim();
+        if (!a && !b) return { ok: true, range: null };
+        const from = a ? parseInt(a, 10) : 1, to = b ? parseInt(b, 10) : null;
+        if ((a && (isNaN(from) || from < 1)) || (b && (isNaN(to) || to < 1))) return { ok: false, error: '적용 범위는 1 이상의 숫자로 입력하세요.' };
+        if (to !== null && to < from) return { ok: false, error: '끝 페이지는 시작 페이지보다 크거나 같아야 합니다.' };
+        return { ok: true, range: { from, to } };
+    }
     const DEFAULT_LANG = "{{ (settings.audio_language if settings else 'auto') or 'auto' }}";
     const textArea = document.getElementById('tpText');
     const stats = document.getElementById('tpStats');
@@ -194,6 +214,8 @@
         document.getElementById('tpCancelBtn').classList.toggle('hidden', pre);
         document.getElementById('tpSubmitLabel').textContent = audioOnly ? '음성 인식 시작' : (pre ? '녹음본과 함께 업로드' : '녹음본 반영 시작');
         modal.querySelector('[role="tablist"]').classList.toggle('hidden', audioOnly);
+        document.getElementById('tpRangeRow').classList.toggle('hidden', audioOnly);
+        rangeFrom.value = ''; rangeTo.value = '';
         document.getElementById('tpAudioDrop').classList.toggle('hidden', audioOnly);
         document.getElementById('tpAudioOnlyInfo').classList.toggle('hidden', !audioOnly);
         langSelect.value = DEFAULT_LANG; if (!langSelect.value) langSelect.value = 'auto';
@@ -211,10 +233,12 @@
 
     window.tpSubmit = async () => {
         if (modal.dataset.mode === 'audio') return tpResolve({ kind: 'audio-only', language: langSelect.value || 'auto' });
+        const r = readRange();
+        if (!r.ok) return showError(r.error);
         if (currentTab === 'paste') {
             const text = textArea.value.trim();
             if (!text) return showError('녹음본 텍스트를 붙여 넣으세요.');
-            return tpResolve({ kind: 'text', text });
+            return tpResolve({ kind: 'text', text, range: r.range });
         }
         if (currentTab === 'whisper') {
             if (!pickedNoteUid) return showError('Whisper 노트를 선택하세요.');
@@ -224,13 +248,13 @@
                 const note = await res.json();
                 const text = (note.text || (note.segments || []).map(s => s.text).join(' ')).trim();
                 if (!text) return showError('선택한 노트에 전사 텍스트가 없습니다.');
-                return tpResolve({ kind: 'text', text });
+                return tpResolve({ kind: 'text', text, range: r.range });
             } catch (e) {
                 return showError('노트 내용을 불러오지 못했습니다.');
             }
         }
         if (!pickedFile) return showError(currentTab === 'audio' ? '녹음 파일을 선택하세요.' : '텍스트 문서를 선택하세요.');
-        return tpResolve({ kind: 'file', file: pickedFile.file, language: pickedFile.kind === 'audio' ? (langSelect.value || 'auto') : undefined });
+        return tpResolve({ kind: 'file', file: pickedFile.file, language: pickedFile.kind === 'audio' ? (langSelect.value || 'auto') : undefined, range: r.range });
     };
 
     // FormData 에 선택 결과를 채운다 (사전/사후 공통)
@@ -239,6 +263,10 @@
         if (choice.kind === 'text') formData.append('transcript', choice.text);
         else if (choice.kind === 'file') formData.append('transcript_file', choice.file);
         if (choice.language) formData.append('audio_language', choice.language);
+        if (choice.range) {
+            if (choice.range.from) formData.append('slide_from', String(choice.range.from));
+            if (choice.range.to) formData.append('slide_to', String(choice.range.to));
+        }
     };
 })();
 </script>

@@ -36,6 +36,8 @@ async def upload_file(
     transcript_file: Optional[UploadFile] = File(None),
     audio_language: str = Form(""),
     auto_import_parent_id: str = Form(""),
+    slide_from: str = Form(""),
+    slide_to: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     ext = os.path.splitext(file.filename)[1].lower()
@@ -78,7 +80,13 @@ async def upload_file(
             )
         # 강의 녹음본: 붙여넣은 텍스트 / 텍스트 문서 / 음성 파일 중 하나 (선택)
         try:
-            _store_transcript_input(job_id, transcript, transcript_file, audio_language)
+            _store_transcript_input(
+                job_id,
+                transcript,
+                transcript_file,
+                audio_language,
+                _parse_slide_range(slide_from, slide_to),
+            )
         except ValueError as e:
             JobManager.delete_job(job_id, user)
             if os.path.exists(file_path):
@@ -89,8 +97,29 @@ async def upload_file(
     return {"job_id": job_id, "message": "Upload successful"}
 
 
+def _parse_slide_range(slide_from: str, slide_to: str):
+    """'12', '30' → (12, 30). 비어 있으면 None. 잘못된 값은 ValueError."""
+    a, b = (slide_from or "").strip(), (slide_to or "").strip()
+    if not a and not b:
+        return None
+    try:
+        start = int(a) if a else 1
+        end = int(b) if b else 10**6
+    except ValueError:
+        raise ValueError("적용 범위(페이지)는 숫자로 입력해 주세요.")
+    if start < 1 or end < start:
+        raise ValueError(
+            "적용 범위가 올바르지 않습니다 (시작 페이지 ≤ 끝 페이지, 1 이상)."
+        )
+    return (start, end)
+
+
 def _store_transcript_input(
-    job_id: str, transcript: str, transcript_file, audio_language: str = ""
+    job_id: str,
+    transcript: str,
+    transcript_file,
+    audio_language: str = "",
+    slide_range=None,
 ):
     """
     녹음본 입력을 작업(job_id)에 저장한다.
@@ -120,6 +149,10 @@ def _store_transcript_input(
                 fields["transcript_language"] = (
                     audio_language.strip()
                 )  # 이번 파일에만 적용
+            if slide_range:
+                fields["transcript_slide_from"], fields["transcript_slide_to"] = (
+                    slide_range
+                )
             JobManager.update_fields(job_id, fields)
             return "audio"
         if ti.is_text_doc(fname):
@@ -142,6 +175,14 @@ def _store_transcript_input(
         else:
             raise ValueError(f"지원하지 않는 파일 형식입니다: {ext or fname}")
 
+    if slide_range:
+        JobManager.update_fields(
+            job_id,
+            {
+                "transcript_slide_from": slide_range[0],
+                "transcript_slide_to": slide_range[1],
+            },
+        )
     if transcript:
         with open(transcript_path(job_id), "w", encoding="utf-8") as f:
             f.write(transcript)
@@ -158,6 +199,8 @@ async def add_transcript(
     transcript: str = Form(""),
     transcript_file: Optional[UploadFile] = File(None),
     audio_language: str = Form(""),
+    slide_from: str = Form(""),
+    slide_to: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     """
@@ -206,7 +249,11 @@ async def add_transcript(
     )
     try:
         kind = _store_transcript_input(
-            job_id, transcript, transcript_file, audio_language
+            job_id,
+            transcript,
+            transcript_file,
+            audio_language,
+            _parse_slide_range(slide_from, slide_to),
         )
     except ValueError as e:
         JobManager.delete_job(job_id, user)

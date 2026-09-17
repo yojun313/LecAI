@@ -248,6 +248,19 @@
             -webkit-backdrop-filter: none;
         }
 
+        /* 가로 스크롤 금지: 페이지/메인/발표 영역은 절대 옆으로 밀리지 않는다. 넓은 요소는 각자 안에서만 스크롤 */
+        html, body { overflow-x: hidden !important; max-width: 100vw; }
+        main, #presentationView, #scrollView, .split-image-container { overflow-x: hidden !important; max-width: 100%; }
+        .split-text-container { overflow-x: hidden !important; overflow-y: auto; max-width: 100%; }
+        .split-text-container > article, #markdownBody { max-width: 100%; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+        .prose table { display: block; max-width: 100%; overflow-x: auto; }
+        .prose pre, .prose code { max-width: 100%; }
+        .prose pre { overflow-x: auto; }
+        .prose img, .prose svg, .prose video { max-width: 100%; height: auto; }
+        .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+        .katex { white-space: normal; }
+        .katex-display > .katex { white-space: nowrap; }
+
         /* Tree View Styles */
         .tree-node { user-select: none; }
         .tree-content {
@@ -651,8 +664,8 @@
         // LLM 이 자주 내는 사소한 LaTeX 오류를 보정 (예: \text 안의 # 이나 % 가 이스케이프되지 않은 경우)
         function repairTex(tex) {
             return tex
-                .replace(/(^|[^\\])#/g, '$1\\#')
-                .replace(/(^|[^\\])%/g, '$1\\%');
+                .replace(/(?<!\\)#/g, '\\#')   // "##u" 처럼 연속된 # 도 모두 이스케이프
+                .replace(/(?<!\\)%/g, '\\%');
         }
 
         function renderTex(tex, display) {
@@ -675,7 +688,13 @@
         }
 
         function renderMarkdownWithMath(markdown) {
-            const { text, math } = extractMath(normalizeQuotes(markdown));
+            // 슬라이드("## Slide N") 단위로 나눠 처리: 한 슬라이드의 닫히지 않은 $$ 나 코드 펜스가 다음 슬라이드를 삼키지 않도록
+            const chunks = normalizeQuotes(markdown).split(/^(?=## Slide \d+\s*$)/m);
+            return chunks.map(renderChunkWithMath).join('');
+        }
+
+        function renderChunkWithMath(chunk) {
+            const { text, math } = extractMath(chunk);
             let html = marked.parse(text);
             // 문단 전체가 블록 수식인 경우 <p> 를 벗겨 display 수식만 남긴다
             html = html.replace(/<p>\s*MATHBLOCK(\d+)MATHEND\s*<\/p>/g, (_, i) => renderTex(math[+i].tex, true));
@@ -1504,6 +1523,18 @@
         }
 
         // ==========================================
+        // 가로 스크롤 안전망: focus/scrollIntoView/키보드 등으로 컨테이너가 옆으로 밀리면 즉시 되돌린다
+        // ==========================================
+        (function guardHorizontalScroll() {
+            const targets = [document.documentElement, document.body, document.querySelector('main'), document.getElementById('presentationView'), document.getElementById('scrollView')].filter(Boolean);
+            for (const el of targets) {
+                el.addEventListener('scroll', () => { if (el.scrollLeft) el.scrollLeft = 0; }, { passive: true });
+            }
+            window.addEventListener('scroll', () => { if (window.scrollX) window.scrollTo(0, window.scrollY); }, { passive: true });
+            document.addEventListener('fullscreenchange', () => { for (const el of targets) el.scrollLeft = 0; window.scrollTo(0, 0); });
+        })();
+
+        // ==========================================
         // 진행 중 작업 패널: /api/jobs 를 폴링해 분석/녹음본 작업의 진행률을 항상 표시 (새로고침해도 유지)
         // ==========================================
         const activeJobsPanel = document.getElementById('activeJobsPanel');
@@ -1633,7 +1664,8 @@
             }
             body.innerHTML = items.map(item => {
                 const [icon, kindLabel] = KIND_LABEL[item.kind] || KIND_LABEL.paste;
-                const meta = [kindLabel, item.original_name ? escapeHtml(item.original_name) : null, `${(item.chars || 0).toLocaleString()}자`, item.size ? fmtBytes(item.size) : null, item.added_at ? escapeHtml(item.added_at).replace('T', ' ') : null].filter(Boolean).join(' · ');
+                const rangeLabel = item.slide_from ? `적용 범위 ${item.slide_from}~${item.slide_to && item.slide_to < 1000000 ? item.slide_to : '끝'}장` : '적용 범위 전체';
+                const meta = [kindLabel, rangeLabel, item.original_name ? escapeHtml(item.original_name) : null, `${(item.chars || 0).toLocaleString()}자`, item.size ? fmtBytes(item.size) : null, item.added_at ? escapeHtml(item.added_at).replace('T', ' ') : null].filter(Boolean).join(' · ');
                 const player = item.playable ? `<audio controls preload="none" class="w-full mt-2" src="${item.original_url}"></audio>` : (item.kind === 'audio' ? `<p class="text-[11px] text-notion-muted mt-1">이 형식은 브라우저에서 바로 재생되지 않습니다. 원본을 내려받아 재생하세요.</p>` : '');
                 return `<div class="rounded-xl border border-notion-border p-3">
                     <div class="flex items-center">
