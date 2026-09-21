@@ -65,6 +65,39 @@ async def get_doc_transcripts(doc_id: str, user: str = Depends(get_current_user)
     return rs.describe_transcripts(doc_dir, target["path"])
 
 
+@router.get("/docs/{doc_id}/boards")
+async def get_doc_boards(doc_id: str, user: str = Depends(get_current_user)):
+    """문서에 추가된 판서 사진 목록"""
+    from app.services import result_store as rs
+
+    target = docs_col.find_one({"id": doc_id, "owner": user, "type": "file"})
+    if not target:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc_dir = os.path.join(settings.DOCS_STATIC_DIR, user, doc_id)
+    return rs.describe_boards(doc_dir, target["path"])
+
+
+@router.put("/docs/{doc_id}/boards/{sid}")
+async def rename_doc_board(
+    doc_id: str,
+    sid: str,
+    label: str = Body(..., embed=True),
+    user: str = Depends(get_current_user),
+):
+    from app.services import result_store as rs
+
+    target = docs_col.find_one({"id": doc_id, "owner": user, "type": "file"})
+    if not target:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc_dir = os.path.join(settings.DOCS_STATIC_DIR, user, doc_id)
+    entry = rs.rename_board(doc_dir, sid, label)
+    if not entry:
+        raise HTTPException(
+            status_code=400, detail="이름을 바꿀 수 없습니다 (빈 이름이거나 항목 없음)."
+        )
+    return {"status": "renamed", "label": entry["label"]}
+
+
 @router.get("/docs/archived")
 async def get_archived(user: str = Depends(get_current_user)):
     return DocManager.get_archived(user)

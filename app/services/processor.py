@@ -1537,6 +1537,314 @@ def _auto_import_to_docs(job_id: str, owner: str):
         )
 
 
+# ==========================================
+# 칠판 판서 사진 반영 (해당 슬라이드에 판서 설명 추가)
+# ==========================================
+# 사진 한 장당 두 단계:
+#   1) 매칭: 사진 + 전체 슬라이드 목차(캐시 prefix) → 이 판서가 설명하는 슬라이드 번호(들)와 근거 (JSON)
+#   2) 작성: 사진 + 해당 슬라이드의 전체 설명 → 판서 전사(LaTeX) + 단계별 설명 절 (마크다운)
+# 정확도 우선이라 reasoning effort 는 medium 을 쓴다.
+BOARD_REASONING_EFFORT = "medium"
+BOARD_MAX_SLIDES_PER_PHOTO = 2
+
+BOARD_MATCH_SYSTEM_PROMPT = """당신은 강의 중 칠판(또는 화이트보드)에 적힌 판서 사진이 강의 자료의 어느 슬라이드를 설명하는지 정확히 판별하는 전문 AI 조교입니다.
+system 에 전체 슬라이드 목차(번호와 핵심 내용 요약)가 주어지고, 요청마다 판서 사진 한 장이 주어집니다.
+
+[판별 절차]
+1. 사진의 판서를 꼼꼼히 읽는다: 제목/키워드, 수식(기호·첨자·연산), 그림, 표, 숫자 예시.
+2. 목차에서 그 내용을 직접 다루는 슬라이드를 찾는다. 같은 용어가 여러 슬라이드에 나오면 정의/예제/증명/비교 등 세부 초점으로 구분한다.
+3. 판서의 핵심 내용(수식·용어·예시)이 그 슬라이드의 요약과 '직접' 일치할 때만 고른다. 주제가 비슷하다는 이유만으로는 고르지 않는다.
+   판서가 명백히 여러 슬라이드에 걸치면 최대 2개까지 고른다. 잘못 매핑하는 것이 빠뜨리는 것보다 훨씬 나쁘다.
+4. 사진이 판서가 아니거나(빈 칠판, 무관한 장면) 목차의 어떤 슬라이드와도 확실히 연결할 수 없으면 slides 를 빈 배열로 둔다.
+
+[출력] 아래 형식의 JSON 객체만 출력할 것 (다른 텍스트 금지):
+{"slides": [{"slide": 12, "confidence": "높음", "reason": "판서의 'Bayes rule' 유도가 12번 슬라이드의 베이즈 정리 증명과 일치"}], "summary": "판서 내용 한 줄 요약"}
+confidence 는 확실할 때만 "높음", 그렇지 않으면 "보통" 으로 표기할 것. "보통" 인 슬라이드는 반영되지 않으므로, 확실한 것만 "높음" 으로 표기할 것."""
+
+BOARD_WRITE_SYSTEM_PROMPT = """당신은 강의 중 칠판에 적힌 판서 사진을 학생이 나중에 다시 봐도 완전히 이해할 수 있도록 정리하는 전문 AI 조교입니다.
+요청마다 판서 사진 한 장과, 그 판서가 설명하는 슬라이드의 기존 설명(마크다운)이 주어집니다.
+
+[먼저 검증할 것]
+판서 사진의 내용(수식·용어·그림)이 주어진 슬라이드 설명과 실제로 같은 내용을 다루는지 확인하십시오.
+판서가 이 슬라이드가 아니라 다른 슬라이드의 내용이거나, 관련성이 불확실하면 정확히 NONE 만 출력하십시오. 잘못된 슬라이드에 판서를 붙이는 것이 가장 나쁜 결과입니다.
+
+[출력 규칙]
+- 일치할 때만 아래 형식의 마크다운을 출력할 것 (다른 텍스트 금지). 제목 줄은 반드시 그대로 시작할 것.
+### 🧑‍🏫 칠판 판서
+**판서 내용 전사:** 칠판에 적힌 내용을 빠짐없이, 적힌 순서대로 옮겨 적을 것. 모든 수식·기호·첨자·연산자는 LaTeX($...$ / $$...$$)로 정확히 표기하고, 그림이나 화살표·박스 같은 시각 요소는 말로 묘사할 것. 판독이 어려운 글자는 추측하지 말고 [판독 불가]로 표시할 것.
+**판서 설명:** 판서를 처음 보는 학생에게 설명하듯, 각 수식과 단계가 무엇을 뜻하는지 순서대로 풀어 쓸 것. 수식은 어느 정의·정리·가정에서 어떻게 다음 줄로 넘어가는지 한 단계씩 설명하고, 등장하는 기호는 모두 정의할 것. 슬라이드에 이미 있는 내용과 판서가 어떻게 연결되는지(슬라이드의 어느 부분을 유도·보충·예시화한 것인지) 밝힐 것.
+**슬라이드에 없는 추가 내용:** 판서에는 있지만 슬라이드 설명에는 없는 정보(강의자의 강조점, 추가 유도, 예시, 시험 힌트)를 불릿으로. 없으면 이 줄을 생략.
+- 판서에 없는 내용을 지어내지 말 것. 판서가 틀린 것으로 보이면 원문대로 옮긴 뒤 "(판서 오기로 추정)"이라고 표시할 것.
+- 한국어로 작성하고, 영어 용어는 괄호로 병기할 것."""
+
+BOARD_OUTLINE_HEADER = """[전체 슬라이드 목차]
+{outline}"""
+
+
+def _board_image_part(photo_path: str) -> dict:
+    return {"type": "image_url", "image_url": {"url": image_to_data_url(photo_path)}}
+
+
+def _board_options(payload: dict, model_config: dict, json_mode: bool = False):
+    apply_request_options(payload, model_config)
+    if "reasoning_effort" in payload:
+        payload["reasoning_effort"] = BOARD_REASONING_EFFORT
+    if json_mode and model_config["provider"] == "openai":
+        payload["response_format"] = {"type": "json_object"}
+    return payload
+
+
+def _extract_json_object(text: str):
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.S)
+    try:
+        return json.loads(text)
+    except Exception:
+        m = re.search(r"\{[\s\S]*\}", text)
+        if m:
+            return json.loads(m.group(0))
+    raise ValueError("JSON 응답을 해석할 수 없습니다.")
+
+
+def match_board_to_slides(
+    photo_path: str, model_config: dict, total: int, slide_range=None
+):
+    """사진 → [(slide_idx, confidence, reason)], summary, usage"""
+    range_hint = ""
+    if slide_range:
+        range_hint = (
+            f"\n\n[적용 범위] 이 판서는 슬라이드 {_range_label(slide_range, total)} 구간의 강의에서 찍은 것입니다. "
+            "그 밖의 슬라이드는 후보에서 제외하십시오."
+        )
+    payload = {
+        "model": model_config["model_id"],
+        "messages": [
+            {"role": "system", "content": BOARD_MATCH_SYSTEM_PROMPT},
+            {
+                "role": "system",
+                "content": BOARD_OUTLINE_HEADER.format(
+                    outline=model_config.get("outline", "")
+                )
+                + range_hint,
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"아래 판서 사진이 설명하는 슬라이드를 판별하여 JSON 으로 출력하십시오. (전체 {total}장)",
+                    },
+                    _board_image_part(photo_path),
+                ],
+            },
+        ],
+        "max_completion_tokens": 3000,
+    }
+    _board_options(payload, model_config, json_mode=True)
+    content, usage = _post_chat(
+        payload,
+        model_config,
+        f"board-match-{os.path.basename(photo_path)}",
+        timeout=300,
+    )
+    try:
+        parsed = _extract_json_object(content)
+    except Exception:
+        return [], "", usage
+    matches = []
+    for item in parsed.get("slides", []) or []:
+        try:
+            idx = int(item.get("slide"))
+        except Exception:
+            continue
+        if idx < 1 or idx > total:
+            continue
+        if slide_range and not (slide_range[0] <= idx <= slide_range[1]):
+            continue
+        conf = str(item.get("confidence", "")).strip()
+        if conf != "높음":  # 정밀도 우선: 확신도 높음만 반영
+            continue
+        matches.append((idx, conf, str(item.get("reason", "")).strip()))
+    # 중복 제거, 최대 개수 제한 (높음 우선)
+    seen, ordered = set(), []
+    for m in sorted(matches, key=lambda x: 0 if x[1] == "높음" else 1):
+        if m[0] not in seen:
+            seen.add(m[0])
+            ordered.append(m)
+    return (
+        ordered[:BOARD_MAX_SLIDES_PER_PHOTO],
+        str(parsed.get("summary", "")).strip(),
+        usage,
+    )
+
+
+def write_board_section(
+    photo_path: str, slide_idx: int, slide_text: str, model_config: dict
+):
+    """사진 + 슬라이드 설명 → 판서 절 마크다운, usage"""
+    clean_slide = re.sub(
+        r"<!-- transcript:[^ ]+ -->.*?<!-- /transcript:[^ ]+ -->",
+        "",
+        slide_text,
+        flags=re.S,
+    )
+    payload = {
+        "model": model_config["model_id"],
+        "messages": [
+            {"role": "system", "content": BOARD_WRITE_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"[슬라이드 {slide_idx} 의 기존 설명]\n{clean_slide.strip()}\n\n아래 판서 사진을 규칙에 따라 정리하십시오.",
+                    },
+                    _board_image_part(photo_path),
+                ],
+            },
+        ],
+        "max_completion_tokens": 8000,
+    }
+    _board_options(payload, model_config)
+    content, usage = _post_chat(
+        payload, model_config, f"board-write-{slide_idx}", timeout=600
+    )
+    text = (content or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:markdown)?\s*|\s*```$", "", text, flags=re.S).strip()
+    if _is_none_answer(text):
+        return None, usage  # 2단계 재검증에서 불일치 판정
+    pos = text.find(rs.BOARD_SECTION_HEADING)
+    section = (
+        text[pos:].strip() if pos >= 0 else f"{rs.BOARD_SECTION_HEADING}\n\n{text}"
+    )
+    return section, usage
+
+
+def enrich_boards_task(job_id: str, doc_id: str):
+    """판서 사진들을 문서(doc_id)의 해당 슬라이드에 반영하는 작업"""
+    job = JobManager.get_job(job_id)
+    if not job:
+        return
+    owner = job.get("owner")
+    user_settings = AuthManager.get_user_settings(owner)
+    photo_paths = [p for p in (job.get("board_paths") or []) if os.path.exists(p)]
+
+    try:
+        JobManager.start_processing(job_id)
+        if not photo_paths:
+            raise RuntimeError("판서 사진 파일이 없습니다.")
+        doc = docs_col.find_one({"id": doc_id, "owner": owner, "type": "file"})
+        if not doc:
+            raise RuntimeError("대상 문서를 찾을 수 없습니다.")
+        result_dir = os.path.join(settings.DOCS_STATIC_DIR, owner, doc_id)
+        rs.ensure_desc_layout(result_dir)
+        slides = rs.read_slides(result_dir)
+        if not slides:
+            raise RuntimeError("슬라이드 설명(desc/)을 찾을 수 없습니다.")
+        total = len(slides)
+        slide_range = job_slide_range(job)
+        note = (job.get("board_note") or "").strip()
+
+        model_config = get_target_model(user_settings)
+        model_config = dict(model_config, outline=build_outline(slides))
+        state = AnalysisState(job_id, model_config, len(photo_paths))
+        JobManager.update_progress(
+            job_id,
+            0,
+            len(photo_paths),
+            f"판서 사진 {len(photo_paths)}장 → 슬라이드 {total}장 목차와 대조 시작"
+            + (
+                f" (적용 범위 {_range_label(slide_range, total)})"
+                if slide_range
+                else ""
+            ),
+        )
+
+        attached, unmatched = 0, []
+        for n, photo in enumerate(photo_paths, 1):
+            original_name = os.path.basename(photo).rsplit("_board_", 1)[-1]
+            label = f"{note} {n}" if note else f"판서 {n}"
+            entry = rs.save_board_photo(result_dir, photo, original_name, label)
+            matches, summary, usage = match_board_to_slides(
+                photo, model_config, total, slide_range
+            )
+            state.add_result(n, "", "", usage)
+            if not matches:
+                unmatched.append(original_name)
+                JobManager.update_progress(
+                    job_id,
+                    n,
+                    len(photo_paths),
+                    f"[{n}/{len(photo_paths)}] {original_name}: 해당 슬라이드를 찾지 못해 건너뜀",
+                )
+                continue
+            matched_idxs, rejected = [], []
+            for idx, conf, reason in matches:
+                section, usage2 = write_board_section(
+                    photo, idx, slides[idx], model_config
+                )
+                state.add_result(n * 1000 + idx, "", "", usage2)
+                if section is None:
+                    rejected.append(idx)
+                    continue
+                heading = f"{rs.BOARD_SECTION_HEADING} ({entry['label']} · {entry['added_at'][:10]} · 확신도 {conf})"
+                section = re.sub(
+                    r"^### 🧑‍🏫 칠판 판서.*$", heading, section, count=1, flags=re.M
+                )
+                section = (
+                    section
+                    + f"\n\n![{entry['label']}](./{rs.BOARDS_DIR}/{entry['file']})\n\n"
+                    + (f"**매칭 근거:** {reason}\n" if reason else "")
+                )
+                slides[idx] = rs.upsert_transcript_section(
+                    slides[idx], section, f"{entry['sid']}-s{idx}"
+                )
+                rs.write_slide(result_dir, idx, slides[idx])
+                matched_idxs.append(idx)
+                attached += 1
+            rs.set_board_slides(result_dir, entry["sid"], matched_idxs)
+            if not matched_idxs:
+                unmatched.append(original_name)
+            msg = (
+                f"[{n}/{len(photo_paths)}] {original_name} → 슬라이드 {', '.join(map(str, matched_idxs))} 에 판서 설명 추가"
+                if matched_idxs
+                else f"[{n}/{len(photo_paths)}] {original_name}: 재검증에서 불일치로 판정되어 건너뜀"
+            )
+            if rejected:
+                msg += f" (재검증 제외: {', '.join(map(str, rejected))})"
+            if summary:
+                msg += f" | {summary}"
+            JobManager.update_progress(job_id, n, len(photo_paths), msg)
+
+        if settings.GENERATE_PDF:
+            rs.render_pdf(result_dir)
+        docs_col.update_one({"id": doc_id}, {"$set": {"has_boards": True}})
+
+        if model_config["provider"] == "openai":
+            usd_val, krw_val = state.cost()
+            AuthManager.update_user_cumulative_usage(owner, usd_val)
+            cost_note = f" | 비용: ${usd_val} (약 ₩{krw_val:,})"
+        else:
+            cost_note = ""
+        final_log = f"판서 반영 완료: 사진 {len(photo_paths)}장 중 {len(photo_paths) - len(unmatched)}장 매칭, 슬라이드 절 {attached}개 추가{cost_note}"
+        if unmatched:
+            final_log += f" | 미매칭: {', '.join(unmatched[:5])}"
+        JobManager.update_progress(
+            job_id, len(photo_paths), len(photo_paths), final_log
+        )
+        JobManager.mark_completed(job_id, f"/api/docs/download/{doc_id}")
+
+    except Exception as e:
+        print(f"[BOARD ERROR] {e}")
+        JobManager.mark_failed(job_id, str(e))
+    finally:
+        for p in job.get("board_paths") or []:
+            if os.path.exists(p):
+                os.remove(p)
+
+
 def process_file_task(job_id: str, file_path: str):
     """
     Celery나 BackgroundTasks에서 호출되는 진입점

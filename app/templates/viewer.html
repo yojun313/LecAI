@@ -176,10 +176,21 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             display: flex; align-items: center; justify-content: center;
-            padding: 1rem;
+            padding: 0;
             border-right: 1px solid var(--border-color);
             position: relative;
         }
+        /* 슬라이드 이미지는 좌우 여백 없이 영역 폭을 꽉 채운다 (비율 유지, 위아래만 남을 수 있음) */
+        .split-image-container img#slideImage {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            object-position: center;
+            display: block;
+        }
+        .split-image-container img#slideImage.hidden { display: none; }
         .split-text-container {
             width: 50%; height: 100%;
             overflow-y: auto;
@@ -348,8 +359,11 @@
                 <button id="addTranscriptToolbarBtn" onclick="addTranscriptForActiveDoc()" class="text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition shadow-md mr-2" title="이 문서에 강의 녹음본 추가 (텍스트 붙여넣기 / 텍스트 파일 / 녹음 파일)">
                     <i class="fas fa-microphone-lines"></i> <span class="hidden sm:inline">녹음본 추가</span>
                 </button>
-                <button id="transcriptListToolbarBtn" onclick="openTranscriptListForActiveDoc()" class="text-notion-text bg-notion-hover border border-notion-border px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-opacity-80 transition shadow-sm mr-2" title="이 문서에 추가된 녹음본 목록 (재생 / 다운로드)">
-                    <i class="fas fa-list-check text-purple-400"></i> <span class="hidden sm:inline">녹음본 목록</span>
+                <button id="addBoardToolbarBtn" onclick="openBoardModalForActiveDoc()" class="text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition shadow-md mr-2" title="칠판 판서 사진을 올리면 해당 슬라이드에 판서 설명을 추가합니다">
+                    <i class="fas fa-chalkboard"></i> <span class="hidden sm:inline">판서 추가</span>
+                </button>
+                <button id="transcriptListToolbarBtn" onclick="openTranscriptListForActiveDoc()" class="text-notion-text bg-notion-hover border border-notion-border px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-opacity-80 transition shadow-sm mr-2" title="이 문서에 추가된 녹음본과 판서 사진 목록 (재생 / 다운로드 / 매칭 슬라이드)">
+                    <i class="fas fa-list-check text-purple-400"></i> <span class="hidden sm:inline">녹음본·판서 목록</span>
                 </button>
                 <button onclick="openShortcutModal()" class="text-notion-text bg-notion-hover border border-notion-border w-9 h-9 flex items-center justify-center rounded-lg hover:bg-opacity-80 transition shadow-sm mr-2" title="단축키 안내">
                     <i class="fas fa-keyboard"></i>
@@ -376,6 +390,9 @@
                     <i class="fas fa-expand"></i>
                 </button>
 
+                <button id="exportBtn" onclick="openExportModal()" class="text-notion-text bg-notion-hover border border-notion-border px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-opacity-80 transition shadow-sm mr-2" title="PDF 또는 Markdown 으로 내보내기">
+                    <i class="fas fa-file-export text-emerald-400"></i> <span class="hidden sm:inline">내보내기</span>
+                </button>
                 <button id="viewModeBtn" class="text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition shadow-md">
                     <i class="fas fa-desktop"></i> <span>프레젠테이션 모드</span>
                 </button>
@@ -414,6 +431,9 @@
                     <span id="pageIndicator" class="font-bold text-notion-text text-lg">1 / 1</span>
                     <span class="text-[10px] text-notion-muted uppercase tracking-widest">Slide</span>
                 </div>
+                <button id="slideBoardsBtn" onclick="openSlideBoards()" class="hidden items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition" title="이 슬라이드의 판서 사진 보기">
+                    <i class="fas fa-chalkboard"></i> <span id="slideBoardsCount">판서</span>
+                </button>
                 <button id="nextSlideBtn" class="text-notion-text hover:text-blue-400 disabled:opacity-20 transition-all">
                     <i class="fas fa-chevron-right text-xl"></i>
                 </button>
@@ -427,6 +447,124 @@
 
     {% include "_transcript_picker.html" %}
     {% include "_api_key_notice.html" %}
+
+    <!-- 내보내기 모달 -->
+    <div id="exportModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[110] hidden items-center justify-center p-4">
+        <div class="glass-strong w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center glass-soft">
+                <h3 class="font-bold text-sm text-white"><i class="fas fa-file-export mr-2 text-emerald-400"></i>내보내기 <span id="exportTarget" class="text-white/50 font-normal ml-1"></span></h3>
+                <button onclick="closeExportModal()" class="text-white/40 hover:text-white transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-1 min-h-0 flex flex-col lg:flex-row">
+                <div class="lg:w-80 flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar border-b lg:border-b-0 lg:border-r border-white/10">
+                    <div>
+                        <div class="text-xs font-bold text-white/70 mb-2">형식</div>
+                        <div class="flex gap-1 glass-soft rounded-xl p-1">
+                            <button type="button" data-export-format="pdf" class="export-format flex-1 text-xs py-2 rounded-lg transition"><i class="fas fa-file-pdf mr-1"></i> PDF</button>
+                            <button type="button" data-export-format="md" class="export-format flex-1 text-xs py-2 rounded-lg transition"><i class="fab fa-markdown mr-1"></i> Markdown</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-white/70 mb-2">범위</div>
+                        <div class="space-y-1.5 text-sm text-white/80">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="exportScope" value="current" class="accent-emerald-500"> <span>이 페이지 (<span id="exportCurrentNo">1</span>)</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="exportScope" value="all" class="accent-emerald-500" checked> <span>전체 (<span id="exportTotalNo">1</span>장)</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="exportScope" value="range" class="accent-emerald-500"> <span>범위</span>
+                                <input type="number" id="exportFrom" min="1" placeholder="시작" class="w-16 p-1 rounded-lg bg-white/5 border border-white/10 text-sm text-center outline-none"> ~
+                                <input type="number" id="exportTo" min="1" placeholder="끝" class="w-16 p-1 rounded-lg bg-white/5 border border-white/10 text-sm text-center outline-none">
+                            </label>
+                        </div>
+                    </div>
+                    <div id="exportPdfOptions" class="space-y-3">
+                        <div>
+                            <div class="flex justify-between text-xs font-bold text-white/70 mb-1"><span>배율</span><span id="exportScaleLabel">100%</span></div>
+                            <input type="range" id="exportScale" min="50" max="150" step="5" value="100" class="w-full accent-emerald-500">
+                            <p class="text-[11px] text-white/40 mt-1">미리보기가 배율에 맞춰 바로 바뀝니다. 글씨를 키우면 페이지 수가 늘어납니다.</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <div class="text-xs font-bold text-white/70 mb-1">용지</div>
+                                <select id="exportPaper" class="w-full p-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white/90 outline-none cursor-pointer">
+                                    <option class="bg-[#0f1424]" value="A4">A4</option><option class="bg-[#0f1424]" value="Letter">Letter</option><option class="bg-[#0f1424]" value="A3">A3</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-white/70 mb-1">방향</div>
+                                <select id="exportOrient" class="w-full p-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white/90 outline-none cursor-pointer">
+                                    <option class="bg-[#0f1424]" value="portrait">세로</option><option class="bg-[#0f1424]" value="landscape">가로</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportImages" class="accent-emerald-500" checked> 슬라이드 이미지 포함</label>
+                        <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportPageBreak" class="accent-emerald-500" checked> 슬라이드마다 새 페이지에서 시작</label>
+                        <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportDark" class="accent-emerald-500"> 어두운 배경으로 저장</label>
+                        <p class="text-[11px] text-white/40 leading-relaxed">"PDF 저장"을 누르면 브라우저 인쇄 창이 열립니다. 대상을 <b>PDF로 저장</b>으로 선택하세요. 배율·용지·방향은 여기서 정한 값이 적용됩니다.</p>
+                    </div>
+                    <div id="exportMdOptions" class="hidden space-y-2">
+                        <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportMdImages" class="accent-emerald-500" checked> 이미지 링크 포함 (서버 주소)</label>
+                        <p class="text-[11px] text-white/40 leading-relaxed">선택한 슬라이드의 설명이 하나의 .md 파일로 저장됩니다. 녹음 발췌와 판서 절도 포함됩니다.</p>
+                    </div>
+                </div>
+                <div class="flex-1 min-h-[40vh] lg:min-h-0 flex flex-col bg-black/30">
+                    <div class="px-3 py-1.5 text-[11px] text-white/50 border-b border-white/10 flex items-center justify-between">
+                        <span><i class="fas fa-eye mr-1"></i> 미리보기 <span id="exportPreviewInfo"></span></span>
+                        <span id="exportPreviewHint" class="hidden sm:inline">실제 PDF 페이지 나눔은 인쇄 창에서 확인됩니다.</span>
+                    </div>
+                    <iframe id="exportPreview" class="flex-1 w-full bg-white" title="내보내기 미리보기"></iframe>
+                </div>
+            </div>
+            <div class="p-4 border-t border-white/10 flex justify-end space-x-2 glass-soft">
+                <button type="button" onclick="closeExportModal()" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">닫기</button>
+                <button type="button" id="exportRunBtn" onclick="runExport()" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-md transition"><i class="fas fa-download mr-1"></i> <span id="exportRunLabel">PDF 저장</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 슬라이드별 판서 사진 보기 -->
+    <div id="slideBoardsModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-[120] hidden items-center justify-center p-4" onclick="if (event.target === this) closeSlideBoards()">
+        <div class="w-full max-w-5xl max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between text-white mb-2">
+                <span id="slideBoardsTitle" class="text-sm font-bold"><i class="fas fa-chalkboard mr-2 text-amber-400"></i>판서 사진</span>
+                <button onclick="closeSlideBoards()" class="text-white/60 hover:text-white"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            <div id="slideBoardsBody" class="overflow-y-auto custom-scrollbar space-y-4 flex-1"></div>
+        </div>
+    </div>
+
+    <!-- 칠판 판서 사진 추가 모달 -->
+    <div id="boardModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[110] hidden items-center justify-center p-4">
+        <div class="glass-strong w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center glass-soft">
+                <h3 class="font-bold text-sm text-white"><i class="fas fa-chalkboard mr-2 text-amber-400"></i>칠판 판서 사진 추가</h3>
+                <button onclick="closeBoardModal()" class="text-white/40 hover:text-white transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                <div class="text-xs text-white/60 flex items-center glass-soft rounded-xl px-3 py-2"><i class="fas fa-file-lines mr-2 text-blue-400"></i><span id="boardTarget" class="truncate"></span></div>
+                <p class="text-[11px] text-white/45 leading-relaxed">사진마다 AI 가 슬라이드 목차와 대조해 어느 슬라이드의 판서인지 판별하고, 그 슬라이드에 판서 전사(수식은 LaTeX)와 단계별 설명을 덧붙입니다. 해당 슬라이드를 찾지 못한 사진은 건너뜁니다.</p>
+                <div id="boardRangeRow" class="flex flex-wrap items-center gap-2 glass-soft rounded-xl px-3 py-2">
+                    <span class="text-xs font-bold text-white/70"><i class="fas fa-arrows-left-right mr-1 text-amber-400"></i> 적용 범위</span>
+                    <input type="number" id="boardRangeFrom" min="1" placeholder="시작" class="w-20 p-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/90 outline-none text-center">
+                    <span class="text-xs text-white/50">페이지 ~</span>
+                    <input type="number" id="boardRangeTo" min="1" placeholder="끝" class="w-20 p-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/90 outline-none text-center">
+                    <span class="text-xs text-white/50">페이지</span>
+                    <span class="text-[11px] text-white/40 basis-full sm:basis-auto sm:ml-auto">비우면 전체. 판서가 찍힌 강의 구간을 적으면 정확도가 올라갑니다.</span>
+                </div>
+                <input type="text" id="boardNote" placeholder="메모 (선택) 예: 3주차 판서" class="w-full p-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white/90 outline-none focus:border-amber-400/60">
+                <div id="boardDrop" class="border-2 border-dashed border-white/15 rounded-xl p-6 text-center cursor-pointer transition hover:border-amber-400/60 hover:bg-amber-500/5">
+                    <i class="fas fa-images text-2xl text-white/50 mb-2"></i>
+                    <p class="text-sm text-white/80">판서 사진을 드래그하거나 클릭해서 선택 (여러 장 가능)</p>
+                    <p class="text-[11px] text-white/40 mt-1">jpg, png, webp, heic 등</p>
+                    <input type="file" id="boardFiles" class="hidden" multiple accept="image/*,.heic,.heif">
+                </div>
+                <div id="boardPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+                <p id="boardError" class="hidden text-xs text-red-400"></p>
+            </div>
+            <div class="p-4 border-t border-white/10 flex justify-end space-x-2 glass-soft">
+                <button type="button" onclick="closeBoardModal()" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">취소</button>
+                <button type="button" id="boardSubmitBtn" onclick="submitBoardPhotos()" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold shadow-md transition"><i class="fas fa-wand-magic-sparkles mr-1"></i> 판서 반영 시작</button>
+            </div>
+        </div>
+    </div>
 
     <!-- 문서의 녹음본 목록 모달 -->
     <div id="transcriptListModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] hidden items-center justify-center p-4">
@@ -941,6 +1079,7 @@
                 openedTabs.push(newTab);
                 renderTabBar();
                 switchTab(newTab.id);
+                loadTabBoards(newTab);
                 saveSession();
                 if (window.innerWidth < 768) toggleSidebar(false);
             } catch (err) { 
@@ -1049,6 +1188,39 @@
 
         function getActiveTab() { return openedTabs.find(t => t.id === activeTabId); }
 
+        // ---- 슬라이드별 판서 사진 ----
+        async function loadTabBoards(tab) {
+            try { const res = await fetch(`/api/docs/${tab.id}/boards`); tab.boards = res.ok ? await res.json() : []; }
+            catch (err) { tab.boards = []; }
+            if (getActiveTab() === tab) updateSlideBoardsBtn(tab);
+        }
+        function boardsForSlide(tab) {
+            const n = (tab.currentIndex || 0) + 1;
+            return (tab.boards || []).filter(b => (b.slides || []).includes(n));
+        }
+        function updateSlideBoardsBtn(tab) {
+            const btn = document.getElementById('slideBoardsBtn');
+            const list = tab ? boardsForSlide(tab) : [];
+            btn.classList.toggle('hidden', list.length === 0);
+            btn.classList.toggle('flex', list.length > 0);
+            document.getElementById('slideBoardsCount').textContent = `판서 ${list.length}`;
+        }
+        function openSlideBoards() {
+            const tab = getActiveTab(); if (!tab) return;
+            const list = boardsForSlide(tab); if (!list.length) return;
+            document.getElementById('slideBoardsTitle').innerHTML = `<i class="fas fa-chalkboard mr-2 text-amber-400"></i>슬라이드 ${tab.currentIndex + 1} 의 판서 사진 (${list.length})`;
+            document.getElementById('slideBoardsBody').innerHTML = list.map(b => `<figure class="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                <a href="${b.url}" target="_blank" title="원본 열기"><img src="${b.url}" class="w-full max-h-[75vh] object-contain bg-black" alt="${escapeHtml(b.label)}"></a>
+                <figcaption class="px-3 py-2 text-xs text-white/70 flex items-center justify-between">
+                    <span class="truncate">#${b.seq} ${escapeHtml(b.label)} · ${escapeHtml((b.added_at || '').replace('T', ' '))}${b.slides && b.slides.length > 1 ? ' · 슬라이드 ' + b.slides.join(', ') : ''}</span>
+                    <a href="${b.url}" download class="ml-2 text-amber-300 hover:text-amber-200 whitespace-nowrap"><i class="fas fa-download mr-1"></i>저장</a>
+                </figcaption>
+            </figure>`).join('');
+            const m = document.getElementById('slideBoardsModal'); m.classList.remove('hidden'); m.classList.add('flex');
+        }
+        function closeSlideBoards() { const m = document.getElementById('slideBoardsModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSlideBoards(); });
+
         function saveSession() {
             const sessionData = openedTabs.map(t => ({ 
                 id: t.id, 
@@ -1134,6 +1306,7 @@
             hljs.highlightAll(); // 코드 하이라이팅 재적용
 
             pageIndicator.textContent = `${tab.currentIndex + 1} / ${tab.slides.length}`;
+            updateSlideBoardsBtn(tab);
             prevSlideBtn.disabled = tab.currentIndex === 0;
             nextSlideBtn.disabled = tab.currentIndex === tab.slides.length - 1;
             slideTextContainer.scrollTop = 0;
@@ -1631,6 +1804,222 @@
         document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDocsChanges(); });
 
         // ==========================================
+        // 내보내기 (PDF: 브라우저 인쇄 엔진으로 저장, Markdown: 파일 다운로드)
+        // ==========================================
+        const exportModal = document.getElementById('exportModal');
+        const exportPreview = document.getElementById('exportPreview');
+        let exportFormat = 'pdf', exportPreviewTimer = null;
+
+        function openExportModal() {
+            const tab = getActiveTab();
+            if (!tab) { showToast('먼저 문서를 열어 주세요.', 3000); return; }
+            document.getElementById('exportTarget').textContent = tab.name;
+            document.getElementById('exportCurrentNo').textContent = tab.currentIndex + 1;
+            document.getElementById('exportTotalNo').textContent = tab.slides.length;
+            document.getElementById('exportFrom').value = ''; document.getElementById('exportTo').value = '';
+            document.querySelector('input[name="exportScope"][value="all"]').checked = true;
+            setExportFormat('pdf');
+            exportModal.classList.remove('hidden'); exportModal.classList.add('flex');
+            refreshExportPreview();
+        }
+        function closeExportModal() { exportModal.classList.add('hidden'); exportModal.classList.remove('flex'); exportPreview.srcdoc = ''; }
+        exportModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeExportModal(); });
+
+        function setExportFormat(fmt) {
+            exportFormat = fmt;
+            document.querySelectorAll('.export-format').forEach(b => {
+                const active = b.dataset.exportFormat === fmt;
+                b.className = 'export-format flex-1 text-xs py-2 rounded-lg transition ' + (active ? 'bg-emerald-600/40 text-white border border-emerald-400/40' : 'text-white/60 hover:text-white hover:bg-white/5');
+            });
+            document.getElementById('exportPdfOptions').classList.toggle('hidden', fmt !== 'pdf');
+            document.getElementById('exportMdOptions').classList.toggle('hidden', fmt !== 'md');
+            document.getElementById('exportRunLabel').textContent = fmt === 'pdf' ? 'PDF 저장' : 'Markdown 다운로드';
+            document.getElementById('exportPreviewHint').classList.toggle('hidden', fmt !== 'pdf');
+            refreshExportPreview();
+        }
+        document.querySelectorAll('.export-format').forEach(b => b.addEventListener('click', () => setExportFormat(b.dataset.exportFormat)));
+        ['exportScale', 'exportPaper', 'exportOrient', 'exportImages', 'exportPageBreak', 'exportDark', 'exportMdImages', 'exportFrom', 'exportTo'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', () => { if (id === 'exportScale') { document.getElementById('exportScaleLabel').textContent = el.value + '%'; applyExportScaleLive(); } else refreshExportPreview(); });
+            el.addEventListener('change', () => refreshExportPreview());
+        });
+        document.querySelectorAll('input[name="exportScope"]').forEach(r => r.addEventListener('change', () => refreshExportPreview()));
+        ['exportFrom', 'exportTo'].forEach(id => document.getElementById(id).addEventListener('focus', () => { document.querySelector('input[name="exportScope"][value="range"]').checked = true; }));
+
+        // 선택된 슬라이드 인덱스(0-based) 목록
+        function exportSelection(tab) {
+            const scope = document.querySelector('input[name="exportScope"]:checked').value;
+            const n = tab.slides.length;
+            if (scope === 'current') return [tab.currentIndex];
+            if (scope === 'range') {
+                const a = parseInt(document.getElementById('exportFrom').value, 10), b = parseInt(document.getElementById('exportTo').value, 10);
+                const from = isNaN(a) ? 1 : Math.max(1, a), to = isNaN(b) ? n : Math.min(n, b);
+                if (to < from) return [];
+                return Array.from({ length: to - from + 1 }, (_, i) => from - 1 + i);
+            }
+            return Array.from({ length: n }, (_, i) => i);
+        }
+
+        function slideNumberOf(tab, i) {
+            const h2 = (tab.slides[i].htmlParts[0] || '').replace(/<[^>]+>/g, '');
+            const m = /slide\s*(\d+)/i.exec(h2); return m ? parseInt(m[1], 10) : i + 1;
+        }
+
+        function buildExportHtml(tab, indices) {
+            const scale = parseInt(document.getElementById('exportScale').value, 10) / 100;
+            const paper = document.getElementById('exportPaper').value, orient = document.getElementById('exportOrient').value;
+            const withImages = document.getElementById('exportImages').checked, pageBreak = document.getElementById('exportPageBreak').checked, dark = document.getElementById('exportDark').checked;
+            const fg = dark ? '#e5e7eb' : '#111827', bg = dark ? '#0b0f1a' : '#ffffff', border = dark ? '#334155' : '#d1d5db', codeBg = dark ? '#111827' : '#f3f4f6';
+            const sections = indices.map(i => {
+                const s = tab.slides[i];
+                const img = withImages && s.image ? `<img class="slide-img" src="${s.image}" alt="">` : '';
+                return `<section class="slide">${img}${s.htmlParts.join('')}</section>`;
+            }).join('');
+            return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(tab.name)}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${dark ? 'github-dark-dimmed' : 'github'}.min.css">
+<style>
+@page { size: ${paper} ${orient}; margin: 12mm; }
+html, body { background: ${bg}; color: ${fg}; }
+body { font-family: -apple-system, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Roboto, sans-serif; line-height: 1.65; margin: 0; padding: 16px; zoom: ${scale}; }
+.slide { ${pageBreak ? 'page-break-after: always; break-after: page;' : 'padding-bottom: 24px; border-bottom: 1px solid ' + border + '; margin-bottom: 24px;'} }
+.slide:last-child { page-break-after: auto; break-after: auto; }
+.slide-img { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto 12px; border: 1px solid ${border}; }
+h2 { font-size: 1.3em; border-bottom: 2px solid ${border}; padding-bottom: 4px; margin-top: 0; }
+h3 { font-size: 1.1em; margin-top: 1.2em; } h4 { margin-top: 1em; }
+img { max-width: 100%; height: auto; }
+table { border-collapse: collapse; max-width: 100%; font-size: 0.92em; } th, td { border: 1px solid ${border}; padding: 4px 8px; }
+pre { background: ${codeBg}; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+code { background: ${codeBg}; padding: 1px 4px; border-radius: 4px; } pre code { background: none; padding: 0; }
+blockquote { border-left: 4px solid ${border}; margin: 0.8em 0; padding: 0.2em 0.9em; color: ${dark ? '#cbd5e1' : '#374151'}; }
+.katex-display { overflow-x: auto; overflow-y: hidden; margin: 0.8em 0; }
+.slide, table, pre, blockquote, img { page-break-inside: avoid; break-inside: avoid; }
+a { color: inherit; }
+</style></head><body>${sections}</body></html>`;
+        }
+
+        function refreshExportPreview() {
+            clearTimeout(exportPreviewTimer);
+            exportPreviewTimer = setTimeout(() => {
+                const tab = getActiveTab(); if (!tab || exportModal.classList.contains('hidden')) return;
+                const indices = exportSelection(tab);
+                const info = document.getElementById('exportPreviewInfo');
+                if (!indices.length) { info.textContent = '· 범위가 올바르지 않습니다'; exportPreview.srcdoc = '<p style="font-family:sans-serif;padding:20px;color:#b91c1c">범위가 올바르지 않습니다.</p>'; return; }
+                info.textContent = `· 슬라이드 ${indices.length}장` + (exportFormat === 'pdf' ? ` · ${document.getElementById('exportScale').value}% · ${document.getElementById('exportPaper').value} ${document.getElementById('exportOrient').value === 'portrait' ? '세로' : '가로'}` : ' · Markdown');
+                if (exportFormat === 'pdf') {
+                    exportPreview.srcdoc = buildExportHtml(tab, indices);
+                } else {
+                    const md = buildExportMarkdown(tab, indices);
+                    exportPreview.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#0b0f1a;color:#e5e7eb"><pre style="white-space:pre-wrap;word-break:break-word;font:13px/1.5 ui-monospace,Menlo,monospace;padding:16px;margin:0">${escapeHtml(md)}</pre></body></html>`;
+                }
+            }, 120);
+        }
+        function applyExportScaleLive() {
+            const doc = exportPreview.contentDocument;
+            if (exportFormat === 'pdf' && doc && doc.body) doc.body.style.zoom = parseInt(document.getElementById('exportScale').value, 10) / 100;
+            const info = document.getElementById('exportPreviewInfo');
+            if (exportFormat === 'pdf') info.textContent = info.textContent.replace(/\d+%/, document.getElementById('exportScale').value + '%');
+        }
+
+        function buildExportMarkdown(tab, indices) {
+            const withImages = document.getElementById('exportMdImages').checked;
+            const wanted = new Set(indices.map(i => slideNumberOf(tab, i)));
+            const parts = tab.content.split(/^(?=## Slide \d+\s*$)/m);
+            const picked = parts.filter(p => { const m = /^## Slide (\d+)/.exec(p); return m && wanted.has(parseInt(m[1], 10)); });
+            let md = `# ${tab.name}\n\n` + picked.join('').replace(/\n---\n\n$/, '\n');
+            md = withImages ? md.replace(/\]\((\/static\/[^)]+)\)/g, (_, p) => `](${location.origin}${p})`) : md.replace(/^!\[[^\]]*\]\([^)]*\)\n*/gm, '');
+            return md.replace(/<!-- \/?transcript:[^ ]+ -->\n?/g, '');
+        }
+
+        function runExport() {
+            const tab = getActiveTab(); if (!tab) return;
+            const indices = exportSelection(tab);
+            if (!indices.length) { alert('범위가 올바르지 않습니다.'); return; }
+            const base = tab.name.replace(/[\\/:*?"<>|]+/g, '_');
+            const suffix = indices.length === tab.slides.length ? '' : (indices.length === 1 ? `_p${slideNumberOf(tab, indices[0])}` : `_p${slideNumberOf(tab, indices[0])}-${slideNumberOf(tab, indices[indices.length - 1])}`);
+            if (exportFormat === 'md') {
+                const blob = new Blob([buildExportMarkdown(tab, indices)], { type: 'text/markdown;charset=utf-8' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${base}${suffix}.md`; document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+                showToast('Markdown 파일을 저장했습니다.', 3000);
+                return;
+            }
+            // PDF: 미리보기 문서를 그대로 인쇄 (브라우저 인쇄 창에서 "PDF로 저장")
+            const win = exportPreview.contentWindow;
+            if (!win || !exportPreview.contentDocument || !exportPreview.contentDocument.body || !exportPreview.contentDocument.body.children.length) { alert('미리보기가 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요.'); return; }
+            exportPreview.contentDocument.title = `${base}${suffix}`;
+            const imgs = Array.from(exportPreview.contentDocument.images).filter(im => !im.complete);
+            const go = () => { win.focus(); win.print(); };
+            if (imgs.length) { let left = imgs.length; imgs.forEach(im => { im.onload = im.onerror = () => { if (--left === 0) go(); }; }); setTimeout(go, 4000); } else go();
+        }
+
+        // ==========================================
+        // 칠판 판서 사진 추가
+        // ==========================================
+        const boardModal = document.getElementById('boardModal');
+        const boardFilesInput = document.getElementById('boardFiles');
+        let boardTargetDoc = null, boardPicked = [];
+
+        function openBoardModalForActiveDoc() {
+            const tab = openedTabs.find(t => t.id === activeTabId);
+            if (!tab) { showToast('먼저 문서를 열어 주세요.', 3000); return; }
+            const name = tab.name.includes('/') ? tab.name.substring(tab.name.lastIndexOf('/') + 1) : tab.name;
+            boardTargetDoc = { id: tab.id, name };
+            document.getElementById('boardTarget').textContent = name;
+            document.getElementById('boardNote').value = '';
+            document.getElementById('boardRangeFrom').value = ''; document.getElementById('boardRangeTo').value = '';
+            boardPicked = []; renderBoardPreview(); document.getElementById('boardError').classList.add('hidden');
+            boardModal.classList.remove('hidden'); boardModal.classList.add('flex');
+        }
+        function closeBoardModal() { boardModal.classList.add('hidden'); boardModal.classList.remove('flex'); boardTargetDoc = null; }
+        boardModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeBoardModal(); });
+        function boardError(msg) { const el = document.getElementById('boardError'); el.textContent = msg; el.classList.remove('hidden'); }
+        function addBoardFiles(files) {
+            for (const f of Array.from(files || [])) {
+                if (!/^image\//.test(f.type) && !/\.(heic|heif)$/i.test(f.name)) { boardError(`이미지가 아닙니다: ${f.name}`); continue; }
+                if (!boardPicked.some(p => p.name === f.name && p.size === f.size)) boardPicked.push(f);
+            }
+            renderBoardPreview();
+        }
+        function renderBoardPreview() {
+            const grid = document.getElementById('boardPreview');
+            grid.innerHTML = boardPicked.map((f, i) => `<div class="relative rounded-lg overflow-hidden border border-white/10 bg-black/30 aspect-[4/3]">
+                <img src="${URL.createObjectURL(f)}" class="w-full h-full object-cover" alt="">
+                <button type="button" onclick="removeBoardFile(${i})" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white/80 hover:text-white text-xs"><i class="fas fa-times"></i></button>
+                <div class="absolute bottom-0 inset-x-0 bg-black/60 text-[10px] text-white/80 px-1 truncate">${escapeHtml(f.name)}</div>
+            </div>`).join('');
+        }
+        function removeBoardFile(i) { boardPicked.splice(i, 1); renderBoardPreview(); }
+        const boardDrop = document.getElementById('boardDrop');
+        boardDrop.addEventListener('click', () => boardFilesInput.click());
+        boardFilesInput.addEventListener('change', () => { addBoardFiles(boardFilesInput.files); boardFilesInput.value = ''; });
+        ['dragenter', 'dragover'].forEach(ev => boardDrop.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); boardDrop.classList.add('border-amber-400', 'bg-amber-500/10'); }));
+        boardDrop.addEventListener('dragleave', (e) => { e.stopPropagation(); boardDrop.classList.remove('border-amber-400', 'bg-amber-500/10'); });
+        boardDrop.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); boardDrop.classList.remove('border-amber-400', 'bg-amber-500/10'); addBoardFiles(e.dataTransfer.files); });
+        boardModal.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); });
+        boardModal.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); addBoardFiles(e.dataTransfer.files); });
+
+        async function submitBoardPhotos() {
+            if (!boardTargetDoc) return;
+            if (!boardPicked.length) return boardError('판서 사진을 한 장 이상 선택하세요.');
+            const a = document.getElementById('boardRangeFrom').value.trim(), b = document.getElementById('boardRangeTo').value.trim();
+            if ((a && (isNaN(+a) || +a < 1)) || (b && (isNaN(+b) || +b < 1)) || (a && b && +b < +a)) return boardError('적용 범위가 올바르지 않습니다.');
+            const formData = new FormData();
+            boardPicked.forEach(f => formData.append('photos', f));
+            formData.append('note', document.getElementById('boardNote').value.trim());
+            if (a) formData.append('slide_from', a); if (b) formData.append('slide_to', b);
+            const btn = document.getElementById('boardSubmitBtn'); btn.disabled = true; btn.classList.add('opacity-50');
+            try {
+                const res = await fetch(`/api/boards/doc/${boardTargetDoc.id}`, { method: 'POST', body: formData });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
+                const target = boardTargetDoc; closeBoardModal();
+                onTranscriptJobStarted(data.job_id, { type: 'doc', id: target.id, name: `${target.name} (판서)` });
+            } catch (err) { boardError('요청 실패: ' + err.message); }
+            finally { btn.disabled = false; btn.classList.remove('opacity-50'); }
+        }
+
+        // ==========================================
         // 문서의 녹음본 목록: 텍스트/원본 다운로드, 음성 웹 재생
         // ==========================================
         const transcriptListModal = document.getElementById('transcriptListModal');
@@ -1651,18 +2040,40 @@
         const fmtBytes = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n || 0} B`;
         const KIND_LABEL = { audio: ['fas fa-file-audio text-purple-400', '녹음 파일'], text_doc: ['fas fa-file-alt text-blue-400', '텍스트 파일'], paste: ['fas fa-paste text-emerald-400', '붙여넣은 텍스트'] };
 
+        async function renameBoard(docId, sid, current) {
+            const label = prompt('판서 사진의 새 이름:', current);
+            if (label === null || !label.trim() || label.trim() === current) return;
+            try {
+                const res = await fetch(`/api/docs/${docId}/boards/${sid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: label.trim() }) });
+                if (!res.ok) throw new Error();
+                const tab = openedTabs.find(t => t.id === docId);
+                if (tab) { await loadTabBoards(tab); await reloadDocIfOpen(docId); }
+                openTranscriptListModal(docId, document.getElementById('transcriptListTarget').textContent);
+                showToast('판서 이름이 변경되었습니다.', 2500);
+            } catch (err) { alert('이름 변경 실패'); }
+        }
+
         async function openTranscriptListModal(docId, name) {
             document.getElementById('transcriptListTarget').textContent = name;
             const body = document.getElementById('transcriptListBody');
             body.innerHTML = '<div class="text-xs text-notion-muted p-2">불러오는 중...</div>';
             transcriptListModal.classList.remove('hidden'); transcriptListModal.classList.add('flex');
-            let items = [];
+            let items = [], boards = [];
             try { const res = await fetch(`/api/docs/${docId}/transcripts`); if (res.ok) items = await res.json(); } catch (err) {}
-            if (!items.length) {
+            try { const res = await fetch(`/api/docs/${docId}/boards`); if (res.ok) boards = await res.json(); } catch (err) {}
+            const boardsHtml = boards.length ? `<div class="text-xs font-bold text-white/60 mt-2 mb-1"><i class="fas fa-chalkboard mr-1 text-amber-400"></i>칠판 판서 사진 (${boards.length})</div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">${boards.map(b => `<div class="rounded-lg overflow-hidden border border-white/10 bg-black/30">
+                    <a href="${b.url}" target="_blank"><img src="${b.url}" class="w-full aspect-[4/3] object-cover" alt="" loading="lazy"></a>
+                    <div class="px-2 py-1 text-[10px] text-white/70 flex items-center gap-1">
+                        <span class="truncate flex-1" title="${escapeHtml(b.label)}">#${b.seq} ${escapeHtml(b.label)} · 슬라이드 ${(b.slides || []).join(', ') || '미매칭'}</span>
+                        <button type="button" onclick="renameBoard('${docId}', '${b.sid}', '${escapeHtml(b.label).replace(/'/g, "\\'")}')" class="text-white/50 hover:text-amber-300" title="이름 변경"><i class="fas fa-pen"></i></button>
+                    </div>
+                </div>`).join('')}</div>` : '';
+            if (!items.length && !boards.length) {
                 body.innerHTML = `<div class="text-sm text-notion-muted text-center py-10"><i class="fas fa-microphone-slash text-3xl mb-3 block opacity-40"></i>이 문서에 추가된 녹음본이 없습니다.<br><span class="text-xs">툴바의 "녹음본 추가"로 텍스트, 텍스트 파일, 녹음 파일을 추가할 수 있습니다.</span></div>`;
                 return;
             }
-            body.innerHTML = items.map(item => {
+            body.innerHTML = boardsHtml + (items.length ? '<div class="text-xs font-bold text-white/60 mb-1"><i class="fas fa-microphone-lines mr-1 text-purple-400"></i>녹음본</div>' : '') + items.map(item => {
                 const [icon, kindLabel] = KIND_LABEL[item.kind] || KIND_LABEL.paste;
                 const rangeLabel = item.slide_from ? `적용 범위 ${item.slide_from}~${item.slide_to && item.slide_to < 1000000 ? item.slide_to : '끝'}장` : '적용 범위 전체';
                 const meta = [kindLabel, rangeLabel, item.original_name ? escapeHtml(item.original_name) : null, `${(item.chars || 0).toLocaleString()}자`, item.size ? fmtBytes(item.size) : null, item.added_at ? escapeHtml(item.added_at).replace('T', ' ') : null].filter(Boolean).join(' · ');

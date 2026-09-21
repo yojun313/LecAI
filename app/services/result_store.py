@@ -24,6 +24,8 @@ IMAGES_DIR = "images"
 LEGACY_MD = "result.md"
 TRANSCRIPT_FILE = "transcript.txt"  # 예전 구조 호환용 (첫 녹음본 사본)
 TRANSCRIPTS_DIR = "transcripts"  # 추가된 모든 녹음본 원문: 001_<label>.txt + index.json
+BOARDS_DIR = "boards"  # 칠판 판서 사진: 001_<label>.jpg + index.json
+BOARD_SECTION_HEADING = "### 🧑‍🏫 칠판 판서"
 TRANSCRIPT_SECTION_HEADING = "### 🎙️ 강의 녹음 발췌"
 
 SLIDE_FILE_RE = re.compile(r"^slide_(\d{3,})\.md$")
@@ -363,6 +365,131 @@ def attach_original(
     return entry
 
 
+# ---------- 칠판 판서 사진 ----------
+def _boards_index_path(result_dir: str) -> str:
+    return os.path.join(result_dir, BOARDS_DIR, "index.json")
+
+
+def list_boards(result_dir: str) -> list:
+    path = _boards_index_path(result_dir)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _write_boards_index(result_dir: str, entries: list):
+    os.makedirs(os.path.join(result_dir, BOARDS_DIR), exist_ok=True)
+    with open(_boards_index_path(result_dir), "w", encoding="utf-8") as f:
+        json.dump(entries, f, ensure_ascii=False, indent=2)
+
+
+def save_board_photo(
+    result_dir: str, src_path: str, original_name: str, label: str = ""
+) -> dict:
+    """
+    판서 사진을 boards/NNN_<label>.jpg 로 보관 (긴 변 2000px 이하 JPEG 로 정규화). 같은 사진(해시)이면 기존 항목 갱신.
+    반환: index 항목 {sid, seq, file, original_name, label, added_at, slides: []}
+    """
+    from PIL import Image, ImageOps
+
+    with open(src_path, "rb") as f:
+        sid = "board-" + hashlib.sha1(f.read()).hexdigest()[:10]
+    entries = list_boards(result_dir)
+    existing = next((e for e in entries if e.get("sid") == sid), None)
+    safe_label = (
+        re.sub(
+            r"[^\w\-가-힣. ]+",
+            "_",
+            label or os.path.splitext(original_name)[0] or "board",
+        ).strip()[:60]
+        or "board"
+    )
+    if existing:
+        entry = existing
+    else:
+        seq = len(entries) + 1
+        entry = {
+            "sid": sid,
+            "seq": seq,
+            "file": f"{seq:03d}_{safe_label}.jpg",
+            "original_name": original_name,
+            "label": label or f"판서 {seq}",
+            "added_at": datetime.now().isoformat(timespec="seconds"),
+            "slides": [],
+        }
+        entries.append(entry)
+    os.makedirs(os.path.join(result_dir, BOARDS_DIR), exist_ok=True)
+    dest = os.path.join(result_dir, BOARDS_DIR, entry["file"])
+    with Image.open(src_path) as img:
+        img = ImageOps.exif_transpose(img)
+        if max(img.size) > 2000:
+            img.thumbnail((2000, 2000), Image.LANCZOS)
+        img.convert("RGB").save(dest, "JPEG", quality=88, optimize=True)
+    entry["size"] = os.path.getsize(dest)
+    _write_boards_index(result_dir, entries)
+    return entry
+
+
+def set_board_slides(result_dir: str, sid: str, slides: list):
+    entries = list_boards(result_dir)
+    for e in entries:
+        if e.get("sid") == sid:
+            e["slides"] = sorted(set(int(s) for s in slides))
+    _write_boards_index(result_dir, entries)
+
+
+def rename_board(result_dir: str, sid: str, new_label: str):
+    """판서 사진의 표시 이름을 바꾸고, 슬라이드에 붙은 절의 제목/이미지 alt 도 함께 갱신한다. 반환: 갱신된 항목 또는 None"""
+    new_label = (new_label or "").strip()
+    if not new_label:
+        return None
+    entries = list_boards(result_dir)
+    entry = next((e for e in entries if e.get("sid") == sid), None)
+    if not entry:
+        return None
+    old_label = entry.get("label", "")
+    entry["label"] = new_label
+    _write_boards_index(result_dir, entries)
+    if old_label and old_label != new_label:
+        for idx, text in read_slides(result_dir).items():
+            block_re = re.compile(
+                re.escape(_marker(f"{sid}-s{idx}"))
+                + r".*?"
+                + re.escape(_marker(f"{sid}-s{idx}", end=True)),
+                re.S,
+            )
+            m = block_re.search(text)
+            if not m:
+                continue
+            block = m.group(0)
+            block = block.replace(
+                f"{BOARD_SECTION_HEADING} ({old_label} ·",
+                f"{BOARD_SECTION_HEADING} ({new_label} ·",
+                1,
+            )
+            block = block.replace(
+                f"![{old_label}](./{BOARDS_DIR}/", f"![{new_label}](./{BOARDS_DIR}/", 1
+            )
+            if block != m.group(0):
+                write_slide(
+                    result_dir, idx, text[: m.start()] + block + text[m.end() :]
+                )
+    return entry
+
+
+def describe_boards(result_dir: str, url_base: str) -> list:
+    items = []
+    for e in list_boards(result_dir):
+        item = dict(e)
+        item["url"] = f"{url_base}/{BOARDS_DIR}/{e['file']}"
+        items.append(item)
+    return items
+
+
 def describe_transcripts(result_dir: str, url_base: str) -> list:
     """뷰어 목록용: index 항목에 다운로드/재생 URL 을 붙인다."""
     items = []
@@ -391,7 +518,12 @@ def render_pdf(result_dir: str, md_content: str = None):
     abs_image_dir = os.path.abspath(os.path.join(result_dir, IMAGES_DIR)).replace(
         "\\", "/"
     )
-    pdf_html_body = raw_html.replace("./images", f"file://{abs_image_dir}")
+    abs_board_dir = os.path.abspath(os.path.join(result_dir, BOARDS_DIR)).replace(
+        "\\", "/"
+    )
+    pdf_html_body = raw_html.replace("./images", f"file://{abs_image_dir}").replace(
+        "./boards", f"file://{abs_board_dir}"
+    )
 
     full_html = f"""
     <!DOCTYPE html>

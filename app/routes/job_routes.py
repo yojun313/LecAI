@@ -13,11 +13,12 @@ from app.services.processor import (
     process_file_task,
     transcript_path,
     enrich_transcript_task,
+    enrich_boards_task,
 )
 from app.services import transcript_input as ti
 from app.services.transcript_input import AUDIO_EXTS
 from app.db import docs_col
-from typing import Optional
+from typing import Optional, List
 from app.services.audio_processor import process_audio_task, stt_precheck
 from app.services.auth_manager import AuthManager
 from app.core.config import settings
@@ -264,6 +265,77 @@ async def add_transcript(
 
     background_tasks.add_task(enrich_transcript_task, job_id, target_type, target_id)
     return {"job_id": job_id, "message": "Transcript job started"}
+
+
+BOARD_IMAGE_EXTS = (
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".bmp",
+    ".tif",
+    ".tiff",
+    ".heic",
+    ".heif",
+)
+
+
+@router.post("/boards/doc/{doc_id}")
+async def add_board_photos(
+    doc_id: str,
+    background_tasks: BackgroundTasks,
+    photos: List[UploadFile] = File(...),
+    note: str = Form(""),
+    slide_from: str = Form(""),
+    slide_to: str = Form(""),
+    user: str = Depends(get_current_user),
+):
+    """칠판 판서 사진(여러 장)을 문서의 해당 슬라이드에 반영하는 작업을 만든다."""
+    target = docs_col.find_one({"id": doc_id, "owner": user, "type": "file"})
+    if not target:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    photos = [p for p in photos if p and p.filename]
+    if not photos:
+        raise HTTPException(
+            status_code=400, detail="판서 사진을 한 장 이상 선택하세요."
+        )
+    for p in photos:
+        if os.path.splitext(p.filename)[1].lower() not in BOARD_IMAGE_EXTS:
+            raise HTTPException(
+                status_code=400, detail=f"지원하지 않는 이미지 형식입니다: {p.filename}"
+            )
+    try:
+        slide_range = _parse_slide_range(slide_from, slide_to)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    user_settings = AuthManager.get_user_settings(user)
+    if not (user_settings.get("openai_api_key") or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="판서 분석에는 OpenAI API Key 가 필요합니다. 설정에서 먼저 등록해 주세요.",
+        )
+
+    job_id = JobManager.create_job(f"[판서 추가] {target['name']}", user)
+    paths = []
+    for i, p in enumerate(photos, 1):
+        path = os.path.join(
+            settings.UPLOAD_DIR, f"{job_id}_board_{i:02d}_board_{p.filename}"
+        )
+        with open(path, "wb") as buffer:
+            shutil.copyfileobj(p.file, buffer)
+        paths.append(path)
+    fields = {
+        "kind": "board",
+        "target_type": "doc",
+        "target_id": doc_id,
+        "board_paths": paths,
+        "board_note": note.strip(),
+    }
+    if slide_range:
+        fields["transcript_slide_from"], fields["transcript_slide_to"] = slide_range
+    JobManager.update_fields(job_id, fields)
+    background_tasks.add_task(enrich_boards_task, job_id, doc_id)
+    return {"job_id": job_id, "message": "Board job started"}
 
 
 @router.get("/jobs")

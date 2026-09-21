@@ -256,4 +256,5 @@ class DocManager:
             return "# Error: Markdown file not found."
 
         content = content.replace("./images/", f"{target['path']}/images/")
+        content = content.replace("./boards/", f"{target['path']}/boards/")
         return content
