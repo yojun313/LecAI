@@ -1,0 +1,60 @@
+{# 공용 업로드 진행 패널 + uploadWithProgress(url, formData, {label, onProgress}) → Promise<{ok, status, data}> #}
+<div id="uploadProgressPanel" class="fixed top-3 left-1/2 -translate-x-1/2 z-[140] hidden w-[min(560px,92vw)] space-y-2 pointer-events-none">
+</div>
+<script>
+(function () {
+    const panel = document.getElementById('uploadProgressPanel');
+    const fmt = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`;
+    const esc = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    function makeRow(label) {
+        const row = document.createElement('div');
+        row.className = 'glass-strong border border-blue-400/40 rounded-xl shadow-2xl px-4 py-3 text-white pointer-events-auto';
+        row.innerHTML = `<div class="flex items-center text-xs"><i class="fas fa-cloud-arrow-up mr-2 text-blue-300"></i><span class="flex-1 truncate up-label">${esc(label)}</span><span class="ml-2 font-mono up-pct">0%</span></div>
+            <div class="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden"><div class="up-bar h-full rounded-full bg-blue-500 transition-all duration-150" style="width:0%"></div></div>
+            <div class="text-[10px] text-white/50 mt-1 up-meta">업로드 준비 중...</div>`;
+        row._shownAt = Date.now();
+        panel.appendChild(row); panel.classList.remove('hidden');
+        return row;
+    }
+    // 빠른 연결에서는 업로드가 1초 안에 끝나므로 카드를 최소 2.5초는 보여 준다
+    const MIN_VISIBLE_MS = 2500;
+    function removeRow(row, delay) {
+        const shown = Date.now() - (row._shownAt || 0);
+        setTimeout(() => { row.remove(); if (!panel.children.length) panel.classList.add('hidden'); }, Math.max(delay, MIN_VISIBLE_MS - shown));
+    }
+
+    // 모든 업로드 공용: 전송 바이트 기준 진행률 표시. 서버 응답은 JSON 으로 파싱해 돌려준다.
+    window.uploadWithProgress = (url, formData, opts = {}) => new Promise((resolve, reject) => {
+        const files = [];
+        for (const [, v] of formData.entries()) if (v instanceof File) files.push(v);
+        const total = files.reduce((a, f) => a + f.size, 0);
+        const label = opts.label || (files.length > 1 ? `${files[0].name} 외 ${files.length - 1}개` : (files[0] ? files[0].name : '업로드'));
+        const row = makeRow(label);
+        const bar = row.querySelector('.up-bar'), pct = row.querySelector('.up-pct'), meta = row.querySelector('.up-meta');
+        const started = Date.now();
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.upload.onprogress = (e) => {
+            if (!e.lengthComputable) return;
+            const p = Math.min(100, Math.round(e.loaded / e.total * 100));
+            const secs = (Date.now() - started) / 1000, speed = secs > 0 ? e.loaded / secs : 0;
+            const eta = speed > 0 ? Math.max(0, (e.total - e.loaded) / speed) : 0;
+            bar.style.width = p + '%'; pct.textContent = p + '%';
+            meta.textContent = `${fmt(e.loaded)} / ${fmt(e.total)} · ${fmt(speed)}/s` + (p < 100 ? ` · 남은 시간 약 ${Math.ceil(eta)}초` : ' · 서버 처리 중...');
+            if (opts.onProgress) opts.onProgress(p, e.loaded, e.total);
+        };
+        xhr.upload.onload = () => { bar.style.width = '100%'; pct.textContent = '100%'; meta.textContent = `${fmt(total)} 전송 완료 · 서버 응답 대기 중...`; };
+        xhr.onload = () => {
+            let data = {}; try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) {}
+            const ok = xhr.status >= 200 && xhr.status < 300;
+            if (ok) { bar.classList.replace('bg-blue-500', 'bg-emerald-500'); meta.textContent = `${fmt(total)} 업로드 완료 · 서버에서 처리를 시작합니다`; removeRow(row, 1500); }
+            else { bar.classList.replace('bg-blue-500', 'bg-red-500'); meta.textContent = `실패 (${xhr.status}) ${esc(data.detail || '')}`; removeRow(row, 6000); }
+            resolve({ ok, status: xhr.status, data });
+        };
+        xhr.onerror = () => { bar.classList.replace('bg-blue-500', 'bg-red-500'); meta.textContent = '네트워크 오류'; removeRow(row, 6000); reject(new Error('네트워크 오류')); };
+        xhr.onabort = () => { meta.textContent = '취소됨'; removeRow(row, 2000); reject(new Error('취소됨')); };
+        xhr.send(formData);
+    });
+})();
+</script>

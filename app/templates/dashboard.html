@@ -203,6 +203,7 @@
         </footer>
     </main>
 
+    {% include "_upload_progress.html" %}
     {% include "_transcript_picker.html" %}
     {% include "_api_key_notice.html" %}
 
@@ -414,9 +415,8 @@
             const formData = new FormData();
             applyTranscriptChoice(formData, choice);
             try {
-                const res = await fetch(`/api/transcript/${type}/${id}`, { method: 'POST', body: formData });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
+                const res = await uploadWithProgress(`/api/transcript/${type}/${id}`, formData, { label: `녹음본 추가: ${name}` });
+                if (!res.ok) throw new Error(res.data.detail || `오류 ${res.status}`);
                 fetchJobs();
             } catch (err) {
                 alert('녹음본 반영 요청 실패: ' + err.message);
@@ -437,11 +437,16 @@
             applyTranscriptChoice(formData, transcriptChoice);
 
             try {
-                await fetch('/api/upload', { method: 'POST', body: formData });
+                const res = await uploadWithProgress('/api/upload', formData, {
+                    label: file.name,
+                    onProgress: (p, loaded, total) => updateCardData(card, { ...tempJob, progress: p, logs: [`업로드 중 ${p}% (${(loaded / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB)`] }),
+                });
+                if (!res.ok) throw new Error(res.data.detail || `오류 ${res.status}`);
                 card.remove();
                 fetchJobs();
             } catch (err) {
-                updateCardData(card, { ...tempJob, status: 'failed', logs: ['업로드 실패'] });
+                updateCardData(card, { ...tempJob, status: 'failed', logs: ['업로드 실패: ' + err.message] });
+                alert('업로드 실패: ' + err.message);
             }
         }
 

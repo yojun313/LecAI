@@ -445,6 +445,7 @@
         </button>
     </main>
 
+    {% include "_upload_progress.html" %}
     {% include "_transcript_picker.html" %}
     {% include "_api_key_notice.html" %}
 
@@ -1642,10 +1643,10 @@
             const formData = new FormData();
             applyTranscriptChoice(formData, choice);
             try {
-                const res = await fetch(`/api/transcript/${type}/${id}`, { method: 'POST', body: formData });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
-                onTranscriptJobStarted(data.job_id, { type, id, name });
+                const res = await uploadWithProgress(`/api/transcript/${type}/${id}`, formData, { label: `녹음본 추가: ${name}` });
+                if (!res.ok) throw new Error(res.data.detail || `오류 ${res.status}`);
+                pollActiveJobs();
+                onTranscriptJobStarted(res.data.job_id, { type, id, name });
             } catch (err) {
                 alert('녹음본 반영 요청 실패: ' + err.message);
             }
@@ -2010,11 +2011,11 @@ a { color: inherit; }
             if (a) formData.append('slide_from', a); if (b) formData.append('slide_to', b);
             const btn = document.getElementById('boardSubmitBtn'); btn.disabled = true; btn.classList.add('opacity-50');
             try {
-                const res = await fetch(`/api/boards/doc/${boardTargetDoc.id}`, { method: 'POST', body: formData });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
+                const res = await uploadWithProgress(`/api/boards/doc/${boardTargetDoc.id}`, formData, { label: `판서 사진 ${boardPicked.length}장: ${boardTargetDoc.name}` });
+                if (!res.ok) throw new Error(res.data.detail || `오류 ${res.status}`);
                 const target = boardTargetDoc; closeBoardModal();
-                onTranscriptJobStarted(data.job_id, { type: 'doc', id: target.id, name: `${target.name} (판서)` });
+                pollActiveJobs();
+                onTranscriptJobStarted(res.data.job_id, { type: 'doc', id: target.id, name: `${target.name} (판서)` });
             } catch (err) { boardError('요청 실패: ' + err.message); }
             finally { btn.disabled = false; btn.classList.remove('opacity-50'); }
         }
@@ -2228,13 +2229,12 @@ a { color: inherit; }
             formData.append('file', file);
             formData.append('auto_import_parent_id', folderId);
             applyTranscriptChoice(formData, transcriptChoice);
-            showToast(`업로드 중: ${file.name}`, 0);
             try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.detail || `오류 ${res.status}`);
+                const res = await uploadWithProgress('/api/upload', formData, { label: file.name, onProgress: (p) => showToast(`업로드 중 ${p}%: ${file.name}`, 0) });
+                if (!res.ok) throw new Error(res.data.detail || `오류 ${res.status}`);
                 showToast(`AI 분석 시작: ${file.name} (대시보드에서도 진행 상황을 볼 수 있습니다)`, 0);
-                watchAnalysisJob(data.job_id, file.name, folderId);
+                pollActiveJobs(); // 폴링 주기를 기다리지 않고 진행 중 작업 패널에 바로 표시
+                watchAnalysisJob(res.data.job_id, file.name, folderId);
             } catch (err) {
                 showToast('업로드 실패: ' + err.message, 6000);
             }
