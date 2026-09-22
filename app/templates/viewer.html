@@ -233,7 +233,7 @@
         body.fullscreen-mode header { display: none !important; }
         body.fullscreen-mode #tabBar { display: none !important; }
         body.fullscreen-mode #exitFullscreenBtn { display: flex !important; }
-        body.fullscreen-mode main { height: 100vh !important; }
+        body.fullscreen-mode main { height: calc(100vh / var(--ui-zoom, 1)) !important; }
 
         /* 전체 화면에서는 화려한 그라디언트/유리효과 대신 단색 배경만 사용 */
         body.fullscreen-mode {
@@ -260,7 +260,9 @@
         }
 
         /* 가로 스크롤 금지: 페이지/메인/발표 영역은 절대 옆으로 밀리지 않는다. 넓은 요소는 각자 안에서만 스크롤 */
-        html, body { overflow-x: hidden !important; max-width: 100vw; }
+        html, body { overflow-x: hidden !important; max-width: calc(100vw / var(--ui-zoom, 1)); }
+        /* UI 배율 적용 시 화면 고정 요소(사이드바 모바일 모드)도 창 높이에 맞춤 */
+        #sidebar.fixed { height: calc(100vh / var(--ui-zoom, 1)); }
         main, #presentationView, #scrollView, .split-image-container { overflow-x: hidden !important; max-width: 100%; }
         .split-text-container { overflow-x: hidden !important; overflow-y: auto; max-width: 100%; }
         .split-text-container > article, #markdownBody { max-width: 100%; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
@@ -292,6 +294,7 @@
         #nodeList.root-drop-target { background: rgba(59,130,246,0.08); outline: 2px dashed rgba(59,130,246,0.5); outline-offset: -4px; border-radius: 0.75rem; }
         #nodeList.root-drop-target::after { content: '여기에 놓으면 최상위로 이동'; display: block; text-align: center; font-size: 0.7rem; color: #60a5fa; padding: 0.75rem 0; }
         .invisible { visibility: hidden; }
+        .chat-md p { margin: 0.35em 0; } .chat-md pre { margin: 0.5em 0; } .chat-md .katex-display { margin: 0.5em 0; padding: 0.5rem; }
         .no-scrollbar { scrollbar-width: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         #toolbar > * { flex-shrink: 0; }
@@ -390,6 +393,9 @@
                     <i class="fas fa-expand"></i>
                 </button>
 
+                <button id="chatToggleBtn" onclick="toggleChatPanel()" class="text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition shadow-md mr-2" title="이 슬라이드에 대해 AI 에게 질문">
+                    <i class="fas fa-comments"></i> <span class="hidden sm:inline">AI 질문</span>
+                </button>
                 <button id="exportBtn" onclick="openExportModal()" class="text-notion-text bg-notion-hover border border-notion-border px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-opacity-80 transition shadow-sm mr-2" title="PDF 또는 Markdown 으로 내보내기">
                     <i class="fas fa-file-export text-emerald-400"></i> <span class="hidden sm:inline">내보내기</span>
                 </button>
@@ -448,6 +454,28 @@
     {% include "_upload_progress.html" %}
     {% include "_transcript_picker.html" %}
     {% include "_api_key_notice.html" %}
+
+    <!-- 슬라이드별 AI 질문 패널 -->
+    <div id="chatPanel" class="hidden fixed right-4 bottom-4 z-[108] w-[min(440px,94vw)] h-[min(640px,80vh)] glass-strong border border-sky-400/40 rounded-2xl shadow-2xl flex-col overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-notion-border flex items-center justify-between">
+            <div class="min-w-0">
+                <div class="text-sm font-bold text-notion-text"><i class="fas fa-comments mr-2 text-sky-400"></i>AI 질문 <span id="chatSlideLabel" class="text-notion-muted font-normal"></span></div>
+                <div id="chatModelLabel" class="text-[10px] text-notion-muted truncate">이 슬라이드의 이미지와 설명, 문서 목차를 참고해 답합니다</div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="clearChatForSlide()" class="text-xs px-2 py-1 rounded-lg bg-notion-hover text-notion-muted hover:text-notion-text" title="이 슬라이드의 대화 지우기"><i class="fas fa-eraser"></i></button>
+                <button onclick="toggleChatPanel()" class="text-notion-muted hover:text-notion-text px-2" title="닫기"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div id="chatMessages" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 text-sm"></div>
+        <div class="p-3 border-t border-notion-border">
+            <div class="flex items-end gap-2">
+                <textarea id="chatInput" rows="2" placeholder="이 슬라이드에 대해 질문하세요. (Enter 전송, Shift+Enter 줄바꿈)" class="flex-1 p-2.5 rounded-xl bg-notion-hover border border-notion-border text-sm text-notion-text outline-none focus:border-sky-400/60 resize-none"></textarea>
+                <button id="chatSendBtn" onclick="sendChat()" class="w-10 h-10 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-md" title="전송"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <div id="chatStatus" class="text-[10px] text-notion-muted mt-1.5 h-4"></div>
+        </div>
+    </div>
 
     <!-- 내보내기 모달 -->
     <div id="exportModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[110] hidden items-center justify-center p-4">
@@ -673,6 +701,8 @@
 
                     <div class="text-notion-muted">대시보드 이동</div>
                     <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">H</kbd></div>
+                    <div class="text-notion-muted">UI 전체 배율 확대 / 축소 / 초기화</div>
+                    <div class="text-right"><kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">⌘/Ctrl</kbd> + <kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">+</kbd> / <kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">-</kbd> / <kbd class="px-2 py-1 bg-notion-hover border border-notion-border rounded text-notion-text">0</kbd></div>
 
                     <div class="col-span-2 border-t border-notion-border my-2 pt-2 font-bold text-blue-400">프레젠테이션 모드</div>
                     
@@ -1222,6 +1252,49 @@
         function closeSlideBoards() { const m = document.getElementById('slideBoardsModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSlideBoards(); });
 
+        // ==========================================
+        // 전체 UI 배율: Cmd/Ctrl + '+' / '-' / '0' (VS Code 와 같은 방식). 브라우저 자체 확대 대신 앱 배율을 조절한다.
+        // ==========================================
+        const UI_ZOOM_MIN = 0.5, UI_ZOOM_MAX = 2.0, UI_ZOOM_STEP = 0.1;
+        const UI_ZOOM_BASE = 0.9; // 표시상 100% = 실제 90% (기본 UI 를 한 단계 작게)
+        let uiZoom = 1;
+        try { uiZoom = Math.min(UI_ZOOM_MAX, Math.max(UI_ZOOM_MIN, parseFloat(localStorage.getItem('viewer_ui_zoom')) || 1)); } catch (e) {}
+        function applyUiZoom(show) {
+            // zoom 을 걸면 100vh/100vw 도 함께 줄어들어 창을 다 채우지 못하므로, 본문 크기를 배율의 역수로 보정해 항상 창 전체를 채운다
+            const root = document.documentElement;
+            const effective = Math.round(uiZoom * UI_ZOOM_BASE * 1000) / 1000;
+            if (effective === 1) { root.style.zoom = ''; body.style.height = ''; body.style.width = ''; root.style.setProperty('--ui-zoom', '1'); }
+            else {
+                root.style.zoom = String(effective);
+                body.style.height = `calc(100vh / ${effective})`;
+                body.style.width = `calc(100vw / ${effective})`;
+                root.style.setProperty('--ui-zoom', String(effective));
+            }
+            try { localStorage.setItem('viewer_ui_zoom', String(uiZoom)); } catch (e) {}
+            if (show) showToast(`UI 배율 ${Math.round(uiZoom * 100)}%  (Cmd/Ctrl + '+' / '-' / '0')`, 1500);
+        }
+        function setUiZoom(next, show = true) {
+            uiZoom = Math.round(Math.min(UI_ZOOM_MAX, Math.max(UI_ZOOM_MIN, next)) * 100) / 100;
+            applyUiZoom(show);
+        }
+        applyUiZoom(false);
+        document.addEventListener('keydown', (e) => {
+            if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+            // 키보드 배열과 무관하게 동작하도록 key 와 code 를 모두 본다
+            const plus = e.key === '+' || e.key === '=' || e.code === 'Equal' || e.code === 'NumpadAdd';
+            const minus = e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract';
+            const zero = e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0';
+            if (!plus && !minus && !zero) return;
+            e.preventDefault(); e.stopPropagation();
+            if (zero) setUiZoom(1); else setUiZoom(uiZoom + (plus ? UI_ZOOM_STEP : -UI_ZOOM_STEP));
+        }, true);
+        // Cmd/Ctrl + 휠도 브라우저 확대 대신 앱 배율로
+        window.addEventListener('wheel', (e) => {
+            if (!(e.metaKey || e.ctrlKey)) return;
+            e.preventDefault();
+            setUiZoom(uiZoom + (e.deltaY < 0 ? UI_ZOOM_STEP : -UI_ZOOM_STEP));
+        }, { passive: false });
+
         function saveSession() {
             const sessionData = openedTabs.map(t => ({ 
                 id: t.id, 
@@ -1308,6 +1381,7 @@
 
             pageIndicator.textContent = `${tab.currentIndex + 1} / ${tab.slides.length}`;
             updateSlideBoardsBtn(tab);
+            renderChatForCurrentSlide();
             prevSlideBtn.disabled = tab.currentIndex === 0;
             nextSlideBtn.disabled = tab.currentIndex === tab.slides.length - 1;
             slideTextContainer.scrollTop = 0;
@@ -1803,6 +1877,106 @@
         setInterval(checkDocsChanges, 8000);
         checkDocsChanges();
         document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDocsChanges(); });
+
+        // ==========================================
+        // 슬라이드별 AI 질문 (스트리밍, 슬라이드별 대화 기록은 브라우저에 저장)
+        // ==========================================
+        const chatPanel = document.getElementById('chatPanel');
+        const chatMessagesEl = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        let chatBusy = false, chatAbort = null;
+
+        function chatKey(tab) { return `viewer_chat_${tab.id}_${slideNumberOf(tab, tab.currentIndex)}`; }
+        function loadChat(tab) { try { return JSON.parse(localStorage.getItem(chatKey(tab)) || '[]'); } catch (e) { return []; } }
+        function saveChat(tab, history) { try { localStorage.setItem(chatKey(tab), JSON.stringify(history.slice(-40))); } catch (e) {} }
+
+        function toggleChatPanel() {
+            const tab = getActiveTab();
+            if (!tab) { showToast('먼저 문서를 열어 주세요.', 3000); return; }
+            const open = chatPanel.classList.contains('hidden');
+            chatPanel.classList.toggle('hidden', !open); chatPanel.classList.toggle('flex', open);
+            if (open) { renderChatForCurrentSlide(); setTimeout(() => chatInput.focus(), 50); }
+        }
+        function renderChatForCurrentSlide() {
+            const tab = getActiveTab(); if (!tab || chatPanel.classList.contains('hidden')) return;
+            document.getElementById('chatSlideLabel').textContent = `· 슬라이드 ${slideNumberOf(tab, tab.currentIndex)} / ${tab.slides.length}`;
+            const history = loadChat(tab);
+            chatMessagesEl.innerHTML = history.length ? '' : `<div class="text-xs text-notion-muted text-center py-6"><i class="fas fa-lightbulb text-amber-400 mb-2 block text-lg"></i>이 슬라이드의 이미지와 설명을 보고 답합니다.<br>예: "이 수식이 왜 성립해?", "더 쉽게 설명해줘", "시험에 나올 만한 포인트는?"</div>`;
+            for (const m of history) appendChatBubble(m.role, m.content);
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        }
+        function appendChatBubble(role, content) {
+            const wrap = document.createElement('div');
+            wrap.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+            const bubble = document.createElement('div');
+            bubble.className = role === 'user'
+                ? 'max-w-[85%] px-3 py-2 rounded-2xl rounded-br-md bg-sky-600/30 border border-sky-400/30 text-notion-text whitespace-pre-wrap break-words'
+                : 'max-w-[92%] px-3 py-2 rounded-2xl rounded-bl-md bg-notion-hover border border-notion-border text-notion-text prose prose-sm dark:prose-invert max-w-none chat-md';
+            if (role === 'user') bubble.textContent = content; else bubble.innerHTML = renderMarkdownWithMath(content || '');
+            wrap.appendChild(bubble); chatMessagesEl.appendChild(wrap);
+            return bubble;
+        }
+        function clearChatForSlide() {
+            const tab = getActiveTab(); if (!tab) return;
+            if (!confirm('이 슬라이드의 대화를 지울까요?')) return;
+            try { localStorage.removeItem(chatKey(tab)); } catch (e) {}
+            renderChatForCurrentSlide();
+        }
+        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+        // 뷰어 단축키(방향키 등)가 입력 중에 동작하지 않도록
+        chatInput.addEventListener('keydown', (e) => e.stopPropagation());
+
+        async function sendChat() {
+            const tab = getActiveTab(); if (!tab || chatBusy) return;
+            const text = chatInput.value.trim(); if (!text) return;
+            const slideNo = slideNumberOf(tab, tab.currentIndex);
+            const history = loadChat(tab);
+            chatInput.value = ''; chatBusy = true;
+            document.getElementById('chatSendBtn').disabled = true;
+            if (!history.length) chatMessagesEl.innerHTML = '';
+            appendChatBubble('user', text);
+            const bubble = appendChatBubble('assistant', '');
+            bubble.innerHTML = '<span class="text-notion-muted"><i class="fas fa-circle-notch fa-spin mr-1"></i>생각 중...</span>';
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            const status = document.getElementById('chatStatus'); status.textContent = '';
+            let answer = '';
+            chatAbort = new AbortController();
+            try {
+                const res = await fetch(`/api/chat/doc/${tab.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history: history.slice(-20), slide: slideNo }), signal: chatAbort.signal });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || `오류 ${res.status}`); }
+                const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = '';
+                let lastRender = 0;
+                while (true) {
+                    const { value, done } = await reader.read(); if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    let idx;
+                    while ((idx = buf.indexOf('\n\n')) >= 0) {
+                        const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 2);
+                        if (!line.startsWith('data:')) continue;
+                        let ev; try { ev = JSON.parse(line.slice(5)); } catch (e) { continue; }
+                        if (ev.error) throw new Error(ev.error);
+                        if (ev.delta) {
+                            answer += ev.delta;
+                            const now = Date.now();
+                            if (now - lastRender > 80) { bubble.innerHTML = renderMarkdownWithMath(answer) + '<span class="animate-pulse">▍</span>'; lastRender = now; chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }
+                        }
+                        if (ev.done) {
+                            const cost = ev.cost_usd ? ` · $${ev.cost_usd}` : '';
+                            status.textContent = `${ev.model || ''} · ${(ev.tokens || 0).toLocaleString()} 토큰` + (ev.cached ? ` (캐시 ${ev.cached.toLocaleString()})` : '') + cost;
+                        }
+                    }
+                }
+                bubble.innerHTML = renderMarkdownWithMath(answer || '(응답이 비어 있습니다)');
+                const newHistory = [...history, { role: 'user', content: text }, { role: 'assistant', content: answer }];
+                saveChat(tab, newHistory);
+            } catch (err) {
+                bubble.innerHTML = `<span class="text-red-400">${escapeHtml(err.message || '오류')}</span>`;
+                saveChat(tab, [...history, { role: 'user', content: text }]);
+            } finally {
+                chatBusy = false; chatAbort = null; document.getElementById('chatSendBtn').disabled = false;
+                chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            }
+        }
 
         // ==========================================
         // 내보내기 (PDF: 브라우저 인쇄 엔진으로 저장, Markdown: 파일 다운로드)

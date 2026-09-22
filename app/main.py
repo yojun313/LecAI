@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.routes import (
+    chat_routes,
     view_routes,
     auth_routes,
     job_routes,
@@ -35,4 +36,5 @@ app.include_router(auth_routes.router, prefix="/api", tags=["Auth"])
 app.include_router(job_routes.router, prefix="/api", tags=["Jobs"])
 app.include_router(user_routes.router, prefix="/api", tags=["User"])
 app.include_router(doc_routes.router, prefix="/api", tags=["Docs"])
+app.include_router(chat_routes.router, prefix="/api", tags=["Chat"])
 app.include_router(whisper_routes.router, prefix="/api", tags=["Whisper"])
