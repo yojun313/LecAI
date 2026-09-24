@@ -4,7 +4,7 @@ The project relies on several system-level tools for file conversion, PDF proces
 
 ![Dash](./static/imgs/dash.png)
 ![Viewer](./static/imgs/viewer.png)
-![Setting](./static/imgs/setting.png)
+![Whisper](./static/imgs/whisper.png)
 
 * **LibreOffice**: To convert PPT/PPTX slides to PDF.
 * **Poppler-utils**: For `pdf2image` to extract frames from PDF files.

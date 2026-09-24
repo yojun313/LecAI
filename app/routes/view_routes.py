@@ -17,7 +17,8 @@ async def index(request: Request):
     user = AuthManager.get_user_by_session(session_id)
 
     if not user:
-        return RedirectResponse(url="/login")
+        # 로그인하지 않은 방문자에게는 서비스 소개 랜딩 페이지
+        return templates.TemplateResponse(request, "landing.html")
 
     user_settings = AuthManager.get_user_settings(user)
 
@@ -30,6 +31,17 @@ async def index(request: Request):
             "enable_local_llm": settings.ENABLE_LOCAL_LLM,
         },
     )
+
+
+@router.get("/logout")
+async def logout(request: Request):
+    """세션 삭제 + 쿠키 제거 후 랜딩 페이지로"""
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        AuthManager.logout(session_id)
+    response = RedirectResponse(url="/", status_code=302)
+    response.delete_cookie("session_id")
+    return response
 
 
 @router.get("/login")

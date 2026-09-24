@@ -137,6 +137,47 @@ html[data-ui-theme-mode="light"] .text-white\/30 { color: #8a92aa !important; }
 html[data-ui-theme-mode="light"] .hover\:text-white:hover { color: #101828 !important; }
 html[data-ui-theme-mode="light"] .placeholder-white\/30::placeholder { color: #94a3b8 !important; }
 
+/* 색이 있는 배경(그라디언트/단색 버튼, 배지) 위의 흰 글자는 라이트 모드에서도 흰색을 유지한다
+   (위의 .text-white 덮어쓰기 예외). 자식 요소는 색을 상속받으므로 버튼 자체에만 적용하면 된다. */
+html[data-ui-theme-mode="light"] .bg-gradient-to-r.text-white,
+html[data-ui-theme-mode="light"] .bg-gradient-to-br.text-white,
+html[data-ui-theme-mode="light"] .bg-gradient-to-b.text-white,
+html[data-ui-theme-mode="light"] .bg-gradient-to-l.text-white,
+html[data-ui-theme-mode="light"] .bg-blue-500.text-white,
+html[data-ui-theme-mode="light"] .bg-blue-600.text-white,
+html[data-ui-theme-mode="light"] .bg-purple-600.text-white,
+html[data-ui-theme-mode="light"] .bg-indigo-600.text-white,
+html[data-ui-theme-mode="light"] .bg-sky-600.text-white,
+html[data-ui-theme-mode="light"] .bg-emerald-500.text-white,
+html[data-ui-theme-mode="light"] .bg-emerald-600.text-white,
+html[data-ui-theme-mode="light"] .bg-teal-600.text-white,
+html[data-ui-theme-mode="light"] .bg-amber-500.text-white,
+html[data-ui-theme-mode="light"] .bg-amber-600.text-white,
+html[data-ui-theme-mode="light"] .bg-orange-600.text-white,
+html[data-ui-theme-mode="light"] .bg-red-500.text-white,
+html[data-ui-theme-mode="light"] .bg-red-600.text-white,
+html[data-ui-theme-mode="light"] .bg-pink-600.text-white,
+html[data-ui-theme-mode="light"] .bg-black\/50.text-white,
+html[data-ui-theme-mode="light"] .bg-black\/60.text-white,
+html[data-ui-theme-mode="light"] .bg-black\/70.text-white,
+html[data-ui-theme-mode="light"] .bg-black\/80.text-white,
+html[data-ui-theme-mode="light"] .bg-black\/85.text-white {
+    color: #ffffff !important;
+}
+/* 색 배경 버튼 안의 흰 계열 보조 텍스트(text-white/80 등)도 흰색 유지 */
+html[data-ui-theme-mode="light"] .bg-gradient-to-r [class*="text-white"],
+html[data-ui-theme-mode="light"] .bg-gradient-to-br [class*="text-white"],
+html[data-ui-theme-mode="light"] .bg-blue-600 [class*="text-white"],
+html[data-ui-theme-mode="light"] .bg-purple-600 [class*="text-white"],
+html[data-ui-theme-mode="light"] .bg-emerald-600 [class*="text-white"],
+html[data-ui-theme-mode="light"] .bg-red-600 [class*="text-white"] {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+html[data-ui-theme-mode="light"] .bg-gradient-to-r.hover\:text-white:hover,
+html[data-ui-theme-mode="light"] .bg-gradient-to-br.hover\:text-white:hover {
+    color: #ffffff !important;
+}
+
 /* 테두리 계열 */
 html[data-ui-theme-mode="light"] .border-white\/5 { border-color: rgba(15, 23, 42, 0.06) !important; }
 html[data-ui-theme-mode="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.10) !important; }
