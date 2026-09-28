@@ -79,8 +79,17 @@
             </div>
             <p id="tpError" class="hidden text-xs text-red-400"></p>
         </div>
+        <div id="tpBatchRow" class="hidden px-5 pb-4">
+            <label class="flex items-start gap-3 glass-soft rounded-xl px-3 py-2.5 cursor-pointer select-none">
+                <input type="checkbox" id="tpUseBatch" class="mt-0.5 w-4 h-4 accent-blue-500 cursor-pointer">
+                <span class="text-sm">
+                    <span class="font-bold text-white/80">Batch API 로 분석 (토큰 요금 50% 할인)</span>
+                    <span class="block text-[11px] text-white/45 mt-0.5">비용이 절반이지만 OpenAI 대기열을 거쳐 결과까지 수 분~최대 24시간이 걸릴 수 있습니다. 끄면 바로 분석합니다. 마지막 선택이 기억됩니다.</span>
+                </span>
+            </label>
+        </div>
         <div class="p-4 border-t border-white/10 flex justify-end space-x-2 glass-soft">
-            <button type="button" id="tpSkipBtn" onclick="tpResolve({ kind: 'none' })" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">녹음본 없이 업로드</button>
+            <button type="button" id="tpSkipBtn" onclick="tpResolve({ kind: 'none', batch: tpBatchValue() })" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">녹음본 없이 업로드</button>
             <button type="button" id="tpCancelBtn" onclick="tpResolve(null)" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">취소</button>
             <button type="button" id="tpSubmitBtn" onclick="tpSubmit()" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold shadow-md transition">
                 <i class="fas fa-upload mr-1"></i> <span id="tpSubmitLabel">확인</span>
@@ -211,6 +220,8 @@
             ? '슬라이드 분석 시 녹음본에서 각 슬라이드를 설명한 부분을 찾아 "강의 녹음 발췌" 절을 함께 정리합니다. 녹음본은 슬라이드마다 통째로 전달되지만 프롬프트 캐싱으로 2번째 슬라이드부터 캐시 단가(정가의 10%)가 적용됩니다.'
             : '이미 만들어진 슬라이드 설명에 강의 녹음 내용을 덧붙입니다. 녹음본에서 각 슬라이드를 설명한 부분만 찾아 그 슬라이드에만 "강의 녹음 발췌" 절이 추가됩니다. 슬라이드 이미지는 다시 보내지 않고 녹음본은 프롬프트 캐싱으로 처리됩니다.';
         document.getElementById('tpSkipBtn').classList.toggle('hidden', !pre);
+        document.getElementById('tpBatchRow').classList.toggle('hidden', !pre);
+        try { document.getElementById('tpUseBatch').checked = localStorage.getItem('lecai_use_batch') === '1'; } catch (e) {}
         document.getElementById('tpCancelBtn').classList.toggle('hidden', pre);
         document.getElementById('tpSubmitLabel').textContent = audioOnly ? '음성 인식 시작' : (pre ? '녹음본과 함께 업로드' : '녹음본 반영 시작');
         modal.querySelector('[role="tablist"]').classList.toggle('hidden', audioOnly);
@@ -238,7 +249,7 @@
         if (currentTab === 'paste') {
             const text = textArea.value.trim();
             if (!text) return showError('녹음본 텍스트를 붙여 넣으세요.');
-            return tpResolve({ kind: 'text', text, range: r.range });
+            return tpResolve({ kind: 'text', text, range: r.range, batch: tpBatchValue() });
         }
         if (currentTab === 'whisper') {
             if (!pickedNoteUid) return showError('Whisper 노트를 선택하세요.');
@@ -248,17 +259,26 @@
                 const note = await res.json();
                 const text = (note.text || (note.segments || []).map(s => s.text).join(' ')).trim();
                 if (!text) return showError('선택한 노트에 전사 텍스트가 없습니다.');
-                return tpResolve({ kind: 'text', text, range: r.range });
+                return tpResolve({ kind: 'text', text, range: r.range, batch: tpBatchValue() });
             } catch (e) {
                 return showError('노트 내용을 불러오지 못했습니다.');
             }
         }
         if (!pickedFile) return showError(currentTab === 'audio' ? '녹음 파일을 선택하세요.' : '텍스트 문서를 선택하세요.');
-        return tpResolve({ kind: 'file', file: pickedFile.file, language: pickedFile.kind === 'audio' ? (langSelect.value || 'auto') : undefined, range: r.range });
+        return tpResolve({ kind: 'file', file: pickedFile.file, language: pickedFile.kind === 'audio' ? (langSelect.value || 'auto') : undefined, range: r.range, batch: tpBatchValue() });
     };
 
     // FormData 에 선택 결과를 채운다 (사전/사후 공통)
+    // 사전(pre) 모드에서만 Batch 선택값을 돌려준다 (그 외 모드는 undefined → 서버 기본값)
+    window.tpBatchValue = () => {
+        if (modal.dataset.mode !== 'pre') return undefined;
+        const on = document.getElementById('tpUseBatch').checked;
+        try { localStorage.setItem('lecai_use_batch', on ? '1' : '0'); } catch (e) {}
+        return on;
+    };
+
     window.applyTranscriptChoice = (formData, choice) => {
+        if (choice && typeof choice.batch === 'boolean') formData.append('use_batch', choice.batch ? '1' : '0');
         if (!choice || choice.kind === 'none') return;
         if (choice.kind === 'text') formData.append('transcript', choice.text);
         else if (choice.kind === 'file') formData.append('transcript_file', choice.file);

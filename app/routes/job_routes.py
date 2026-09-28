@@ -39,6 +39,7 @@ async def upload_file(
     auto_import_parent_id: str = Form(""),
     slide_from: str = Form(""),
     slide_to: str = Form(""),
+    use_batch: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     ext = os.path.splitext(file.filename)[1].lower()
@@ -78,6 +79,12 @@ async def upload_file(
         if auto_import_parent_id:
             JobManager.update_fields(
                 job_id, {"auto_import_parent_id": auto_import_parent_id}
+            )
+        # 업로드 모달에서 고른 Batch 사용 여부 (이 작업에만 적용)
+        if use_batch.strip():
+            JobManager.update_fields(
+                job_id,
+                {"use_batch": use_batch.strip().lower() in ("1", "true", "on", "yes")},
             )
         # 강의 녹음본: 붙여넣은 텍스트 / 텍스트 문서 / 음성 파일 중 하나 (선택)
         try:

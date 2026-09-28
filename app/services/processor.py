@@ -1856,6 +1856,10 @@ def process_file_task(job_id: str, file_path: str):
     owner = job.get("owner")
     user_settings = AuthManager.get_user_settings(owner)
 
+    # 업로드 모달에서 고른 Batch 여부가 있으면 사용자 설정보다 우선
+    if "use_batch" in job:
+        user_settings = dict(user_settings, use_batch_api=bool(job["use_batch"]))
+
     try:
         model_config = get_target_model(user_settings)
     except Exception as e:

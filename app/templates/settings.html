@@ -217,17 +217,6 @@
                                     </div>
                                     <input type="password" name="api_key" id="apiKeyInput" placeholder="sk-..."
                                            class="w-full p-3 rounded-xl glass-input outline-none transition font-mono text-sm">
-
-                                    <label class="flex items-start space-x-3 mt-4 cursor-pointer select-none">
-                                        <input type="checkbox" name="use_batch" id="useBatchCheckbox" value="1"
-                                               class="mt-1 w-4 h-4 rounded accent-blue-500 cursor-pointer">
-                                        <span class="text-sm">
-                                            <span class="font-bold text-white/80">Batch API 사용 (토큰 요금 50% 할인)</span>
-                                            <span class="block text-xs text-white/40 mt-1">
-                                                슬라이드 분석을 OpenAI 배치 대기열로 보냅니다. 비용이 절반이지만 결과까지 수 분~최대 24시간이 걸릴 수 있습니다. 진행률은 대시보드에 그대로 표시됩니다.
-                                            </span>
-                                        </span>
-                                    </label>
                                 </div>
                             </div>
 
@@ -407,14 +396,12 @@
         // 설정 로드 및 저장
         const currentModel = "{{ settings.preferred_model }}";
         const currentKey = "{{ settings.openai_api_key }}";
-        const currentUseBatch = {{ 'true' if settings.use_batch_api else 'false' }};
         const currentPrompt = {{ settings.custom_prompt | tojson | safe }};
         const currentUserPrompt = {{ settings.custom_user_prompt | tojson | safe }};
 
         const localEnabled = {{ 'true' if enable_local_llm else 'false' }};
         document.getElementById('modelSelect').value = (!currentModel || (currentModel === 'local' && !localEnabled)) ? 'gpt-5.6-luna' : currentModel;
         document.getElementById('apiKeyInput').value = currentKey || '';
-        document.getElementById('useBatchCheckbox').checked = currentUseBatch;
         document.getElementById('audioLangSelect').value = "{{ settings.audio_language or 'auto' }}" || 'auto';
         document.getElementById('audioModelSelect').value = String({{ settings.audio_model_level or 2 }});
         const sttSelect = document.getElementById('sttProviderSelect');

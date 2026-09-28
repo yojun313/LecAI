@@ -36,7 +36,7 @@ async def save_settings(
     stt_provider: str = Form(""),
     custom_prompt: Optional[str] = Form(None),
     custom_user_prompt: Optional[str] = Form(None),
-    use_batch: str = Form("0"),
+    use_batch: str = Form(""),
     profile_img: Optional[UploadFile] = File(None),
     user: Any = Depends(get_current_user),
 ):
@@ -44,7 +44,11 @@ async def save_settings(
         model = (
             settings.DEFAULT_MODEL
         )  # 로컬 서버 기능이 꺼져 있으면 기본 OpenAI 모델로 저장
-    use_batch_api = use_batch.strip().lower() in ("1", "true", "on", "yes")
+    use_batch_api = (
+        use_batch.strip().lower() in ("1", "true", "on", "yes")
+        if use_batch.strip()
+        else AuthManager.get_user_settings(user).get("use_batch_api", False)
+    )
     profile_url = None
     if profile_img and profile_img.filename:
         profile_dir = "static/profiles"
