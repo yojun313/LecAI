@@ -18,6 +18,19 @@ import os
 app = FastAPI(title="LecAI", docs_url=None, redoc_url=None, openapi_url=None)
 
 
+@app.middleware("http")
+async def no_cache_html(request, call_next):
+    """HTML 페이지는 브라우저/프록시가 캐시하지 않도록 한다 (배포 직후에도 항상 최신 화면)"""
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 @app.on_event("startup")
 async def on_startup():
     # 서버 재시작으로 끊긴 Whisper 전사 작업을 자동으로 이어서 돌린다
