@@ -1,0 +1,44 @@
+{# 공용 앱 사이드바 (Dashboard / Whisper / Settings). active_page: 'dashboard' | 'whisper' | 'settings' #}
+{% set nav_items = [('dashboard', '/', 'fa-columns', 'Dashboard'), ('viewer', '/viewer', 'fa-book-open', 'Viewer'), ('whisper', '/whisper', 'fa-microphone', 'Whisper'), ('settings', '/settings', 'fa-cog', 'Settings')] %}
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 glass-strong border-r border-white/10 flex flex-col transition-all duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
+    <div class="sb-top p-5 border-b border-white/10 relative">
+        <div class="sb-brand flex items-center gap-3 mb-4">
+            <div class="sb-brand-icon"><i class="fas fa-book-open text-sm"></i></div>
+            <div class="sb-label">
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 tracking-tight leading-none">LecAI</h1>
+                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40 mt-1">Study Assistant</p>
+            </div>
+        </div>
+        <div class="sb-user flex items-center space-x-3 glass-soft p-2 rounded-xl">
+            <div class="w-10 h-10 rounded-full border border-blue-400/40 overflow-hidden bg-gray-800 flex-shrink-0 shadow-lg">
+                <img id="sidebarAvatar" src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover" alt="">
+            </div>
+            <div class="min-w-0">
+                <p class="text-xs text-white/40">Welcome,</p>
+                <p class="text-sm font-bold text-white truncate">{{ username }}</p>
+            </div>
+        </div>
+        <button id="closeSidebarBtn" type="button" class="absolute top-5 right-5 md:hidden text-white/40 hover:text-white transition" aria-label="사이드바 닫기">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <nav class="flex-1 px-3 py-4 space-y-1" aria-label="메뉴">
+        {% for key, href, icon, label in nav_items %}
+        <a href="{{ href }}" title="{{ label }}" class="sb-nav-link {{ 'active' if active_page == key else '' }}" {% if active_page == key %}aria-current="page"{% endif %}>
+            <i class="fas {{ icon }} w-6 text-center"></i>
+            <span class="sb-label ml-2 font-medium text-sm">{{ label }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    <div class="sb-bottom p-3 border-t border-white/10">
+        <div class="sb-account flex items-center gap-1">
+            <a href="/logout" class="sb-logout flex-1 min-w-0 flex items-center px-3 py-2 text-red-300/90 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition text-sm" title="로그아웃">
+                <i class="fas fa-sign-out-alt w-6 text-center"></i><span class="sb-label ml-2">Logout</span>
+            </a>
+            <button type="button" data-theme-settings class="sb-icon" title="테마 설정" aria-label="테마 설정"><i class="fas fa-palette text-sm"></i></button>
+            <button id="sidebarCollapseBtn" type="button" class="sb-icon hidden md:inline-flex" title="사이드바 아이콘만 남기기" aria-label="사이드바 아이콘만 남기기"><i class="fas fa-angles-left text-sm transition-transform"></i></button>
+        </div>
+    </div>
+</aside>

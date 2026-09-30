@@ -295,6 +295,14 @@
         #nodeList.root-drop-target::after { content: '여기에 놓으면 최상위로 이동'; display: block; text-align: center; font-size: 0.7rem; color: #60a5fa; padding: 0.75rem 0; }
         .invisible { visibility: hidden; }
         .chat-md p { margin: 0.35em 0; } .chat-md pre { margin: 0.5em 0; } .chat-md .katex-display { margin: 0.5em 0; padding: 0.5rem; }
+        /* 사이드바 너비 조절 손잡이: 화면 공간은 차지하지 않고 경계 양쪽 6px 씩 잡을 수 있다 */
+        #resizer { position: relative; width: 1px; margin: 0 -6px; padding: 0 6px; box-sizing: content-box; z-index: 60; flex-shrink: 0; cursor: col-resize; touch-action: none; background-clip: content-box; background-color: transparent; }
+        #resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 3px; border-radius: 2px; background: transparent; transition: background .12s; }
+        #resizer:hover::after, body.sidebar-resizing #resizer::after { background: rgba(96,165,250,.8); }
+        /* 크기 조절 중에는 이미지·iframe·텍스트가 마우스를 가로채지 않게 */
+        body.sidebar-resizing, body.sidebar-resizing * { cursor: col-resize !important; user-select: none !important; }
+        body.sidebar-resizing img, body.sidebar-resizing iframe, body.sidebar-resizing #presentationView, body.sidebar-resizing #scrollView { pointer-events: none !important; }
+        #slideImage { -webkit-user-drag: none; user-select: none; }
         .no-scrollbar { scrollbar-width: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         #toolbar > * { flex-shrink: 0; }
@@ -308,40 +316,33 @@
         }
     </style>
     <link rel="stylesheet" href="/static/shared/theme.css">
+    <link rel="stylesheet" href="/static/shared/sidebar.css">
+    <script src="/static/shared/sidebar.js"></script>
 </head>
 <body class="text-notion-text font-sans h-screen flex overflow-hidden relative transition-colors duration-300">
 
     <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
 
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 glass-strong border-r flex flex-col md:relative transform -translate-x-full md:translate-x-0 flex-shrink-0">
-        <div class="p-4 flex justify-between items-center group">
-            <h1 class="text-xl font-bold text-notion-text tracking-tight flex items-center truncate">
-                <i class="fas fa-book-open text-blue-500 mr-2.5"></i>Viewer
-            </h1>
-            <div class="flex items-center space-x-1">
-                <a href="/" class="hidden md:block text-xs bg-notion-hover px-2 py-1 rounded-lg hover:bg-notion-hover transition">Dash</a>
-                <button id="closeSidebarBtn" class="md:hidden text-notion-muted hover:text-notion-text px-2"><i class="fas fa-times text-xl"></i></button>
+        <!-- Explorer 헤더: 제목 + 도구 (UnivDash 파일 트리 헤더 방식) -->
+        <div class="px-3 pt-3 pb-1 relative">
+            <div class="flex items-center justify-between mb-1">
+                <div class="sb-section-title sb-label px-1">Explorer</div>
+                <button id="closeSidebarBtn" type="button" class="md:hidden text-notion-muted hover:text-notion-text w-7 h-7" aria-label="사이드바 닫기"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="sb-tools flex items-center justify-between gap-0.5">
+                <a href="/" class="sb-icon" title="대시보드로" aria-label="대시보드로"><i class="fas fa-house text-[13px]"></i></a>
+                <button type="button" onclick="createFolder(event, 'root')" class="sb-icon" title="최상위에 새 폴더" aria-label="새 폴더"><i class="fas fa-folder-plus text-[13px]"></i></button>
+                <button type="button" onclick="openHistoryModal()" class="sb-icon" title="작업 결과 불러오기" aria-label="불러오기"><i class="fas fa-clock-rotate-left text-[13px]"></i></button>
+                <button type="button" onclick="openArchiveModal()" class="sb-icon" title="보관함" aria-label="보관함"><i class="fas fa-box-archive text-[13px]"></i></button>
+                <button type="button" onclick="resetSidebarWidth()" class="sb-icon sb-hide-rail" title="사이드바 기본 폭으로" aria-label="사이드바 기본 폭으로"><i class="fas fa-arrows-left-right-to-line text-[13px]"></i></button>
+                <button type="button" onclick="refreshTree()" class="sb-icon sb-hide-rail" title="새로고침" aria-label="새로고침"><i class="fas fa-rotate-right text-[13px]"></i></button>
+                <button type="button" onclick="collapseAllFolders()" class="sb-icon sb-hide-rail" title="모든 폴더 접기" aria-label="모든 폴더 접기"><i class="fas fa-down-left-and-up-right-to-center text-[13px]"></i></button>
             </div>
         </div>
-        <div class="px-2 pb-2 flex space-x-1">
-            <button onclick="createFolder(event, 'root')" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded-lg border border-notion-border transition" title="최상위에 새 폴더">
-                <i class="fas fa-folder-plus"></i>
-            </button>
-            <button onclick="openArchiveModal()" class="bg-notion-hover hover:bg-opacity-80 text-notion-muted hover:text-notion-text py-1.5 px-2 rounded-lg border border-notion-border transition relative" title="보관함">
-                <i class="fas fa-box-archive"></i>
-            </button>
-            <button onclick="openHistoryModal()" class="flex-1 bg-notion-hover hover:bg-opacity-80 text-sm py-1.5 rounded-lg border border-notion-border text-notion-text transition">
-                <i class="fas fa-history mr-1 text-purple-400"></i> 불러오기
-            </button>
-            <button onclick="document.getElementById('viewerUploadInput').click()" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-sm py-1.5 rounded-lg shadow-md" id="uploadBtn" title="PDF/PPT 를 AI 분석해 문서함에 저장">
-                <i class="fas fa-wand-magic-sparkles mr-1"></i> AI 분석
-            </button>
-        </div>
-        <div class="px-4 py-2 text-xs font-bold text-notion-muted uppercase tracking-wider mt-2 mb-1">
-            Explorer
-        </div>
-        <div id="nodeList" class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5 custom-scrollbar"></div>
-        <div class="px-3 pb-3 pt-2 border-t border-notion-border">
+        <div id="nodeList" class="sb-hide-rail flex-1 overflow-y-auto px-2 pb-4 space-y-0.5 custom-scrollbar"></div>
+        <div class="sb-rail-only flex-1"></div>
+        <div class="sb-hide-rail px-3 pb-3 pt-2 border-t border-notion-border">
             <div id="viewerUploadZone" class="border-2 border-dashed border-notion-border rounded-xl p-3 text-center cursor-pointer transition hover:border-blue-400/60 hover:bg-blue-500/5">
                 <i class="fas fa-wand-magic-sparkles text-blue-400 mb-1"></i>
                 <p class="text-xs font-bold text-notion-text">PDF/PPT 를 여기에 놓으면 AI 분석</p>
@@ -349,8 +350,19 @@
                 <input type="file" id="viewerUploadInput" class="hidden" multiple accept=".pdf,.ppt,.pptx">
             </div>
         </div>
+
+        <div class="sb-bottom p-3 border-t border-notion-border">
+            <div class="sb-account flex items-center gap-1">
+                <a href="/logout" class="sb-logout flex-1 min-w-0 flex items-center px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-xl transition text-sm" title="로그아웃">
+                    <i class="fas fa-sign-out-alt w-6 text-center"></i><span class="sb-label ml-2">Logout</span>
+                </a>
+                <button type="button" data-theme-settings class="sb-icon" title="테마 설정" aria-label="테마 설정"><i class="fas fa-palette text-sm"></i></button>
+                <button id="sidebarCollapseBtn" type="button" class="sb-icon hidden md:inline-flex" title="사이드바 아이콘만 남기기" aria-label="사이드바 아이콘만 남기기"><i class="fas fa-angles-left text-sm transition-transform"></i></button>
+                <button type="button" onclick="hideSidebarCompletely()" class="sb-icon hidden md:inline-flex" title="사이드바 완전히 접기 (상단 ☰ 로 다시 열기)" aria-label="사이드바 완전히 접기"><i class="fas fa-eye-slash text-sm"></i></button>
+            </div>
+        </div>
     </aside>
-    <div id="resizer" class="hidden md:block w-1 hover:w-1.5 active:w-1.5 bg-transparent hover:bg-blue-500/50 active:bg-blue-600 cursor-col-resize z-50 transition-colors flex-shrink-0"></div>
+    <div id="resizer" class="hidden md:block" role="separator" aria-orientation="vertical" aria-label="사이드바 너비 조절 (더블클릭: 기본 폭)" title="끌어서 너비 조절 · 더블클릭하면 기본 폭"></div>
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden min-w-0">
         <header class="h-14 glass border-b flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-30">
@@ -410,7 +422,7 @@
 
         <div id="emptyView" class="flex-1 flex flex-col items-center justify-center text-notion-muted select-none p-4 text-center">
             <i class="far fa-file-alt text-6xl mb-6 opacity-20"></i>
-            <p class="text-xl font-medium">문서를 선택하거나 ZIP 파일을 드래그하세요.</p>
+            <p class="text-xl font-medium">왼쪽 Explorer 에서 문서를 선택하거나, PDF·PPT 를 AI 분석해 보세요.</p>
         </div>
 
         <div id="scrollView" class="flex-1 overflow-y-auto hidden custom-scrollbar relative">
@@ -419,7 +431,7 @@
 
         <div id="presentationView">
             <div class="split-image-container">
-                <img id="slideImage" src="" alt="Slide Image" class="hidden animate-fade-in">
+                <img id="slideImage" src="" alt="Slide Image" class="hidden animate-fade-in" draggable="false">
                 <div id="noImageText" class="text-notion-muted flex flex-col items-center">
                     <i class="far fa-image text-4xl mb-2 opacity-50"></i>
                     <span>이미지 없음</span>
@@ -896,30 +908,50 @@
             sidebarContent.style.width = `${savedWidth}px`;
         }
 
-        resizer.addEventListener('mousedown', (e) => {
+        // 사이드바 기본 폭(260px)으로 되돌리기
+        function resetSidebarWidth() {
+            sidebarContent.style.width = '';
+            try { localStorage.removeItem('sidebarWidth'); } catch (e) {}
+            if (document.documentElement.classList.contains('sidebar-collapsed')) window.toggleSidebarRail && window.toggleSidebarRail(false);
+            showToast('사이드바를 기본 폭으로 맞췄습니다.', 1800);
+        }
+        // Explorer 새로고침 / 모든 폴더 접기
+        async function refreshTree() { await loadTreeRoot(); showToast('Explorer 를 새로고침했습니다.', 1500); }
+        function collapseAllFolders() {
+            expandedFolderIds = new Set();
+            try { localStorage.setItem('viewer_expanded_folders', '[]'); } catch (e) {}
+            loadTreeRoot();
+        }
+        // 완전히 접기: 사이드바를 숨기고 상단 ☰ 로 다시 연다
+        function hideSidebarCompletely() {
+            body.classList.add('sidebar-closed');
+            localStorage.setItem('sidebarClosed', 'true');
+        }
+
+        // 사이드바 너비 조절: pointer 캡처로 손잡이를 벗어나도 끊기지 않게
+        resizer.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
             isResizing = true;
-            document.body.style.cursor = 'col-resize';
-            document.body.classList.add('select-none');
+            resizer.setPointerCapture(e.pointerId);
+            body.classList.add('sidebar-resizing');
         });
-
-        document.addEventListener('mousemove', (e) => {
+        resizer.addEventListener('pointermove', (e) => {
             if (!isResizing) return;
-            
-            let newWidth = e.clientX;
-            if (newWidth < 160) newWidth = 160; 
-            if (newWidth > 600) newWidth = 600; 
-
+            const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 1;
+            const newWidth = Math.min(600, Math.max(200, e.clientX / zoom));
             sidebarContent.style.width = `${newWidth}px`;
         });
-
-        document.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                document.body.style.cursor = '';
-                document.body.classList.remove('select-none');
-                localStorage.setItem('sidebarWidth', sidebarContent.offsetWidth);
-            }
-        });
+        const endResize = (e) => {
+            if (!isResizing) return;
+            isResizing = false;
+            try { resizer.releasePointerCapture(e.pointerId); } catch (err) {}
+            body.classList.remove('sidebar-resizing');
+            localStorage.setItem('sidebarWidth', sidebarContent.offsetWidth);
+        };
+        resizer.addEventListener('pointerup', endResize);
+        resizer.addEventListener('pointercancel', endResize);
+        resizer.addEventListener('dblclick', () => resetSidebarWidth());
 
         loadTreeRoot();   
         restoreSession(); 
@@ -1531,6 +1563,7 @@
             const isDesktop = window.matchMedia('(min-width: 768px)').matches;
             if (isDesktop) {
                 // PC: 사이드바 접기/펼치기 (상태 기억)
+                if (document.documentElement.classList.contains('sidebar-collapsed') && !body.classList.contains('sidebar-closed')) { window.toggleSidebarRail(false); return; }
                 const closed = body.classList.toggle('sidebar-closed');
                 localStorage.setItem('sidebarClosed', closed ? 'true' : 'false');
             } else {

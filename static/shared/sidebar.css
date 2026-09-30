@@ -1,0 +1,44 @@
+/* ── LecAI 공용 사이드바 (UnivDash 스타일) ────────────────────────────── */
+.sb-brand-icon { width: 36px; height: 36px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    color: #fff; background: linear-gradient(135deg, #3b82f6, #9333ea); box-shadow: 0 8px 20px rgba(30, 64, 175, .35); }
+.sb-icon { width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.5); transition: background 150ms, color 150ms; }
+@media (hover: hover) { .sb-icon:hover { background: rgba(255,255,255,.08); color: #fff; } }
+.sb-icon.on { color: #93c5fd; background: rgba(59,130,246,.15); }
+.sb-new { color: #dbeafe; background: rgba(59,130,246,.16); border: 1px solid rgba(96,165,250,.3); transition: background 150ms; }
+@media (hover: hover) { .sb-new:hover { background: rgba(59,130,246,.26); } }
+.sb-section-title { font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.38); }
+.sb-nav-link { display: flex; align-items: center; padding: 9px 12px; border-radius: 12px; border: 1px solid transparent; color: rgba(255,255,255,.5); transition: background 150ms, color 150ms; }
+@media (hover: hover) { .sb-nav-link:hover { background: rgba(255,255,255,.05); color: #fff; } }
+.sb-nav-link.active { background: rgba(59,130,246,.15); color: #93c5fd; border-color: rgba(96,165,250,.25); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); font-weight: 600; }
+.sb-rail-only { display: none !important; }
+.sb-tools .sb-icon { width: 27px; height: 27px; border-radius: 8px; }
+html.sidebar-collapsed .sb-tools .sb-icon { width: 34px; height: 34px; }
+
+html[data-ui-theme-mode="light"] .sb-icon { color: #5a6781; }
+@media (hover: hover) { html[data-ui-theme-mode="light"] .sb-icon:hover { background: rgba(15,23,42,.07); color: #101828; } }
+html[data-ui-theme-mode="light"] .sb-new { color: #1d4ed8; background: rgba(37,99,235,.08); border-color: rgba(37,99,235,.25); }
+html[data-ui-theme-mode="light"] .sb-nav-link { color: #5a6781; }
+@media (hover: hover) { html[data-ui-theme-mode="light"] .sb-nav-link:hover { background: rgba(15,23,42,.05); color: #101828; } }
+html[data-ui-theme-mode="light"] .sb-nav-link.active { background: rgba(37,99,235,.10); color: #1d4ed8; border-color: rgba(37,99,235,.25); }
+html[data-ui-theme-mode="light"] .sb-section-title { color: #77809a; }
+
+/* 데스크톱: 아이콘만 남는 좁은 막대 (하단 ≪ 버튼 / 다시 누르면 펼침) */
+@media (min-width: 768px) {
+    html.sidebar-collapsed #sidebar { width: 68px !important; min-width: 68px !important; }
+    html.sidebar-collapsed #sidebar .sb-label,
+    html.sidebar-collapsed #sidebar .sb-user,
+    html.sidebar-collapsed #sidebar .sb-hide-rail { display: none !important; }
+    html.sidebar-collapsed #sidebar .sb-rail-only { display: flex !important; }
+    html.sidebar-collapsed #sidebar .sb-top { padding: 14px 10px; }
+    html.sidebar-collapsed #sidebar .sb-brand { justify-content: center; margin-bottom: 10px; }
+    html.sidebar-collapsed #sidebar .sb-new { padding: 8px 0; justify-content: center; }
+    html.sidebar-collapsed #sidebar nav { padding-left: 10px; padding-right: 10px; }
+    html.sidebar-collapsed #sidebar .sb-nav-link { justify-content: center; padding-left: 0; padding-right: 0; }
+    html.sidebar-collapsed #sidebar .sb-bottom { padding: 10px 6px; }
+    html.sidebar-collapsed #sidebar .sb-account { flex-direction: column; align-items: center; gap: 4px; }
+    html.sidebar-collapsed #sidebar .sb-logout { flex: none; width: 34px; height: 34px; padding: 0; justify-content: center; }
+    html.sidebar-collapsed #sidebar .sb-tools { flex-direction: column; align-items: center; }
+    html.sidebar-collapsed #sidebarCollapseBtn i { transform: rotate(180deg); }
+    html.sidebar-collapsed #resizer { display: none !important; }
+}

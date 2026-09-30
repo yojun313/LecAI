@@ -64,56 +64,15 @@
         }
     </style>
     <link rel="stylesheet" href="/static/shared/theme.css">
+    <link rel="stylesheet" href="/static/shared/sidebar.css">
+    <script src="/static/shared/sidebar.js"></script>
 </head>
 <body class="bg-dark text-white font-sans h-screen flex overflow-hidden">
 
     <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
 
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 glass-strong border-r border-white/10 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
-        <div class="p-5 border-b border-white/10 relative">
-            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 mb-4 tracking-tight">
-                LecAI
-            </h1>
-            <div class="flex items-center space-x-3 glass-soft p-2 rounded-xl">
-                <div class="w-10 h-10 rounded-full border border-blue-400/40 overflow-hidden bg-gray-800 flex-shrink-0 shadow-lg">
-                    <img id="sidebarAvatar" src="{{ settings.profile_img or '/static/default_avatar.png' }}" class="w-full h-full object-cover">
-                </div>
-                <div class="min-w-0">
-                    <p class="text-xs text-white/40">Welcome,</p>
-                    <p class="text-sm font-bold text-white truncate">{{ username }}</p>
-                </div>
-            </div>
-            <button id="closeSidebarBtn" class="absolute top-5 right-5 md:hidden text-white/40 hover:text-white transition">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-
-        <nav class="flex-1 px-3 py-4 space-y-1">
-            <a href="/" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
-                <i class="fas fa-columns w-6 text-center"></i>
-                <span class="ml-2 font-medium text-sm">Dashboard</span>
-            </a>
-            <a href="/viewer" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
-                <i class="fas fa-book-open w-6 text-center"></i>
-                <span class="ml-2 font-medium text-sm">Viewer</span>
-            </a>
-            <a href="/whisper" class="flex items-center px-3 py-2.5 text-white/50 hover:bg-white/5 hover:text-white rounded-xl transition">
-                <i class="fas fa-microphone w-6 text-center"></i>
-                <span class="ml-2 font-medium text-sm">Whisper</span>
-            </a>
-            <a href="/settings" class="flex items-center px-3 py-2.5 bg-blue-500/15 text-blue-300 rounded-xl border border-blue-400/25 shadow-inner">
-                <i class="fas fa-cog w-6 text-center"></i>
-                <span class="ml-2 font-medium text-sm">Settings</span>
-            </a>
-        </nav>
-
-        <div class="p-4 border-t border-white/10">
-            <a href="/logout" class="flex items-center px-3 py-2 text-red-300/90 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition text-sm">
-                <i class="fas fa-sign-out-alt w-6 text-center"></i>
-                <span class="ml-2">Logout</span>
-            </a>
-        </div>
-    </aside>
+    {% set active_page = 'settings' %}
+    {% include "_app_sidebar.html" %}
 
     <main class="flex-1 flex flex-col min-w-0">
         <header class="h-14 glass border-b border-white/10 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-20">

@@ -101,15 +101,15 @@
   }
 
   function init() {
-    var btn = document.getElementById('themeSettingsBtn');
-    if (!btn) return;
+    var btns = document.querySelectorAll('#themeSettingsBtn, [data-theme-settings]');
+    if (!btns.length) return;
 
     var overlay = buildModal();
 
     function open() { markSelected(overlay); overlay.hidden = false; }
     function close() { overlay.hidden = true; }
 
-    btn.addEventListener('click', open);
+    btns.forEach(function (b) { b.addEventListener('click', open); });
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
     overlay.querySelector('.lecai-theme-close').addEventListener('click', close);
     overlay.querySelectorAll('.lecai-theme-option').forEach(function (opt) {
