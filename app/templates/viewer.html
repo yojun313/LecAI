@@ -294,6 +294,16 @@
         #nodeList.root-drop-target { background: rgba(59,130,246,0.08); outline: 2px dashed rgba(59,130,246,0.5); outline-offset: -4px; border-radius: 0.75rem; }
         #nodeList.root-drop-target::after { content: '여기에 놓으면 최상위로 이동'; display: block; text-align: center; font-size: 0.7rem; color: #60a5fa; padding: 0.75rem 0; }
         .invisible { visibility: hidden; }
+        /* 챗봇 창 크기 조절 손잡이 (창이 오른쪽 아래에 붙어 있으므로 왼쪽 위로 끌어 키운다) */
+        .chat-grip { position: absolute; z-index: 5; touch-action: none; }
+        .chat-grip-corner { left: 0; top: 0; width: 18px; height: 18px; cursor: nwse-resize; border-top-left-radius: 16px; }
+        .chat-grip-corner::before { content: ""; position: absolute; left: 6px; top: 6px; width: 8px; height: 8px; border-left: 2px solid rgba(125,211,252,.7); border-top: 2px solid rgba(125,211,252,.7); border-top-left-radius: 3px; opacity: 0; transition: opacity .15s; }
+        #chatPanel:hover .chat-grip-corner::before, body.chat-resizing .chat-grip-corner::before { opacity: 1; }
+        .chat-grip-left { left: -3px; top: 18px; bottom: 0; width: 8px; cursor: ew-resize; }
+        .chat-grip-top { top: -3px; left: 18px; right: 0; height: 8px; cursor: ns-resize; }
+        body.chat-resizing, body.chat-resizing * { user-select: none !important; }
+        body.chat-resizing iframe, body.chat-resizing img { pointer-events: none !important; }
+        @media (max-width: 640px) { .chat-grip { display: none; } }
         .chat-md p { margin: 0.35em 0; } .chat-md pre { margin: 0.5em 0; } .chat-md .katex-display { margin: 0.5em 0; padding: 0.5rem; }
         /* 사이드바 너비 조절 손잡이: 화면 공간은 차지하지 않고 경계 양쪽 6px 씩 잡을 수 있다 */
         #resizer { position: relative; width: 1px; margin: 0 -6px; padding: 0 6px; box-sizing: content-box; z-index: 60; flex-shrink: 0; cursor: col-resize; touch-action: none; background-clip: content-box; background-color: transparent; }
@@ -469,6 +479,9 @@
 
     <!-- 슬라이드별 AI 질문 패널 -->
     <div id="chatPanel" class="hidden fixed right-4 bottom-4 z-[108] w-[min(440px,94vw)] h-[min(640px,80vh)] glass-strong border border-sky-400/40 rounded-2xl shadow-2xl flex-col overflow-hidden">
+        <div class="chat-grip chat-grip-corner" data-chat-grip="both" title="끌어서 크기 조절 · 더블클릭하면 기본 크기" aria-hidden="true"></div>
+        <div class="chat-grip chat-grip-left" data-chat-grip="w" aria-hidden="true"></div>
+        <div class="chat-grip chat-grip-top" data-chat-grip="h" aria-hidden="true"></div>
         <div class="px-4 py-2.5 border-b border-notion-border flex items-center justify-between">
             <div class="min-w-0">
                 <div class="text-sm font-bold text-notion-text"><i class="fas fa-comments mr-2 text-sky-400"></i>AI 질문 <span id="chatSlideLabel" class="text-notion-muted font-normal"></span></div>
@@ -476,6 +489,7 @@
             </div>
             <div class="flex items-center gap-1">
                 <button onclick="clearChatForSlide()" class="text-xs px-2 py-1 rounded-lg bg-notion-hover text-notion-muted hover:text-notion-text" title="이 슬라이드의 대화 지우기"><i class="fas fa-eraser"></i></button>
+                <button id="chatSizeBtn" onclick="toggleChatSize()" class="hidden sm:inline-flex text-xs px-2 py-1 rounded-lg bg-notion-hover text-notion-muted hover:text-notion-text" title="크게 보기"><i class="fas fa-up-right-and-down-left-from-center"></i></button>
                 <button onclick="toggleChatPanel()" class="text-notion-muted hover:text-notion-text px-2" title="닫기"><i class="fas fa-times"></i></button>
             </div>
         </div>
@@ -555,6 +569,7 @@
                 </div>
             </div>
             <div class="p-4 border-t border-white/10 flex justify-end space-x-2 glass-soft">
+                <button type="button" onclick="getActiveTab() && downloadOriginal(null, getActiveTab().id)" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition mr-auto" title="업로드한 원본 자료 파일"><i class="fas fa-file-pdf mr-1 text-red-400"></i> 원본 PDF 다운로드</button>
                 <button type="button" onclick="closeExportModal()" class="px-4 py-2 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white/80 transition">닫기</button>
                 <button type="button" id="exportRunBtn" onclick="runExport()" class="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-md transition"><i class="fas fa-download mr-1"></i> <span id="exportRunLabel">PDF 저장</span></button>
             </div>
@@ -1025,7 +1040,8 @@
                     ${depth > 0 ? `<button onclick="moveNodeTo(event, '${node.id}', 'root')" class="text-notion-muted hover:text-purple-400 p-1" title="최상위로 이동"><i class="fas fa-level-up-alt text-xs"></i></button>` : ''}
                     <button onclick="renameNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-blue-400 p-1" title="이름 변경"><i class="fas fa-pen text-xs"></i></button>
                     ${!isFolder ? `<button onclick="event.stopPropagation(); openAddTranscriptModal('doc', '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-purple-400 p-1" title="강의 녹음본 추가"><i class="fas fa-microphone-lines text-xs"></i></button>` : ''}
-                    ${!isFolder ? `<button onclick="downloadFile(event, '${node.id}')" class="text-notion-muted hover:text-green-400 p-1" title="다운로드"><i class="fas fa-download text-xs"></i></button>` : ''}
+                    ${!isFolder ? `<button onclick="downloadOriginal(event, '${node.id}')" class="text-notion-muted hover:text-red-400 p-1" title="원본 PDF 다운로드"><i class="fas fa-file-pdf text-xs"></i></button>` : ''}
+                    ${!isFolder ? `<button onclick="downloadFile(event, '${node.id}')" class="text-notion-muted hover:text-green-400 p-1" title="설명 결과(zip) 다운로드"><i class="fas fa-download text-xs"></i></button>` : ''}
                     <button onclick="archiveNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-amber-400 p-1" title="보관함으로 이동 (Explorer 에서 숨김)"><i class="fas fa-box-archive text-xs"></i></button>
                     <button onclick="deleteNode(event, '${node.id}')" class="text-notion-muted hover:text-red-400 p-1" title="삭제"><i class="fas fa-trash-alt text-xs"></i></button>
                 </div>
@@ -1600,6 +1616,13 @@
             } catch (err) { alert('폴더 생성 실패'); }
         }
         function downloadFile(e, id) { e.stopPropagation(); window.location.href = `/api/docs/download/${id}`; }
+        // 원본 자료 다운로드 (원본이 없던 예전 문서는 서버가 페이지 이미지로 PDF 를 만들어 준다)
+        function downloadOriginal(e, id) {
+            if (e) e.stopPropagation();
+            const tab = openedTabs.find(t => t.id === id);
+            showToast('원본 PDF 를 준비하는 중...', 2500);
+            window.location.href = `/api/docs/${id}/original`;
+        }
         async function deleteNode(e, id) {
             e.stopPropagation(); if (!confirm('삭제하시겠습니까?')) return;
             try { await fetch(`/api/docs/${id}`, { method: 'DELETE' }); closeTab(id); loadTreeRoot(); } catch (err) { alert('삭제 실패'); }
@@ -1922,6 +1945,58 @@
         function chatKey(tab) { return `viewer_chat_${tab.id}_${slideNumberOf(tab, tab.currentIndex)}`; }
         function loadChat(tab) { try { return JSON.parse(localStorage.getItem(chatKey(tab)) || '[]'); } catch (e) { return []; } }
         function saveChat(tab, history) { try { localStorage.setItem(chatKey(tab), JSON.stringify(history.slice(-40))); } catch (e) {} }
+
+        // ---- 챗봇 창 크기: 끌어서 조절, 크게 보기 / 기본 크기로 (knpu 챗봇 방식) ----
+        const CHAT_SIZE_KEY = 'viewer_chat_size';
+        const chatZoom = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 1;
+        const chatLimits = () => { const z = chatZoom(); return { maxW: window.innerWidth / z - 24, maxH: window.innerHeight / z - 40, minW: 340, minH: 380 }; };
+        function readChatSize() { try { return JSON.parse(localStorage.getItem(CHAT_SIZE_KEY) || 'null'); } catch (e) { return null; } }
+        function applyChatSize(sz) {
+            const L = chatLimits();
+            if (sz && sz.w && window.innerWidth > 640) {
+                chatPanel.style.width = Math.max(L.minW, Math.min(sz.w, L.maxW)) + 'px';
+                chatPanel.style.height = Math.max(L.minH, Math.min(sz.h, L.maxH)) + 'px';
+            } else { chatPanel.style.width = ''; chatPanel.style.height = ''; }
+            const custom = !!(sz && sz.w);
+            const btn = document.getElementById('chatSizeBtn');
+            btn.innerHTML = custom ? '<i class="fas fa-down-left-and-up-right-to-center"></i>' : '<i class="fas fa-up-right-and-down-left-from-center"></i>';
+            btn.title = custom ? '기본 크기로' : '크게 보기';
+        }
+        function toggleChatSize() {
+            const sz = readChatSize();
+            if (sz && sz.w) { try { localStorage.removeItem(CHAT_SIZE_KEY); } catch (e) {} applyChatSize(null); }
+            else {
+                const L = chatLimits();
+                const big = { w: Math.min(900, L.maxW), h: L.maxH };
+                try { localStorage.setItem(CHAT_SIZE_KEY, JSON.stringify(big)); } catch (e) {}
+                applyChatSize(big);
+            }
+        }
+        document.querySelectorAll('[data-chat-grip]').forEach(grip => {
+            grip.addEventListener('pointerdown', (e) => {
+                if (e.button !== 0 || window.innerWidth <= 640) return;
+                e.preventDefault(); e.stopPropagation();
+                const mode = grip.dataset.chatGrip, z = chatZoom(), r = chatPanel.getBoundingClientRect();
+                const sx = e.clientX, sy = e.clientY, sw = r.width / z, sh = r.height / z, L = chatLimits();
+                grip.setPointerCapture(e.pointerId); body.classList.add('chat-resizing');
+                const move = (ev) => {
+                    if (mode !== 'h') chatPanel.style.width = Math.max(L.minW, Math.min(L.maxW, sw + (sx - ev.clientX) / z)) + 'px';
+                    if (mode !== 'w') chatPanel.style.height = Math.max(L.minH, Math.min(L.maxH, sh + (sy - ev.clientY) / z)) + 'px';
+                };
+                const end = () => {
+                    grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', end); grip.removeEventListener('pointercancel', end);
+                    body.classList.remove('chat-resizing');
+                    const rr = chatPanel.getBoundingClientRect(), zz = chatZoom();
+                    const sz = { w: Math.round(rr.width / zz), h: Math.round(rr.height / zz) };
+                    try { localStorage.setItem(CHAT_SIZE_KEY, JSON.stringify(sz)); } catch (err) {}
+                    applyChatSize(sz);
+                };
+                grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
+            });
+            grip.addEventListener('dblclick', () => { try { localStorage.removeItem(CHAT_SIZE_KEY); } catch (e) {} applyChatSize(null); });
+        });
+        applyChatSize(readChatSize());
+        window.addEventListener('resize', () => { if (!chatPanel.classList.contains('hidden')) applyChatSize(readChatSize()); });
 
         function toggleChatPanel() {
             const tab = getActiveTab();

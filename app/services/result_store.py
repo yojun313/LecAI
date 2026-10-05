@@ -365,6 +365,93 @@ def attach_original(
     return entry
 
 
+# ---------- 원본 자료 파일 (PDF/PPT) ----------
+ORIGINAL_DIR = "original"
+
+
+def _original_meta_path(result_dir: str) -> str:
+    return os.path.join(result_dir, ORIGINAL_DIR, "meta.json")
+
+
+def save_original(result_dir: str, src_path: str, filename: str):
+    """업로드한 원본 자료를 original/<파일명> 으로 복사해 보관한다."""
+    if not src_path or not os.path.exists(src_path):
+        return None
+    safe = (
+        os.path.basename(filename or os.path.basename(src_path)).replace("/", "_")
+        or "original.pdf"
+    )
+    os.makedirs(os.path.join(result_dir, ORIGINAL_DIR), exist_ok=True)
+    shutil.copy2(src_path, os.path.join(result_dir, ORIGINAL_DIR, safe))
+    with open(_original_meta_path(result_dir), "w", encoding="utf-8") as f:
+        json.dump(
+            {"file": safe, "original_name": filename, "reconstructed": False},
+            f,
+            ensure_ascii=False,
+        )
+    return safe
+
+
+def get_original(result_dir: str):
+    """(경로, 메타) 또는 None"""
+    meta_path = _original_meta_path(result_dir)
+    if not os.path.exists(meta_path):
+        return None
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+    except Exception:
+        return None
+    path = os.path.join(result_dir, ORIGINAL_DIR, meta.get("file", ""))
+    return (path, meta) if os.path.isfile(path) else None
+
+
+def _page_images(result_dir: str) -> list:
+    d = os.path.join(result_dir, IMAGES_DIR)
+    if not os.path.isdir(d):
+        return []
+    return [
+        os.path.join(d, n)
+        for n in sorted(os.listdir(d))
+        if re.match(r"page_\d+\.(png|jpe?g)$", n, re.I)
+    ]
+
+
+def reconstruct_original_pdf(result_dir: str, name: str):
+    """
+    원본이 보관되지 않은 예전 문서: 저장된 페이지 이미지(150dpi)를 무손실로 묶어 PDF 를 만든다.
+    (화면과 같은 화질이지만 텍스트 선택은 되지 않음) 반환: (경로, 메타) 또는 None
+    """
+    images = _page_images(result_dir)
+    if not images:
+        return None
+    import img2pdf
+
+    safe = re.sub(r"[\\/:*?\"<>|]+", "_", (name or "document").strip()) or "document"
+    filename = f"{safe}.pdf"
+    os.makedirs(os.path.join(result_dir, ORIGINAL_DIR), exist_ok=True)
+    out = os.path.join(result_dir, ORIGINAL_DIR, filename)
+    with open(out, "wb") as f:
+        f.write(
+            img2pdf.convert(
+                images, layout_fun=img2pdf.get_fixed_dpi_layout_fun((150, 150))
+            )
+        )
+    meta = {
+        "file": filename,
+        "original_name": filename,
+        "reconstructed": True,
+        "pages": len(images),
+    }
+    with open(_original_meta_path(result_dir), "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False)
+    return out, meta
+
+
+def ensure_original(result_dir: str, name: str):
+    return get_original(result_dir) or reconstruct_original_pdf(result_dir, name)
+
+
 # ---------- 칠판 판서 사진 ----------
 def _boards_index_path(result_dir: str) -> str:
     return os.path.join(result_dir, BOARDS_DIR, "index.json")

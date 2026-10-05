@@ -1120,6 +1120,13 @@ def _process_job_internal(job_id: str, file_path: str, model_config: dict, owner
         # 압축 및 정리
         user_result_dir = os.path.join(settings.RESULT_DIR, owner)
         os.makedirs(user_result_dir, exist_ok=True)
+        # 원본 자료(PDF/PPT)도 함께 보관 → 뷰어에서 원본 다운로드 가능
+        job_doc = JobManager.get_job(job_id) or {}
+        rs.save_original(
+            result_base,
+            file_path,
+            job_doc.get("filename") or os.path.basename(file_path),
+        )
         shutil.make_archive(os.path.join(user_result_dir, job_id), "zip", result_base)
 
         # [Cleanup] 압축 후 원본 폴더 삭제

@@ -98,6 +98,41 @@ async def rename_doc_board(
     return {"status": "renamed", "label": entry["label"]}
 
 
+@router.get("/docs/{doc_id}/original")
+async def download_original(doc_id: str, user: str = Depends(get_current_user)):
+    """원본 자료 다운로드. 원본이 없던 예전 문서는 페이지 이미지로 PDF 를 재구성해 제공(최초 1회 생성 후 보관)."""
+    from app.services import result_store as rs
+
+    target = docs_col.find_one({"id": doc_id, "owner": user, "type": "file"})
+    if not target:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc_dir = os.path.join(settings.DOCS_STATIC_DIR, user, doc_id)
+    found = rs.ensure_original(doc_dir, target["name"])
+    if not found:
+        raise HTTPException(
+            status_code=404,
+            detail="원본 파일과 페이지 이미지가 없어 제공할 수 없습니다.",
+        )
+    path, meta = found
+    ext = os.path.splitext(meta["file"])[1] or ".pdf"
+    media = "application/pdf" if ext.lower() == ".pdf" else "application/octet-stream"
+    return FileResponse(path, media_type=media, filename=f"{target['name']}{ext}")
+
+
+@router.get("/docs/{doc_id}/original/info")
+async def original_info(doc_id: str, user: str = Depends(get_current_user)):
+    from app.services import result_store as rs
+
+    target = docs_col.find_one({"id": doc_id, "owner": user, "type": "file"})
+    if not target:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    found = rs.get_original(os.path.join(settings.DOCS_STATIC_DIR, user, doc_id))
+    return {
+        "exists": bool(found),
+        "reconstructed": bool(found and found[1].get("reconstructed")),
+    }
+
+
 @router.get("/docs/archived")
 async def get_archived(user: str = Depends(get_current_user)):
     return DocManager.get_archived(user)

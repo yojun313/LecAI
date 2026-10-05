@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "bcrypt>=5.0.0",
     "fastapi>=0.136.1",
+    "img2pdf>=0.6.3",
     "jinja2>=3.1.6",
     "markdown>=3.10.2",
     "pdf2image>=1.17.0",
