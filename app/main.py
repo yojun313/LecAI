@@ -11,6 +11,7 @@ from app.routes import (
     user_routes,
     doc_routes,
     whisper_routes,
+    converter_routes,
 )
 from app.services.whisper_notes import requeue_interrupted
 import os
@@ -51,3 +52,4 @@ app.include_router(user_routes.router, prefix="/api", tags=["User"])
 app.include_router(doc_routes.router, prefix="/api", tags=["Docs"])
 app.include_router(chat_routes.router, prefix="/api", tags=["Chat"])
 app.include_router(whisper_routes.router, prefix="/api", tags=["Whisper"])
+app.include_router(converter_routes.router, prefix="/api", tags=["Converter"])

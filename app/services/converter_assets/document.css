@@ -1,0 +1,56 @@
+/* Converter 문서 스타일 — 마크다운은 UnivDash 파일 뷰어(라이트 테마)와 같은 규칙, 한글 hwpx 는 같은 렌더러 규칙 */
+body { font-family: 'Inter', 'Pretendard', 'Noto Sans KR', 'Noto Sans CJK KR', system-ui, sans-serif; color: #1e293b; }
+.exv-md { max-width: 860px; margin: 0 auto; padding: 18px 20px 48px; font-family: 'Inter', 'Pretendard', system-ui, sans-serif; font-size: 15px; line-height: 1.7; color: #d7dce6; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .exv-md { padding: 14px 16px 40px; font-size: 15px; } }
+.exv-md > :first-child { margin-top: 0; }
+.exv-md h1, .exv-md h2, .exv-md h3, .exv-md h4, .exv-md h5, .exv-md h6 { color: #f1f5f9; font-weight: 800; line-height: 1.3; margin: 1.5em 0 .6em; }
+.exv-md h1 { font-size: 1.8em; padding-bottom: .3em; border-bottom: 1px solid rgba(255,255,255,.1); }
+.exv-md h2 { font-size: 1.4em; padding-bottom: .25em; border-bottom: 1px solid rgba(255,255,255,.08); }
+.exv-md h3 { font-size: 1.17em; }
+.exv-md p, .exv-md ul, .exv-md ol, .exv-md blockquote, .exv-md pre, .exv-md .exv-md-table { margin: 0 0 1em; }
+.exv-md ul, .exv-md ol { padding-left: 1.6em; }
+.exv-md ul { list-style: disc; } .exv-md ol { list-style: decimal; }
+.exv-md li + li { margin-top: .25em; }
+.exv-md li > input[type="checkbox"] { margin-right: .4em; }
+.exv-md a { color: #7dd3fc; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.exv-md strong { color: #f8fafc; }
+.exv-md blockquote { padding: .2em 1em; color: #94a3b8; border-left: 3px solid rgba(96,165,250,.5); background: rgba(255,255,255,.02); }
+.exv-md code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .86em; padding: .15em .4em; border-radius: 6px; background: rgba(255,255,255,.08); color: #fbcfe8; }
+.exv-md pre { padding: 12px 14px; border-radius: 10px; background: #0f1524; border: 1px solid rgba(255,255,255,.07); overflow-x: auto; }
+.exv-md pre code { padding: 0; background: transparent; color: #d4d8e1; font-size: 12.5px; line-height: 1.55; white-space: pre; }
+.exv-md hr { border: 0; border-top: 1px solid rgba(255,255,255,.1); margin: 1.6em 0; }
+.exv-md img { max-width: 100%; height: auto; border-radius: 8px; }
+.exv-md-table { overflow-x: auto; }
+.exv-md table { border-collapse: collapse; font-size: .92em; }
+.exv-md th, .exv-md td { padding: 6px 12px; border: 1px solid rgba(255,255,255,.12); text-align: left; }
+.exv-md th { background: rgba(255,255,255,.05); color: #f1f5f9; }
+.exv-md { color: #1e293b; }
+.exv-md h1, .exv-md h2, .exv-md h3,
+.exv-md h4, .exv-md strong, .exv-md th { color: #0f172a; }
+.exv-md h1, .exv-md h2, .exv-md hr { border-color: rgba(15,23,42,.12); }
+.exv-md a { color: #2563eb; }
+.exv-md blockquote { color: #475569; background: rgba(15,23,42,.03); }
+.exv-md code { background: rgba(15,23,42,.06); color: #be185d; }
+.exv-md pre { background: #f1f5f9; border-color: rgba(15,23,42,.08); }
+.exv-md pre code { color: #1e293b; background: transparent; padding: 0; }   /* 인라인 코드 배경이 코드 블록에 줄무늬로 남지 않게 */
+.exv-md th, .exv-md td { border-color: rgba(15,23,42,.14); }
+.exv-md th { background: rgba(15,23,42,.04); }
+.hwp-doc { --hwp-font: 'Noto Serif KR', 'Nanum Myeongjo', 'Batang', serif; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 12px 40px; }
+.hwp-page { background: #fff; color: #000; box-shadow: 0 4px 18px rgba(0,0,0,.45); border-radius: 2px; font-family: var(--hwp-font); font-size: 10pt; line-height: 1.6; box-sizing: border-box; max-width: none; overflow-wrap: anywhere; }
+.hwp-p { margin: 0; min-height: 1em; white-space: pre-wrap; }
+.hwp-tab { display: inline-block; width: 2em; }
+.hwp-table { border-collapse: collapse; margin: 4px 0; table-layout: fixed; max-width: 100%; }
+.hwp-table td { box-sizing: border-box; overflow-wrap: anywhere; }
+.hwp-img { max-width: 100%; height: auto; display: inline-block; vertical-align: middle; }
+.hwp-box { border: 1px solid #999; padding: 6px 8px; margin: 4px 0; }
+.hwp-eq { font-family: 'JetBrains Mono', monospace; background: #f1f5f9; padding: 0 4px; }
+.hwp-missing { color: #94a3b8; font-size: 9pt; }
+.cv-missing { color: #94a3b8; font-size: .85em; }
+.cv-text { margin: 0; font-family: 'JetBrains Mono', 'D2Coding', 'Noto Sans Mono CJK KR', ui-monospace, monospace; font-size: 9.5pt; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; color: #1e293b; }
+.cv-text code { font-family: inherit; }
+.cv-html { overflow-wrap: anywhere; }
+.cv-html img, .cv-html svg, .cv-html video { max-width: 100%; height: auto; }
+.cv-html table { max-width: 100%; }
+.cv-html pre { white-space: pre-wrap; }
+.cv-image { display: flex; align-items: center; justify-content: center; }
+.cv-image img { max-width: 100%; max-height: 100%; object-fit: contain; }

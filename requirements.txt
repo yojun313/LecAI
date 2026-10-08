@@ -13,3 +13,5 @@ python-multipart
 pymongo
 websockets
 img2pdf
+olefile
+pypdf

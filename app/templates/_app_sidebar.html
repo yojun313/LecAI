@@ -1,5 +1,5 @@
-{# 공용 앱 사이드바 (Dashboard / Whisper / Settings). active_page: 'dashboard' | 'whisper' | 'settings' #}
-{% set nav_items = [('dashboard', '/', 'fa-columns', 'Dashboard'), ('viewer', '/viewer', 'fa-book-open', 'Viewer'), ('whisper', '/whisper', 'fa-microphone', 'Whisper'), ('settings', '/settings', 'fa-cog', 'Settings')] %}
+{# 공용 앱 사이드바 (Dashboard / Whisper / Converter / Settings). active_page: 'dashboard' | 'whisper' | 'settings' #}
+{% set nav_items = [('dashboard', '/', 'fa-columns', 'Dashboard'), ('viewer', '/viewer', 'fa-book-open', 'Viewer'), ('whisper', '/whisper', 'fa-microphone', 'Whisper'), ('converter', '/converter', 'fa-file-pdf', 'Converter'), ('settings', '/settings', 'fa-cog', 'Settings')] %}
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 glass-strong border-r border-white/10 flex flex-col transition-all duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
     <div class="sb-top p-5 border-b border-white/10 relative">
         <div class="sb-brand flex items-center gap-3 mb-4">

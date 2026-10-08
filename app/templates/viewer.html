@@ -804,6 +804,17 @@
         const noImageText = document.getElementById('noImageText');
         const slideText = document.getElementById('slideText');
         const slideTextContainer = document.getElementById('slideTextContainer');
+        slideTextContainer.addEventListener('scroll', () => {
+            if (scrollRestoring) return;
+            const tab = openedTabs.find(t => t.id === activeTabId); if (!tab || !tab.slides.length) return;
+            rememberScroll(tab.id, slideScrollKey(tab), slideTextContainer.scrollTop);
+        }, { passive: true });
+        scrollView.addEventListener('scroll', () => {
+            if (scrollRestoring || scrollView.classList.contains('hidden') || !activeTabId) return;
+            rememberScroll(activeTabId, 'scroll', scrollView.scrollTop);
+        }, { passive: true });
+        // 페이지를 떠날 때 마지막 위치를 즉시 저장
+        window.addEventListener('pagehide', () => { try { localStorage.setItem(SCROLL_POS_KEY, JSON.stringify(scrollPositions)); } catch (e) {} });
         const prevSlideBtn = document.getElementById('prevSlideBtn');
         const nextSlideBtn = document.getElementById('nextSlideBtn');
         const pageIndicator = document.getElementById('pageIndicator');
@@ -1267,6 +1278,26 @@
 
         function getActiveTab() { return openedTabs.find(t => t.id === activeTabId); }
 
+        // ---- 스크롤 위치 기억: 슬라이드별(발표 모드) / 문서별(스크롤 모드). 다른 페이지에 다녀와도 유지 ----
+        const SCROLL_POS_KEY = 'viewer_scroll_positions';
+        let scrollPositions = {};
+        try { scrollPositions = JSON.parse(localStorage.getItem(SCROLL_POS_KEY) || '{}') || {}; } catch (e) { scrollPositions = {}; }
+        let scrollRestoring = false, scrollSaveTimer = null;
+        function slideScrollKey(tab) { return 's' + slideNumberOf(tab, tab.currentIndex); }
+        function rememberScroll(docId, key, top) {
+            if (!docId) return;
+            (scrollPositions[docId] = scrollPositions[docId] || {})[key] = Math.round(top);
+            clearTimeout(scrollSaveTimer);
+            scrollSaveTimer = setTimeout(() => { try { localStorage.setItem(SCROLL_POS_KEY, JSON.stringify(scrollPositions)); } catch (e) {} }, 300);
+        }
+        function restoreScroll(el, docId, key) {
+            const top = ((scrollPositions[docId] || {})[key]) || 0;
+            scrollRestoring = true;
+            el.scrollTop = top;
+            // 글꼴·수식·이미지 배치가 늦게 끝나 높이가 바뀌는 경우를 위해 한 번 더 맞춘다
+            requestAnimationFrame(() => { el.scrollTop = top; setTimeout(() => { el.scrollTop = top; scrollRestoring = false; }, 250); });
+        }
+
         // ---- 슬라이드별 판서 사진 ----
         async function loadTabBoards(tab) {
             try { const res = await fetch(`/api/docs/${tab.id}/boards`); tab.boards = res.ok ? await res.json() : []; }
@@ -1409,6 +1440,7 @@
             } else {
                 viewModeBtn.innerHTML = '<i class="fas fa-desktop"></i> <span>프레젠테이션 모드</span>';
                 presentationView.classList.remove('active'); scrollView.classList.remove('hidden');
+                if (activeTabId) restoreScroll(scrollView, activeTabId, 'scroll');
                 zoomControls.classList.remove('flex'); zoomControls.classList.add('hidden');
                 copyImageBtn.classList.remove('flex'); copyImageBtn.classList.add('hidden');    
             }
@@ -1432,7 +1464,7 @@
             renderChatForCurrentSlide();
             prevSlideBtn.disabled = tab.currentIndex === 0;
             nextSlideBtn.disabled = tab.currentIndex === tab.slides.length - 1;
-            slideTextContainer.scrollTop = 0;
+            restoreScroll(slideTextContainer, tab.id, slideScrollKey(tab));
         }
         
         nextSlideBtn.addEventListener('click', () => { 

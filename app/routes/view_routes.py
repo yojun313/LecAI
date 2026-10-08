@@ -112,6 +112,27 @@ async def whisper_page(request: Request):
     )
 
 
+@router.get("/converter")
+async def converter_page(request: Request):
+    session_id = request.cookies.get("session_id")
+    user = AuthManager.get_user_by_session(session_id)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    from app.services.converter_service import MAX_UPLOAD_BYTES, formats
+
+    return templates.TemplateResponse(
+        request,
+        "converter.html",
+        {
+            "username": user,
+            "settings": AuthManager.get_user_settings(user),
+            "formats": formats(),
+            "max_bytes": MAX_UPLOAD_BYTES,
+        },
+    )
+
+
 @router.get("/guide/openai", response_class=HTMLResponse)
 async def get_openai_guide(request: Request):
     return templates.TemplateResponse(request, "guide_openai.html")

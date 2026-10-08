@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Converter - LecAI</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <script>(function(){try{var t=localStorage.getItem('lecai_theme_style');if(t&&t!=='default')document.documentElement.setAttribute('data-ui-theme',t);if(localStorage.getItem('theme')==='light'){document.documentElement.setAttribute('data-ui-theme-mode','light');}else{document.documentElement.classList.add('dark');}}catch(e){}})();</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#05070f',
+                        card: '#0f1424',
+                        sidebar: '#0a0e1a'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/shared/theme.css">
+    <link rel="stylesheet" href="/static/shared/sidebar.css">
+    <script src="/static/shared/sidebar.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.35); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.55); }
+
+        body {
+            background: radial-gradient(circle at 10% 10%, rgba(59,130,246,0.20), transparent 35%),
+                        radial-gradient(circle at 90% 0%, rgba(168,85,247,0.18), transparent 40%),
+                        radial-gradient(circle at 50% 100%, rgba(16,185,129,0.10), transparent 45%),
+                        #05070f;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-soft {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+
+        /* ── Converter 전용 ── */
+        .spinner {
+            width: 16px; height: 16px; flex-shrink: 0;
+            border: 3px solid rgba(148, 163, 184, 0.25);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .drop-overlay {
+            display: none; position: fixed; inset: 0; z-index: 300;
+            background: rgba(5, 7, 15, 0.65);
+            align-items: center; justify-content: center;
+            color: #fff; font-size: 19px; font-weight: 800;
+            border: 4px dashed rgba(96, 165, 250, 0.6);
+            pointer-events: none;
+        }
+        .drop-overlay.on { display: flex; }
+        .cv-drop { transition: border-color 150ms, background 150ms, transform 120ms; }
+        .cv-drop:hover, .cv-drop.over { border-color: rgba(96,165,250,.6); background: rgba(59,130,246,.06); }
+        .cv-drop:active { transform: scale(.995); }
+        .cv-chip { display: inline-block; padding: 1px 7px; margin: 2px 2px 0 0; border-radius: 999px; font-size: 11px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); color: rgba(255,255,255,.6); }
+        .cv-row { transition: background 130ms; }
+        .cv-row:hover { background: rgba(255,255,255,.04); }
+        .cv-act { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; color: rgba(255,255,255,.6); transition: background 120ms, color 120ms, transform 100ms; }
+        .cv-act:hover { background: rgba(255,255,255,.08); color: #fff; }
+        .cv-act:active { transform: scale(.92); }
+        .cv-act:disabled { opacity: .35; pointer-events: none; }
+        .cv-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.8); transition: background 120ms, transform 100ms; }
+        .cv-btn:hover { background: rgba(255,255,255,.1); }
+        .cv-btn:active { transform: scale(.97); }
+        .cv-btn:disabled { opacity: .4; pointer-events: none; }
+        .cv-btn.primary { background: linear-gradient(90deg,#2563eb,#9333ea); border-color: transparent; color: #fff; }
+        .cv-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+        .cv-pages { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 16px; background: rgba(0,0,0,.25); }
+        .cv-page { width: 100%; max-width: 820px; background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,.35); border-radius: 2px; min-height: 200px; }
+        .cv-page img { display: block; width: 100%; height: auto; }
+        html[data-ui-theme-mode="light"] .cv-pages { background: rgba(15,23,42,.06); }
+        html[data-ui-theme-mode="light"] .cv-chip { background: rgba(15,23,42,.04); border-color: rgba(15,23,42,.08); color: #475569; }
+        html[data-ui-theme-mode="light"] .cv-act { color: #475569; }
+        html[data-ui-theme-mode="light"] .cv-act:hover { background: rgba(15,23,42,.06); color: #0f172a; }
+        html[data-ui-theme-mode="light"] .cv-btn { background: rgba(15,23,42,.04); border-color: rgba(15,23,42,.1); color: #1e293b; }
+        html[data-ui-theme-mode="light"] .cv-btn.primary { background: linear-gradient(90deg,#2563eb,#9333ea); border-color: transparent; color: #fff; }
+        html[data-ui-theme-mode="light"] .cv-row:hover { background: rgba(15,23,42,.03); }
+        input[type="checkbox"].cv-check { width: 16px; height: 16px; accent-color: #3b82f6; cursor: pointer; flex-shrink: 0; }
+        .cv-preview-empty { color: rgba(255,255,255,.4); }
+        html[data-ui-theme-mode="light"] .cv-preview-empty { color: #64748b; }
+        .cv-row.active { background: rgba(59,130,246,.14); box-shadow: inset 3px 0 0 #3b82f6; }
+        html[data-ui-theme-mode="light"] .cv-row.active { background: rgba(59,130,246,.10); }
+        .cv-zoom { display: inline-flex; align-items: center; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); overflow: hidden; }
+        .cv-zoom button { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,.7); transition: background 120ms; }
+        .cv-zoom button:hover { background: rgba(255,255,255,.08); }
+        .cv-zoom button:active { transform: scale(.9); }
+        .cv-zoom button:disabled { opacity: .35; pointer-events: none; }
+        .cv-zoom select { height: 30px; background: transparent; color: inherit; font-size: 12px; font-weight: 700; padding: 0 4px; outline: none; cursor: pointer; border-left: 1px solid rgba(255,255,255,.1); border-right: 1px solid rgba(255,255,255,.1); }
+        html[data-ui-theme-mode="light"] .cv-zoom { border-color: rgba(15,23,42,.12); }
+        html[data-ui-theme-mode="light"] .cv-zoom button { color: #334155; }
+        html[data-ui-theme-mode="light"] .cv-zoom select { border-color: rgba(15,23,42,.12); }
+        @media (min-width: 1024px) {
+            .cv-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); grid-template-rows: auto minmax(0, 1fr); height: 100%; }
+            .cv-drop-card { grid-column: 1; grid-row: 1; }
+            .cv-preview-card { grid-column: 1; grid-row: 2; min-height: 0; }
+            .cv-list-card { grid-column: 2; grid-row: 1 / span 2; min-height: 0; }
+        }
+        @media (max-width: 1023px) {
+            .cv-layout { display: flex; flex-direction: column; }
+            .cv-preview-card { height: 78dvh; order: 3; }
+            .cv-list-card { order: 2; max-height: 60dvh; }
+        }
+    </style>
+</head>
+<body class="bg-dark text-white font-sans h-screen flex overflow-hidden">
+
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 md:hidden"></div>
+
+    {% set active_page = 'converter' %}
+    {% include "_app_sidebar.html" %}
+
+    <div class="flex-1 flex flex-col min-w-0">
+        <header class="h-14 glass border-b border-white/10 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-20">
+            <div class="flex items-center">
+                <button id="openSidebarBtn" class="md:hidden mr-3 text-white/60 hover:text-white transition">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <h2 class="text-base font-semibold text-white/90"><i class="fas fa-file-pdf mr-2 text-blue-400"></i>Converter</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="themeSettingsBtn" class="theme-settings-btn" type="button" title="테마 설정" aria-label="테마 설정">
+                    <i class="fas fa-palette text-sm"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden p-3 md:p-4">
+            <div class="cv-layout gap-3 md:gap-4">
+
+                <!-- 좌상단: 올리기 -->
+                <section class="cv-drop-card glass rounded-2xl p-3 md:p-4">
+                    <div class="flex flex-col md:flex-row gap-3 md:items-stretch">
+                        <button type="button" id="cv-drop" class="cv-drop flex-1 border-2 border-dashed border-white/15 rounded-xl px-4 py-5 flex items-center justify-center gap-4 text-left cursor-pointer">
+                            <div class="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-400/25 flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-file-arrow-up text-lg text-blue-400"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-sm md:text-base font-bold text-white">파일을 끌어다 놓거나 눌러서 고르세요</div>
+                                <div class="text-xs text-white/50 mt-1 leading-relaxed">여러 개 한꺼번에 · 파일당 최대 {{ (max_bytes // 1024 // 1024) }}MB · 결과는 7일 보관 · 올리면 바로 미리보기가 떠요</div>
+                            </div>
+                        </button>
+                        <div class="flex md:flex-col justify-between md:justify-center gap-3 md:w-44 text-xs flex-shrink-0">
+                            <label class="flex items-center justify-between gap-2 text-white/60" title="새로 올리는 파일의 기본 배율">
+                                <span class="font-bold">기본 배율</span>
+                                <select id="cv-zoom" class="glass-soft border border-white/10 text-white text-xs rounded-lg px-2 py-1.5 outline-none cursor-pointer"></select>
+                            </label>
+                            <label class="flex items-center gap-2 text-white/60 cursor-pointer" title="마크다운 · HTML · 텍스트 · SVG 등에 적용돼요">
+                                <input type="checkbox" id="cv-landscape" class="cv-check">
+                                <span class="font-bold">가로 방향</span>
+                            </label>
+                            <button type="button" id="cv-formats-toggle" class="text-left text-white/50 hover:text-white/80 font-bold">
+                                <i class="fas fa-circle-info mr-1"></i>지원 형식 <i class="fas fa-chevron-down text-[10px] ml-0.5 transition-transform" id="cv-formats-caret"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <input type="file" id="cv-input" multiple hidden>
+                    <div id="cv-formats" class="hidden mt-3 pt-3 border-t border-white/10 space-y-2 max-h-64 overflow-y-auto">
+                        {% for group in formats %}
+                        <div class="flex gap-3 text-xs">
+                            <div class="w-24 md:w-28 flex-shrink-0 font-bold text-white/60 pt-0.5">{{ group.label }}</div>
+                            <div class="min-w-0">{% for ext in group.exts %}<span class="cv-chip">{{ ext }}</span>{% endfor %}</div>
+                        </div>
+                        {% endfor %}
+                        <p class="text-[11px] text-white/40 leading-relaxed pt-1">
+                            · 마크다운은 수식(KaTeX) · 코드 색칠 · 표를 그대로 그려요. 문서 안의 웹 · 로컬 그림 주소는 보안상 불러오지 않아요 (노트북 · 전자책 · 한글 문서 안에 든 그림은 들어가요).<br>
+                            · 배율: 마크다운 · HTML · 텍스트는 글자 크기를 바꿔 다시 그리고, 오피스 · 한글 · 그림 · PDF 는 쪽 내용을 확대 · 축소해요.<br>
+                            · 예전 형식 hwp 는 글자만 옮겨요. 서식까지 필요하면 한글에서 hwpx 로 저장해 올려 주세요. 암호가 걸린 문서는 변환할 수 없어요.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- 좌하단: 미리보기 -->
+                <section class="cv-preview-card glass rounded-2xl flex flex-col overflow-hidden" id="cv-preview" aria-label="PDF 미리보기">
+                    <div class="px-3 md:px-4 py-2.5 border-b border-white/10 flex flex-wrap items-center gap-x-3 gap-y-2 flex-shrink-0">
+                        <div class="min-w-0 flex-1 basis-40">
+                            <h3 class="text-sm font-bold text-white truncate" id="cv-p-title">미리보기</h3>
+                            <div class="text-[11px] text-white/50 truncate" id="cv-p-meta">변환한 파일을 고르면 여기에 PDF 가 보여요</div>
+                        </div>
+                        <div id="cv-p-opts" class="hidden flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+                            <span id="cv-p-busy" class="hidden items-center gap-2 text-blue-300 font-bold"><span class="spinner"></span>다시 만드는 중…</span>
+                            <div class="cv-zoom text-white" title="배율">
+                                <button type="button" id="cv-p-minus" aria-label="축소"><i class="fas fa-minus text-[11px]"></i></button>
+                                <select id="cv-p-zoom" aria-label="배율"></select>
+                                <button type="button" id="cv-p-plus" aria-label="확대"><i class="fas fa-plus text-[11px]"></i></button>
+                            </div>
+                            <label class="items-center gap-2 text-white/60 cursor-pointer" id="cv-p-landscape-wrap">
+                                <input type="checkbox" id="cv-p-landscape" class="cv-check">
+                                <span class="font-bold">가로</span>
+                            </label>
+                            <button type="button" class="cv-btn primary" id="cv-p-download"><i class="fas fa-download"></i><span>PDF 받기</span></button>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-h-0 overflow-y-auto" id="cv-p-scroll">
+                        <div class="cv-preview-empty h-full flex flex-col items-center justify-center gap-3 p-8 text-center text-sm" id="cv-p-empty">
+                            <i class="fas fa-file-pdf text-4xl opacity-40"></i>
+                            <div>파일을 올리면 변환된 PDF 가 여기에 바로 떠요.<br>배율을 바꾸면 다시 만들어서 보여 드려요.</div>
+                        </div>
+                        <div class="cv-pages min-h-full" id="cv-p-pages" style="display:none"></div>
+                    </div>
+                </section>
+
+                <!-- 오른쪽: 파일 목록 -->
+                <section class="cv-list-card glass rounded-2xl flex flex-col overflow-hidden">
+                    <div class="px-3 md:px-4 py-3 border-b border-white/10 flex flex-wrap items-center gap-2 flex-shrink-0">
+                        <label class="flex items-center gap-2 cursor-pointer mr-1" title="전체 선택">
+                            <input type="checkbox" id="cv-all" class="cv-check">
+                            <span class="text-xs font-bold text-white/50 uppercase tracking-wider">변환 결과</span>
+                        </label>
+                        <span class="text-[10px] bg-white/10 text-white/60 px-2 py-0.5 rounded-full font-bold" id="cv-count">0</span>
+                        <div class="ml-auto flex flex-wrap gap-1.5">
+                            <button type="button" class="cv-btn" id="cv-merge" disabled title="고른 PDF 를 목록 순서대로 하나로 합쳐 받기"><i class="fas fa-layer-group"></i><span>합치기</span></button>
+                            <button type="button" class="cv-btn" id="cv-zip" disabled title="고른 PDF 를 zip 으로 받기"><i class="fas fa-file-zipper"></i><span>zip</span></button>
+                            <button type="button" class="cv-btn" id="cv-delete-sel" disabled title="고른 결과 지우기" aria-label="고른 결과 지우기"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div id="cv-list" class="flex-1 min-h-0 overflow-y-auto divide-y divide-white/5">
+                        <div class="text-center text-white/40 text-sm py-10">불러오는 중...</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div class="drop-overlay" id="cv-overlay">파일을 놓으면 PDF 로 바꿔요</div>
+
+<script>
+(() => {
+    'use strict';
+    const API = '/api/converter';
+    const MAX_BYTES = {{ max_bytes }};
+    const EXTS = new Set({{ formats | map(attribute='exts') | sum(start=[]) | tojson }});
+    const NAMED = new Set(['dockerfile', 'makefile']);
+    const ZOOMS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
+    const KIND_ICON = {
+        office: ['fa-file-word', 'text-blue-300 bg-blue-500/15'],
+        hwpx: ['fa-file-lines', 'text-sky-300 bg-sky-500/15'],
+        hwp: ['fa-file-lines', 'text-sky-300 bg-sky-500/15'],
+        md: ['fa-brands fa-markdown', 'text-emerald-300 bg-emerald-500/15'],
+        ipynb: ['fa-book', 'text-orange-300 bg-orange-500/15'],
+        html: ['fa-file-code', 'text-amber-300 bg-amber-500/15'],
+        epub: ['fa-book-open', 'text-violet-300 bg-violet-500/15'],
+        text: ['fa-file-code', 'text-slate-300 bg-slate-500/20'],
+        image: ['fa-file-image', 'text-pink-300 bg-pink-500/15'],
+        svg: ['fa-file-image', 'text-pink-300 bg-pink-500/15'],
+        pdf: ['fa-file-pdf', 'text-red-300 bg-red-500/15'],
+    };
+    const OFFICE_ICON = { xls: 'fa-file-excel', xlsx: 'fa-file-excel', xlsm: 'fa-file-excel', xlsb: 'fa-file-excel', ods: 'fa-file-excel', csv: 'fa-file-csv', tsv: 'fa-file-csv', numbers: 'fa-file-excel',
+        ppt: 'fa-file-powerpoint', pptx: 'fa-file-powerpoint', pptm: 'fa-file-powerpoint', pps: 'fa-file-powerpoint', ppsx: 'fa-file-powerpoint', odp: 'fa-file-powerpoint', key: 'fa-file-powerpoint' };
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtSize = (n) => n == null ? '' : n < 1024 ? `${n}B` : n < 1048576 ? `${(n / 1024).toFixed(0)}KB` : `${(n / 1048576).toFixed(1)}MB`;
+    const fmtTime = (t) => {
+        if (!t) return '';
+        const d = new Date(t * 1000), diff = (Date.now() - d) / 1000;
+        if (diff < 60) return '방금';
+        if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+    };
+    const pct = (z) => `${Math.round(z * 100)}%`;
+    const extOf = (name) => { const i = name.lastIndexOf('.'); return i > 0 ? name.slice(i + 1).toLowerCase() : ''; };
+    const supported = (name) => EXTS.has(extOf(name)) || NAMED.has(name.toLowerCase());
+    const wide = () => window.matchMedia('(min-width: 1024px)').matches;
+
+    async function errorText(res) {
+        try { const data = await res.json(); return typeof data.detail === 'string' ? data.detail : `오류 (${res.status})`; }
+        catch (e) { return res.status === 413 ? '파일이 너무 커요.' : `오류 (${res.status})`; }
+    }
+    async function api(path, options = {}) {
+        const res = await fetch(API + path, { credentials: 'same-origin', ...options });
+        if (res.status === 401) { location.href = '/login'; throw new Error('로그인이 필요해요.'); }
+        if (!res.ok) throw new Error(await errorText(res));
+        return res;
+    }
+
+    const zoomOptions = ZOOMS.map((z) => `<option class="bg-[#0f1424]" value="${z}">${pct(z)}</option>`).join('');
+    $('cv-zoom').innerHTML = zoomOptions;
+    $('cv-zoom').value = '1';
+    $('cv-p-zoom').innerHTML = zoomOptions;
+
+    /* ── 상태 ── */
+    let jobs = [];                 // 서버의 결과 목록
+    const pending = [];            // { id, file, name, size, state: 'queued'|'uploading'|'converting'|'error', progress, error }
+    const selected = new Set();
+    let seq = 0;
+    let current = null;            // 미리보기 중인 결과
+    let pickedByHand = false;      // 사용자가 직접 고른 미리보기면 새 결과가 끝나도 바꾸지 않는다 (잠깐 동안)
+    let pickedAt = 0;
+
+    function iconFor(kind, ext) {
+        let [icon, cls] = KIND_ICON[kind] || KIND_ICON.text;
+        if (kind === 'office' && OFFICE_ICON[ext]) icon = OFFICE_ICON[ext];
+        const full = icon.startsWith('fa-brands') ? icon : `fas ${icon}`;
+        return `<div class="cv-icon ${cls}"><i class="${full}"></i></div>`;
+    }
+
+    function render() {
+        const list = $('cv-list');
+        $('cv-count').textContent = jobs.length + pending.length;
+        if (!jobs.length && !pending.length) {
+            list.innerHTML = '<div class="text-center text-white/40 text-sm py-10 px-4">아직 변환한 파일이 없어요.</div>';
+        } else {
+            const rows = pending.map((p) => {
+                const status = p.state === 'error'
+                    ? `<span class="text-red-300">${esc(p.error)}</span>`
+                    : p.state === 'uploading' ? `올리는 중 ${p.progress}%`
+                    : p.state === 'converting' ? 'PDF 로 바꾸는 중…' : '대기 중';
+                return `
+                <div class="cv-row flex items-center gap-3 px-3 md:px-4 py-3" data-pending="${p.id}">
+                    <span class="w-4 flex-shrink-0"></span>
+                    ${iconFor(p.kind, extOf(p.name))}
+                    <div class="min-w-0 flex-1">
+                        <div class="text-sm font-bold text-white truncate" title="${esc(p.name)}">${esc(p.name)}</div>
+                        <div class="text-[11px] text-white/50 mt-0.5 flex items-center gap-2 min-w-0">${p.state === 'error' ? '<i class="fas fa-circle-exclamation text-red-300"></i>' : '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>'}<span class="truncate cv-status">${status}</span></div>
+                        ${p.state === 'uploading' ? `<div class="h-1 mt-1.5 rounded-full bg-white/10 overflow-hidden"><div class="cv-bar h-full bg-gradient-to-r from-blue-500 to-purple-500" style="width:${p.progress}%"></div></div>` : ''}
+                    </div>
+                    ${p.state === 'error' ? `<button type="button" class="cv-act" data-dismiss="${p.id}" title="목록에서 빼기" aria-label="목록에서 빼기"><i class="fas fa-xmark"></i></button>` : ''}
+                </div>`;
+            });
+            const done = jobs.map((j) => `
+                <div class="cv-row flex items-center gap-2.5 px-3 md:px-4 py-2.5 ${current && current.token === j.token ? 'active' : ''}" data-token="${esc(j.token)}">
+                    <input type="checkbox" class="cv-check" data-select="${esc(j.token)}" ${selected.has(j.token) ? 'checked' : ''} aria-label="${esc(j.name)} 선택">
+                    ${iconFor(j.kind, j.ext)}
+                    <button type="button" class="min-w-0 flex-1 text-left" data-preview="${esc(j.token)}" title="${esc(j.name)} 미리보기">
+                        <div class="text-sm font-bold text-white truncate">${esc(j.name)}</div>
+                        <div class="text-[11px] text-white/50 mt-0.5 truncate">
+                            <span class="uppercase">${esc(j.ext)}</span> → PDF · ${j.pages}쪽 · ${fmtSize(j.size)} · ${fmtTime(j.created)}${j.zoom && j.zoom !== 1 ? ` · ${pct(j.zoom)}` : ''}${j.landscape ? ' · 가로' : ''}
+                        </div>
+                        ${j.note ? `<div class="text-[11px] text-amber-300/80 mt-0.5 truncate" title="${esc(j.note)}">${esc(j.note)}</div>` : ''}
+                    </button>
+                    <div class="flex items-center flex-shrink-0">
+                        <button type="button" class="cv-act" data-download="${esc(j.token)}" title="PDF 받기" aria-label="PDF 받기"><i class="fas fa-download text-sm"></i></button>
+                        <button type="button" class="cv-act hover:!text-red-300" data-delete="${esc(j.token)}" title="지우기" aria-label="지우기"><i class="fas fa-trash text-sm"></i></button>
+                    </div>
+                </div>`);
+            list.innerHTML = rows.join('') + done.join('');
+        }
+        syncSelection();
+    }
+
+    function syncSelection() {
+        for (const token of [...selected]) if (!jobs.some((j) => j.token === token)) selected.delete(token);
+        const n = selected.size;
+        $('cv-merge').disabled = n < 1;
+        $('cv-zip').disabled = n < 1;
+        $('cv-delete-sel').disabled = n < 1;
+        $('cv-merge').querySelector('span').textContent = n ? `합치기 (${n})` : '합치기';
+        const all = $('cv-all');
+        all.checked = jobs.length > 0 && n === jobs.length;
+        all.indeterminate = n > 0 && n < jobs.length;
+    }
+
+    async function loadJobs() {
+        try {
+            const res = await api('/jobs');
+            jobs = (await res.json()).jobs || [];
+        } catch (e) {
+            if (!jobs.length) $('cv-list').innerHTML = `<div class="text-center text-red-300 text-sm py-10">${esc(e.message)}</div>`;
+            return;
+        }
+        if (current) {
+            const fresh = jobs.find((j) => j.token === current.token);
+            if (!fresh) clearPreview();
+        } else if (jobs.length && wide()) {
+            showPreview(jobs[0], false);   // 넓은 화면에서는 가장 최근 결과를 바로 보여 준다
+        }
+        render();
+    }
+
+    /* ── 올리기 · 변환 (동시에 2개) ── */
+    function kindGuess(name) {
+        const ext = extOf(name);
+        if (['md', 'markdown', 'mdx', 'rmd'].includes(ext)) return 'md';
+        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'heic', 'heif', 'avif', 'svg'].includes(ext)) return 'image';
+        if (ext === 'pdf') return 'pdf';
+        if (ext === 'hwpx' || ext === 'hwp') return 'hwpx';
+        if (['html', 'htm', 'xhtml'].includes(ext)) return 'html';
+        if (ext === 'epub') return 'epub';
+        if (ext === 'ipynb') return 'ipynb';
+        return (OFFICE_ICON[ext] || ['doc', 'docx', 'odt', 'rtf'].includes(ext)) ? 'office' : 'text';
+    }
+
+    function addFiles(fileList) {
+        const skipped = [];
+        for (const file of fileList) {
+            if (!supported(file.name)) { skipped.push(`${file.name} (지원하지 않는 형식)`); continue; }
+            if (file.size > MAX_BYTES) { skipped.push(`${file.name} (${Math.round(MAX_BYTES / 1048576)}MB 초과)`); continue; }
+            if (!file.size) { skipped.push(`${file.name} (빈 파일)`); continue; }
+            pending.push({ id: ++seq, file, name: file.name, size: file.size, kind: kindGuess(file.name), state: 'queued', progress: 0 });
+        }
+        if (skipped.length) alert(`다음 파일은 건너뛰었어요:\n${skipped.join('\n')}`);
+        pickedByHand = false;   // 새로 올린 것은 끝나는 대로 미리보기에 띄운다
+        render();
+        pump();
+    }
+
+    let running = 0;
+    function pump() {
+        while (running < 2) {
+            const next = pending.find((p) => p.state === 'queued');
+            if (!next) return;
+            running += 1;
+            upload(next).finally(() => { running -= 1; pump(); });
+        }
+    }
+
+    function updatePendingRow(p) {
+        const row = document.querySelector(`[data-pending="${p.id}"]`);
+        if (!row) return render();
+        const bar = row.querySelector('.cv-bar');
+        const label = row.querySelector('.cv-status');
+        if (bar) bar.style.width = `${p.progress}%`;
+        if (label && p.state === 'uploading') label.textContent = `올리는 중 ${p.progress}%`;
+    }
+
+    function upload(p) {
+        return new Promise((resolve) => {
+            const form = new FormData();
+            form.append('file', p.file, p.name);
+            form.append('zoom', $('cv-zoom').value);
+            form.append('landscape', $('cv-landscape').checked ? 'true' : 'false');
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${API}/jobs`);
+            p.state = 'uploading';
+            render();
+            xhr.upload.onprogress = (e) => {
+                if (!e.lengthComputable) return;
+                p.progress = Math.round((e.loaded / e.total) * 100);
+                if (p.progress >= 100 && p.state === 'uploading') { p.state = 'converting'; render(); }
+                else updatePendingRow(p);
+            };
+            xhr.upload.onload = () => { if (p.state === 'uploading') { p.state = 'converting'; render(); } };
+            xhr.onload = () => {
+                if (xhr.status === 401) { location.href = '/login'; return; }
+                let data = null;
+                try { data = JSON.parse(xhr.responseText); } catch (e) { /* 아래에서 처리 */ }
+                if (xhr.status >= 200 && xhr.status < 300 && data && data.token) {
+                    pending.splice(pending.indexOf(p), 1);
+                    jobs.unshift(data);
+                    // 올린 파일은 끝나는 대로 미리보기 (직접 다른 걸 막 고른 경우는 그대로 둔다)
+                    if (!pickedByHand || Date.now() - pickedAt > 15000) {
+                        showPreview(data, false);
+                        if (!wide() && !pending.some((q) => q.state !== 'error')) $('cv-preview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                } else {
+                    p.state = 'error';
+                    p.error = (data && typeof data.detail === 'string') ? data.detail : xhr.status === 413 ? '파일이 너무 커요.' : `변환 실패 (${xhr.status})`;
+                }
+                render();
+                resolve();
+            };
+            xhr.onerror = () => { p.state = 'error'; p.error = '네트워크 오류로 올리지 못했어요.'; render(); resolve(); };
+            xhr.send(form);
+        });
+    }
+
+    /* ── 받기 ── */
+    function saveBlob(blob, name) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    function download(token) {
+        const a = document.createElement('a');
+        a.href = `${API}/jobs/${encodeURIComponent(token)}/pdf`;
+        a.download = '';
+        document.body.appendChild(a); a.click(); a.remove();
+    }
+    async function bundle(mode, button) {
+        const tokens = jobs.filter((j) => selected.has(j.token)).map((j) => j.token);   // 목록 순서대로
+        if (!tokens.length) return;
+        if (mode === 'merge' && tokens.length === 1) { download(tokens[0]); return; }
+        const old = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span><span>만드는 중…</span>';
+        try {
+            const res = await api('/bundle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tokens, mode }) });
+            saveBlob(await res.blob(), mode === 'zip' ? 'converted.zip' : 'merged.pdf');
+        } catch (e) { alert(e.message); }
+        finally { button.innerHTML = old; syncSelection(); }
+    }
+    async function remove(tokens) {
+        if (!tokens.length) return;
+        const names = jobs.filter((j) => tokens.includes(j.token)).map((j) => j.name);
+        if (!confirm(tokens.length === 1 ? `"${names[0]}" 변환 결과를 지울까요?` : `고른 ${tokens.length}개 변환 결과를 지울까요?`)) return;
+        for (const token of tokens) {
+            try { await api(`/jobs/${encodeURIComponent(token)}`, { method: 'DELETE' }); }
+            catch (e) { /* 이미 없으면 목록에서만 뺀다 */ }
+            jobs = jobs.filter((j) => j.token !== token);
+            selected.delete(token);
+            if (current && current.token === token) clearPreview();
+        }
+        if (!current && jobs.length && wide()) showPreview(jobs[0], false);
+        render();
+    }
+
+    /* ── 미리보기 (좌하단) ── */
+    let observer = null;
+    function pageWidth() {
+        const box = $('cv-p-scroll').clientWidth || 800;
+        return Math.min(2000, Math.round(Math.min(box - 32, 900) * Math.min(window.devicePixelRatio || 1, 2)));
+    }
+    function renderPages(job) {
+        const pages = $('cv-p-pages');
+        observer?.disconnect();
+        const width = pageWidth();
+        const ratio = job.landscape ? 297 / 210 : 210 / 297;
+        pages.innerHTML = Array.from({ length: job.pages }, (_, i) =>
+            `<div class="cv-page" style="aspect-ratio:${ratio};max-width:900px" data-n="${i + 1}"></div>`).join('');
+        // 쪽 그림은 화면에 가까워질 때 불러온다 (쪽이 많아도 가볍게)
+        observer = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                const el = entry.target;
+                observer.unobserve(el);
+                const img = new Image();
+                img.alt = `${el.dataset.n}쪽`;
+                img.decoding = 'async';
+                img.onload = () => { el.style.aspectRatio = 'auto'; el.style.minHeight = '0'; };
+                img.src = `${API}/jobs/${encodeURIComponent(job.token)}/page/${el.dataset.n}?w=${width}&v=${encodeURIComponent(`${job.pages}-${job.zoom}-${job.landscape}-${job.size}`)}`;
+                el.appendChild(img);
+            }
+        }, { root: $('cv-p-scroll'), rootMargin: '800px 0px' });
+        pages.querySelectorAll('.cv-page').forEach((el) => observer.observe(el));
+    }
+    function fillPreviewHead(job) {
+        $('cv-p-title').textContent = job.pdf_name;
+        $('cv-p-title').title = job.pdf_name;
+        $('cv-p-meta').textContent = `${job.name} · ${job.pages}쪽 · ${fmtSize(job.size)}${job.note ? ` · ${job.note}` : ''}`;
+        const opts = $('cv-p-opts');
+        opts.classList.remove('hidden'); opts.classList.add('flex');
+        const zoom = job.zoom || 1;
+        const nearest = ZOOMS.reduce((a, b) => Math.abs(b - zoom) < Math.abs(a - zoom) ? b : a, 1);
+        $('cv-p-zoom').value = String(nearest);
+        $('cv-p-minus').disabled = nearest <= ZOOMS[0];
+        $('cv-p-plus').disabled = nearest >= ZOOMS[ZOOMS.length - 1];
+        const wrap = $('cv-p-landscape-wrap');
+        wrap.classList.toggle('hidden', !job.orientable);
+        wrap.classList.toggle('flex', !!job.orientable);
+        $('cv-p-landscape').checked = !!job.landscape;
+    }
+    function showPreview(job, byHand) {
+        if (byHand) { pickedByHand = true; pickedAt = Date.now(); }
+        const same = current && current.token === job.token && current.size === job.size && current.zoom === job.zoom;
+        current = job;
+        fillPreviewHead(job);
+        $('cv-p-empty').classList.add('hidden');
+        $('cv-p-pages').style.display = '';
+        if (!same) { $('cv-p-scroll').scrollTop = 0; requestAnimationFrame(() => renderPages(job)); }
+        document.querySelectorAll('#cv-list .cv-row.active').forEach((r) => r.classList.remove('active'));
+        document.querySelector(`#cv-list [data-token="${CSS.escape(job.token)}"]`)?.classList.add('active');
+        if (byHand && !wide()) $('cv-preview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function clearPreview() {
+        current = null;
+        observer?.disconnect();
+        $('cv-p-pages').innerHTML = '';
+        $('cv-p-pages').style.display = 'none';
+        $('cv-p-empty').classList.remove('hidden');
+        $('cv-p-opts').classList.add('hidden'); $('cv-p-opts').classList.remove('flex');
+        $('cv-p-title').textContent = '미리보기';
+        $('cv-p-meta').textContent = '변환한 파일을 고르면 여기에 PDF 가 보여요';
+    }
+
+    let renderSeq = 0;
+    async function rerender() {
+        if (!current) return;
+        const job = current, mine = ++renderSeq;
+        const busy = $('cv-p-busy');
+        busy.classList.remove('hidden'); busy.classList.add('flex');
+        $('cv-p-pages').style.opacity = '.55';
+        try {
+            const res = await api(`/jobs/${encodeURIComponent(job.token)}/render`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ zoom: Number($('cv-p-zoom').value), landscape: $('cv-p-landscape').checked }),
+            });
+            const data = await res.json();
+            const index = jobs.findIndex((j) => j.token === data.token);
+            if (index >= 0) jobs[index] = data;
+            if (mine === renderSeq && current && current.token === data.token) {
+                const top = $('cv-p-scroll').scrollTop;
+                current = data;
+                fillPreviewHead(data);
+                renderPages(data);
+                $('cv-p-scroll').scrollTop = top;   // 보던 위치 유지
+            }
+            render();
+        } catch (e) {
+            alert(e.message);
+            if (current) fillPreviewHead(current);
+        } finally {
+            if (mine === renderSeq) {
+                busy.classList.add('hidden'); busy.classList.remove('flex');
+                $('cv-p-pages').style.opacity = '';
+            }
+        }
+    }
+    function stepZoom(dir) {
+        const select = $('cv-p-zoom');
+        const index = ZOOMS.indexOf(Number(select.value)) + dir;
+        if (index < 0 || index >= ZOOMS.length) return;
+        select.value = String(ZOOMS[index]);
+        rerender();
+    }
+
+    /* ── 이벤트 ── */
+    const input = $('cv-input');
+    $('cv-drop').addEventListener('click', () => input.click());
+    input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
+    $('cv-formats-toggle').addEventListener('click', () => {
+        const box = $('cv-formats');
+        box.classList.toggle('hidden');
+        $('cv-formats-caret').style.transform = box.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    });
+
+    let dragDepth = 0;
+    const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+    window.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth += 1; $('cv-overlay').classList.add('on'); $('cv-drop').classList.add('over'); });
+    window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+    window.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) { $('cv-overlay').classList.remove('on'); $('cv-drop').classList.remove('over'); } });
+    window.addEventListener('drop', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        dragDepth = 0;
+        $('cv-overlay').classList.remove('on'); $('cv-drop').classList.remove('over');
+        if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+    });
+
+    $('cv-list').addEventListener('click', (e) => {
+        const target = e.target.closest('[data-preview],[data-download],[data-delete],[data-dismiss]');
+        if (!target) return;
+        if (target.dataset.preview) {
+            const job = jobs.find((j) => j.token === target.dataset.preview);
+            if (job) showPreview(job, true);
+        } else if (target.dataset.download) download(target.dataset.download);
+        else if (target.dataset.delete) remove([target.dataset.delete]);
+        else if (target.dataset.dismiss) {
+            const index = pending.findIndex((p) => String(p.id) === target.dataset.dismiss);
+            if (index >= 0) pending.splice(index, 1);
+            render();
+        }
+    });
+    $('cv-list').addEventListener('change', (e) => {
+        const box = e.target.closest('[data-select]');
+        if (!box) return;
+        if (box.checked) selected.add(box.dataset.select); else selected.delete(box.dataset.select);
+        syncSelection();
+    });
+    $('cv-all').addEventListener('change', (e) => {
+        selected.clear();
+        if (e.target.checked) jobs.forEach((j) => selected.add(j.token));
+        render();
+    });
+    $('cv-merge').addEventListener('click', (e) => bundle('merge', e.currentTarget));
+    $('cv-zip').addEventListener('click', (e) => bundle('zip', e.currentTarget));
+    $('cv-delete-sel').addEventListener('click', () => remove([...selected]));
+
+    $('cv-p-download').addEventListener('click', () => current && download(current.token));
+    $('cv-p-zoom').addEventListener('change', rerender);
+    $('cv-p-minus').addEventListener('click', () => stepZoom(-1));
+    $('cv-p-plus').addEventListener('click', () => stepZoom(1));
+    $('cv-p-landscape').addEventListener('change', rerender);
+    // 미리보기를 보는 중 +/- 키로 배율 조절
+    document.addEventListener('keydown', (e) => {
+        if (!current || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+        if (e.key === '+' || e.key === '=') { e.preventDefault(); stepZoom(1); }
+        else if (e.key === '-' || e.key === '_') { e.preventDefault(); stepZoom(-1); }
+    });
+    let resizeTimer = 0, lastWidth = 0;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            const width = $('cv-p-scroll').clientWidth;
+            if (current && Math.abs(width - lastWidth) > 120) { lastWidth = width; renderPages(current); }
+        }, 250);
+    });
+    window.addEventListener('beforeunload', (e) => {
+        if (pending.some((p) => p.state === 'uploading' || p.state === 'converting' || p.state === 'queued')) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    loadJobs();
+    setInterval(() => { if (!pending.length && document.visibilityState === 'visible') loadJobs(); }, 60000);
+})();
+</script>
+<script src="/static/shared/theme.js"></script>
+</body>
+</html>
