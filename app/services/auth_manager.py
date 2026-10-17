@@ -4,7 +4,13 @@ import uuid
 import hashlib
 import bcrypt
 import random
-from app.services.email_service import send_verification_email
+from app.services.email_service import (
+    send_verification_email,
+    send_password_reset_email,
+)
+import re
+import time
+import secrets
 from app.db import users_col, sessions_col
 from app.db.prompt import default_system_prompt, default_user_prompt
 from app.core.config import settings
@@ -12,6 +18,13 @@ from app.core.config import settings
 DEFAULT_MODEL = settings.DEFAULT_MODEL
 
 verification_codes = {}
+
+# 비밀번호 재설정: email(lower) → {code_hash, expires, attempts, sent_at, usernames, token, token_expires}
+password_resets = {}
+RESET_CODE_TTL = 10 * 60
+RESET_RESEND_COOLDOWN = 60
+RESET_MAX_ATTEMPTS = 5
+RESET_TOKEN_TTL = 15 * 60
 
 
 class AuthManager:
@@ -47,6 +60,97 @@ class AuthManager:
             return "success"
         else:
             return "mail_failed"
+
+    # ---------- 비밀번호 재설정 (이메일 인증) ----------
+    @staticmethod
+    def _hash_code(code: str) -> str:
+        return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def request_password_reset(email: str) -> str:
+        """
+        반환: "sent" | "cooldown" | "unknown" | "mail_failed"
+        (라우트는 sent/unknown 을 같은 응답으로 돌려 이메일 등록 여부를 드러내지 않는다)
+        """
+        email = (email or "").strip()
+        key = email.lower()
+        if not key:
+            return "unknown"
+        now = time.time()
+        prev = password_resets.get(key)
+        if prev and now - prev.get("sent_at", 0) < RESET_RESEND_COOLDOWN:
+            return "cooldown"
+        users = list(
+            users_col.find(
+                {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}},
+                {"username": 1},
+            )
+        )
+        if not users:
+            # 등록되지 않은 이메일도 같은 쿨다운을 적용해 응답 패턴으로 구분할 수 없게
+            password_resets[key] = {"sent_at": now, "code_hash": None, "expires": now}
+            return "unknown"
+        code = f"{secrets.randbelow(1000000):06d}"
+        usernames = [u["username"] for u in users]
+        if not send_password_reset_email(email, code, usernames):
+            return "mail_failed"
+        password_resets[key] = {
+            "code_hash": AuthManager._hash_code(code),
+            "expires": now + RESET_CODE_TTL,
+            "attempts": 0,
+            "sent_at": now,
+            "usernames": usernames,
+        }
+        return "sent"
+
+    @staticmethod
+    def verify_password_reset_code(email: str, code: str):
+        """코드가 맞으면 재설정 토큰과 아이디 목록을 돌려준다. 실패 시 (None, 사유)"""
+        key = (email or "").strip().lower()
+        data = password_resets.get(key)
+        now = time.time()
+        if not data or not data.get("code_hash") or now > data["expires"]:
+            return (
+                None,
+                "인증 코드가 만료되었거나 요청 내역이 없습니다. 코드를 다시 받아 주세요.",
+            )
+        if data["attempts"] >= RESET_MAX_ATTEMPTS:
+            return None, "시도 횟수를 초과했습니다. 코드를 다시 받아 주세요."
+        data["attempts"] += 1
+        if not secrets.compare_digest(
+            data["code_hash"], AuthManager._hash_code((code or "").strip())
+        ):
+            left = RESET_MAX_ATTEMPTS - data["attempts"]
+            return None, f"인증 코드가 올바르지 않습니다. (남은 시도 {left}회)"
+        token = secrets.token_urlsafe(32)
+        data["token"] = token
+        data["token_expires"] = now + RESET_TOKEN_TTL
+        data["code_hash"] = None  # 코드는 한 번만 사용
+        return {"token": token, "usernames": data["usernames"]}, None
+
+    @staticmethod
+    def reset_password(email: str, token: str, username: str, new_password: str):
+        key = (email or "").strip().lower()
+        data = password_resets.get(key)
+        if (
+            not data
+            or not data.get("token")
+            or time.time() > data.get("token_expires", 0)
+        ):
+            return False, "인증이 만료되었습니다. 처음부터 다시 진행해 주세요."
+        if not secrets.compare_digest(data["token"], token or ""):
+            return False, "잘못된 요청입니다."
+        if username not in data.get("usernames", []):
+            return False, "이 이메일에 연결된 계정이 아닙니다."
+        if len(new_password or "") < 8:
+            return False, "비밀번호는 8자 이상이어야 합니다."
+        hashed = bcrypt.hashpw(
+            AuthManager._pre_hash(new_password), bcrypt.gensalt()
+        ).decode("utf-8")
+        users_col.update_one({"username": username}, {"$set": {"password": hashed}})
+        sessions_col.delete_many({"username": username})  # 모든 기기 로그아웃
+        password_resets.pop(key, None)
+        return True, None
 
     @staticmethod
     def verify_and_create_user(email, code):

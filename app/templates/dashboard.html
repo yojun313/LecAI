@@ -482,7 +482,9 @@
             const iconBox = cardDiv.querySelector('.icon-box');
             const lowerName = (job.filename || "").toLowerCase();
 
-            if (job.kind === 'transcript' || lowerName.startsWith('[녹음본 추가]')) {
+            if (job.kind === 'youtube') {
+                iconBox.innerHTML = '<i class="fa-brands fa-youtube text-red-400"></i>';
+            } else if (job.kind === 'transcript' || lowerName.startsWith('[녹음본 추가]')) {
                 iconBox.innerHTML = '<i class="fas fa-microphone-lines text-purple-400"></i>';
             } else if (lowerName.endsWith('.pdf')) {
                 iconBox.innerHTML = '<i class="fas fa-file-pdf text-red-400"></i>';
@@ -536,7 +538,7 @@
                     downloadBtn.href = job.result_url;
                 }
 
-                if(addToViewerBtn) {
+                if(addToViewerBtn && job.kind !== 'youtube') {
                     addToViewerBtn.classList.remove('hidden');
                     addToViewerBtn.onclick = (e) => {
                         e.stopPropagation();

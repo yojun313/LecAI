@@ -1,5 +1,5 @@
 {# 공용 앱 사이드바 (Dashboard / Whisper / Converter / Settings). active_page: 'dashboard' | 'whisper' | 'settings' #}
-{% set nav_items = [('dashboard', '/', 'fa-columns', 'Dashboard'), ('viewer', '/viewer', 'fa-book-open', 'Viewer'), ('whisper', '/whisper', 'fa-microphone', 'Whisper'), ('converter', '/converter', 'fa-file-pdf', 'Converter'), ('settings', '/settings', 'fa-cog', 'Settings')] %}
+{% set nav_items = [('dashboard', '/', 'fa-columns', 'Dashboard'), ('viewer', '/viewer', 'fa-book-open', 'Viewer'), ('whisper', '/whisper', 'fa-microphone', 'Whisper'), ('converter', '/converter', 'fa-file-pdf', 'Converter'), ('youtube', '/youtube', 'fa-brands fa-youtube', 'YouTube'), ('settings', '/settings', 'fa-cog', 'Settings')] %}
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 glass-strong border-r border-white/10 flex flex-col transition-all duration-300 transform -translate-x-full md:relative md:translate-x-0 flex-shrink-0">
     <div class="sb-top p-5 border-b border-white/10 relative">
         <div class="sb-brand flex items-center gap-3 mb-4">
@@ -26,7 +26,7 @@
     <nav class="flex-1 px-3 py-4 space-y-1" aria-label="메뉴">
         {% for key, href, icon, label in nav_items %}
         <a href="{{ href }}" title="{{ label }}" class="sb-nav-link {{ 'active' if active_page == key else '' }}" {% if active_page == key %}aria-current="page"{% endif %}>
-            <i class="fas {{ icon }} w-6 text-center"></i>
+            <i class="{{ icon if icon.startswith('fa-brands') else 'fas ' ~ icon }} w-6 text-center"></i>
             <span class="sb-label ml-2 font-medium text-sm">{{ label }}</span>
         </a>
         {% endfor %}

@@ -31,3 +31,32 @@ def send_verification_email(receiver: str, code: str):
     except Exception as e:
         print(f"[ERROR] 메일 발송 실패: {e}")
         return False
+
+
+def _send(receiver: str, title: str, text: str) -> bool:
+    msg = MIMEMultipart()
+    msg["Subject"] = title
+    msg["From"] = settings.MAIL_SENDER
+    msg["To"] = receiver
+    msg.attach(MIMEText(text, "plain"))
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(settings.MAIL_SENDER, settings.MAIL_PASSWORD)
+            server.sendmail(settings.MAIL_SENDER, receiver, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"[ERROR] 메일 발송 실패: {e}")
+        return False
+
+
+def send_password_reset_email(receiver: str, code: str, usernames: list) -> bool:
+    ids = ", ".join(usernames)
+    text = (
+        "LecAI 비밀번호 재설정 요청을 받았습니다.\n\n"
+        f"인증 코드: {code}\n"
+        f"계정 아이디: {ids}\n\n"
+        "이 코드는 10분 동안만 유효합니다.\n"
+        "본인이 요청하지 않았다면 이 메일을 무시하세요. 비밀번호는 바뀌지 않습니다."
+    )
+    return _send(receiver, "[LecAI] 비밀번호 재설정 인증 코드", text)

@@ -136,3 +136,21 @@ async def converter_page(request: Request):
 @router.get("/guide/openai", response_class=HTMLResponse)
 async def get_openai_guide(request: Request):
     return templates.TemplateResponse(request, "guide_openai.html")
+
+
+@router.get("/youtube")
+async def youtube_page(request: Request):
+    session_id = request.cookies.get("session_id")
+    user = AuthManager.get_user_by_session(session_id)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "youtube.html",
+        {"username": user, "settings": AuthManager.get_user_settings(user)},
+    )
+
+
+@router.get("/forgot-password")
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse(request, "forgot_password.html")

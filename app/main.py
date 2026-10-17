@@ -2,7 +2,6 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.core.config import settings
 from app.routes import (
     chat_routes,
     view_routes,
@@ -12,6 +11,7 @@ from app.routes import (
     doc_routes,
     whisper_routes,
     converter_routes,
+    youtube_routes,
 )
 from app.services.whisper_notes import requeue_interrupted
 import os
@@ -53,3 +53,4 @@ app.include_router(doc_routes.router, prefix="/api", tags=["Docs"])
 app.include_router(chat_routes.router, prefix="/api", tags=["Chat"])
 app.include_router(whisper_routes.router, prefix="/api", tags=["Whisper"])
 app.include_router(converter_routes.router, prefix="/api", tags=["Converter"])
+app.include_router(youtube_routes.router, prefix="/api", tags=["YouTube"])

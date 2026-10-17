@@ -23,4 +23,5 @@ dependencies = [
     "ruff>=0.15.15",
     "uvicorn>=0.46.0",
     "websockets>=17.1",
+    "yt-dlp[default]>=2026.8.19",
 ]
