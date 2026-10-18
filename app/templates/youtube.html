@@ -19,29 +19,79 @@
         .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.09); }
         .glass-strong { background: rgba(255,255,255,0.07); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.12); }
         .glass-soft { background: rgba(255,255,255,0.03); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.07); }
-        .yt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 11px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); transition: background 120ms, transform 120ms; }
+        .yt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 11px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); transition: background 120ms, transform 120ms; white-space: nowrap; }
         .yt-btn:hover { background: rgba(255,255,255,.1); } .yt-btn:active { transform: scale(.97); } .yt-btn:disabled { opacity: .4; pointer-events: none; }
         .yt-btn.primary { background: linear-gradient(90deg,#dc2626,#9333ea); border-color: transparent; color: #fff; }
+        .yt-btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 9px; }
         .yt-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
         .yt-seg button { padding: 6px 11px; border-radius: 9px; font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); color: rgba(255,255,255,.7); }
         .yt-seg button.on { background: rgba(220,38,38,.22); border-color: rgba(248,113,113,.5); color: #fff; }
         .yt-seg button:disabled { opacity: .3; }
+        .yt-seg.mini button { padding: 4px 9px; font-size: 11.5px; border-radius: 8px; }
         .yt-field { width: 100%; padding: 9px 12px; border-radius: 11px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: inherit; outline: none; font-size: 13px; }
         .yt-field:focus { border-color: rgba(248,113,113,.6); }
         .yt-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); cursor: pointer; user-select: none; }
         .yt-chip.on { background: rgba(59,130,246,.22); border-color: rgba(96,165,250,.55); color: #fff; }
         .yt-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.45); margin-bottom: 6px; }
         .yt-check { width: 16px; height: 16px; accent-color: #ef4444; flex-shrink: 0; }
+        .yt-spin { width: 14px; height: 14px; border: 2.5px solid rgba(148,163,184,.25); border-top-color: #f87171; border-radius: 50%; animation: ytspin .9s linear infinite; display: inline-block; }
+        @keyframes ytspin { to { transform: rotate(360deg); } }
+
+        /* 상단 탭 */
+        .yt-tabs { display: inline-flex; padding: 4px; gap: 4px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+        .yt-tabs button { padding: 7px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.6); display: inline-flex; align-items: center; gap: 7px; transition: background 120ms, color 120ms; }
+        .yt-tabs button:hover { color: #fff; }
+        .yt-tabs button.on { background: rgba(255,255,255,.1); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,.06) inset; }
+        .yt-search { display: flex; align-items: center; gap: 0; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); transition: border-color 120ms, box-shadow 120ms; }
+        .yt-search:focus-within { border-color: rgba(248,113,113,.6); box-shadow: 0 0 0 4px rgba(239,68,68,.12); }
+        .yt-search input { flex: 1; min-width: 0; background: transparent; outline: none; padding: 12px 6px 12px 0; font-size: 15px; color: inherit; }
+        .yt-search .go { margin: 4px; padding: 8px 18px; border-radius: 999px; font-weight: 800; font-size: 13px; color: #fff; background: linear-gradient(90deg,#dc2626,#9333ea); }
+
+        /* 카드 */
+        .yt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px 14px; }
+        .yt-card { position: relative; border-radius: 14px; padding: 6px; transition: background 120ms; }
+        .yt-card:hover { background: rgba(255,255,255,.04); }
+        .yt-card .thumb { position: relative; aspect-ratio: 16/9; border-radius: 11px; overflow: hidden; background: rgba(0,0,0,.4); cursor: pointer; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color 120ms; }
+        .yt-card .thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 200ms; }
+        .yt-card:hover .thumb img { transform: scale(1.03); }
+        .yt-card.sel .thumb { outline-color: #ef4444; }
+        .yt-card .badge { position: absolute; bottom: 6px; right: 6px; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: rgba(0,0,0,.78); color: #fff; }
+        .yt-card .badge.live { background: #dc2626; }
+        .yt-card .tick { position: absolute; top: 7px; left: 7px; width: 24px; height: 24px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.75); opacity: 0; transition: opacity 120ms, background 120ms; }
+        .yt-card .tick i { opacity: 0; }
+        .yt-card:hover .tick, .yt-card.sel .tick { opacity: 1; }
+        .yt-card.sel .tick { background: #ef4444; border-color: #ef4444; }
+        .yt-card.sel .tick i { opacity: 1; }
+        .yt-card .acts { position: absolute; top: 7px; right: 7px; display: flex; gap: 5px; opacity: 0; transition: opacity 120ms; }
+        .yt-card:hover .acts { opacity: 1; }
+        .yt-card .acts button { width: 30px; height: 30px; border-radius: 9px; background: rgba(0,0,0,.7); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+        .yt-card .acts button:hover { background: #dc2626; }
+        @media (hover: none) { .yt-card .tick, .yt-card .acts { opacity: 1; } }
+        .yt-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
+        .yt-link { color: rgba(255,255,255,.55); } .yt-link:hover { color: #fff; text-decoration: underline; }
+        .yt-skel { border-radius: 11px; aspect-ratio: 16/9; background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.09), rgba(255,255,255,.04)); background-size: 200% 100%; animation: ytskel 1.2s infinite; }
+        @keyframes ytskel { to { background-position: -200% 0; } }
+
+        /* 선택 바 */
+        #ytSelBar { transition: transform 180ms ease, opacity 180ms ease; }
+        #ytSelBar.off { transform: translate(-50%, 140%); opacity: 0; pointer-events: none; }
+
         html[data-ui-theme-mode="light"] .yt-btn { background: rgba(15,23,42,.04); border-color: rgba(15,23,42,.1); color: #1e293b; }
-        html[data-ui-theme-mode="light"] .yt-btn.primary { color: #fff; }
+        html[data-ui-theme-mode="light"] .yt-btn.primary { color: #fff; background: linear-gradient(90deg,#dc2626,#9333ea); border-color: transparent; }
+        html[data-ui-theme-mode="light"] .yt-card .acts button, html[data-ui-theme-mode="light"] .yt-card .badge { color: #fff; }
         html[data-ui-theme-mode="light"] .yt-seg button { border-color: rgba(15,23,42,.12); background: rgba(15,23,42,.03); color: #334155; }
         html[data-ui-theme-mode="light"] .yt-seg button.on { background: rgba(220,38,38,.12); color: #991b1b; border-color: rgba(220,38,38,.4); }
         html[data-ui-theme-mode="light"] .yt-field { background: #fff; border-color: rgba(15,23,42,.14); }
         html[data-ui-theme-mode="light"] .yt-chip { border-color: rgba(15,23,42,.14); background: rgba(15,23,42,.03); }
         html[data-ui-theme-mode="light"] .yt-chip.on { background: rgba(37,99,235,.12); color: #1d4ed8; }
         html[data-ui-theme-mode="light"] .yt-label { color: #64748b; }
-        .yt-spin { width: 14px; height: 14px; border: 2.5px solid rgba(148,163,184,.25); border-top-color: #f87171; border-radius: 50%; animation: ytspin .9s linear infinite; display: inline-block; }
-        @keyframes ytspin { to { transform: rotate(360deg); } }
+        html[data-ui-theme-mode="light"] .yt-tabs { background: rgba(15,23,42,.04); border-color: rgba(15,23,42,.08); }
+        html[data-ui-theme-mode="light"] .yt-tabs button { color: #64748b; }
+        html[data-ui-theme-mode="light"] .yt-tabs button.on { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+        html[data-ui-theme-mode="light"] .yt-search { background: #fff; border-color: rgba(15,23,42,.14); }
+        html[data-ui-theme-mode="light"] .yt-card:hover { background: rgba(15,23,42,.04); }
+        html[data-ui-theme-mode="light"] .yt-link { color: #64748b; } html[data-ui-theme-mode="light"] .yt-link:hover { color: #0f172a; }
+        html[data-ui-theme-mode="light"] .yt-skel { background: linear-gradient(90deg, rgba(15,23,42,.04), rgba(15,23,42,.09), rgba(15,23,42,.04)); background-size: 200% 100%; }
     </style>
 </head>
 <body class="bg-[#05070f] text-white font-sans h-screen flex overflow-hidden">
@@ -49,45 +99,115 @@
     {% set active_page = 'youtube' %}
     {% include "_app_sidebar.html" %}
 
-    <div class="flex-1 flex flex-col min-w-0">
+    <div class="flex-1 flex flex-col min-w-0 relative">
         <header class="h-14 glass border-b border-white/10 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-20">
-            <div class="flex items-center">
+            <div class="flex items-center min-w-0">
                 <button id="openSidebarBtn" class="md:hidden mr-3 text-white/60 hover:text-white transition" aria-label="사이드바 열기"><i class="fas fa-bars text-lg"></i></button>
-                <h2 class="text-base font-semibold text-white/90"><i class="fa-brands fa-youtube mr-2 text-red-500"></i>YouTube 다운로드</h2>
+                <h2 class="text-base font-semibold text-white/90 truncate"><i class="fa-brands fa-youtube mr-2 text-red-500"></i>YouTube</h2>
             </div>
-            <button id="themeSettingsBtn" class="theme-settings-btn" type="button" title="테마 설정" aria-label="테마 설정"><i class="fas fa-palette text-sm"></i></button>
+            <div class="flex items-center gap-2">
+                <button type="button" id="ytJumpJobs" class="yt-btn sm xl:hidden" onclick="document.getElementById('ytJobsPanel').scrollIntoView({behavior:'smooth'})"><i class="fas fa-list"></i> 다운로드 <span id="ytJumpBadge" class="hidden text-[10px] px-1.5 rounded-full bg-red-500 text-white"></span></button>
+                <button id="themeSettingsBtn" class="theme-settings-btn" type="button" title="테마 설정" aria-label="테마 설정"><i class="fas fa-palette text-sm"></i></button>
+            </div>
         </header>
 
-        <main class="flex-1 min-h-0 overflow-y-auto p-3 md:p-6">
-            <div class="max-w-5xl mx-auto space-y-5">
-                <section class="glass rounded-2xl p-4 md:p-5">
-                    <div class="flex items-center justify-between mb-2">
-                        <label for="ytUrls" class="text-sm font-bold text-white/85"><i class="fas fa-link mr-2 text-red-400"></i>YouTube 링크</label>
-                        <span class="text-[11px] text-white/40">여러 개는 줄바꿈·공백으로 구분 · 재생목록 링크도 가능 · 최대 50개</span>
-                    </div>
-                    <textarea id="ytUrls" rows="4" class="yt-field font-mono resize-y" placeholder="https://www.youtube.com/watch?v=...&#10;https://youtu.be/...&#10;https://www.youtube.com/playlist?list=..."></textarea>
-                    <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
-                        <span id="ytCount" class="text-xs text-white/45">링크 0개</span>
-                        <div class="flex gap-2">
-                            <button type="button" class="yt-btn" onclick="document.getElementById('ytUrls').value=''; updateCount();"><i class="fas fa-eraser"></i> 지우기</button>
-                            <button type="button" id="ytOpenBtn" class="yt-btn primary" onclick="openOptions()" disabled><i class="fas fa-download"></i> 다운로드 옵션 설정</button>
+        <main id="ytMain" class="flex-1 min-h-0 overflow-y-auto p-3 md:p-6 pb-28">
+            <div class="max-w-[1500px] mx-auto grid xl:grid-cols-[minmax(0,1fr)_370px] gap-5 items-start">
+                <div class="min-w-0 space-y-5">
+                    <!-- 입력: 검색 / 링크 / 채널 -->
+                    <section class="glass rounded-2xl p-4 md:p-5">
+                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <div class="yt-tabs" role="tablist">
+                                <button type="button" data-tab="search" class="on"><i class="fas fa-magnifying-glass"></i>검색</button>
+                                <button type="button" data-tab="links"><i class="fas fa-link"></i>링크</button>
+                                <button type="button" data-tab="channel"><i class="fas fa-tv"></i>채널·재생목록</button>
+                            </div>
+                            <span id="ytTabHint" class="text-[11px] text-white/40"></span>
                         </div>
-                    </div>
-                </section>
 
-                <section class="glass rounded-2xl p-4 md:p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-bold text-white/85"><i class="fas fa-list mr-2 text-blue-400"></i>다운로드 목록</h3>
-                        <div class="flex items-center gap-2">
-                            <button type="button" id="ytAllDownload" class="yt-btn" onclick="downloadAll()" title="완료된 모든 파일을 ZIP 하나로 받기" disabled><i class="fas fa-file-zipper"></i><span class="hidden sm:inline"> 모두 받기</span></button>
-                            <button type="button" id="ytAllDelete" class="yt-btn hover:!text-red-300" onclick="deleteAll()" title="진행 중인 항목을 제외하고 모두 삭제" disabled><i class="fas fa-trash-can"></i><span class="hidden sm:inline"> 모두 삭제</span></button>
-                            <button type="button" class="yt-btn" onclick="loadJobs()" title="새로고침"><i class="fas fa-rotate-right"></i></button>
+                        <div data-panel="search">
+                            <form id="ytSearchForm" class="yt-search" autocomplete="off">
+                                <i class="fas fa-magnifying-glass text-white/40 px-4"></i>
+                                <input id="ytQuery" type="search" placeholder="YouTube 검색 · 영상/채널/재생목록 링크를 넣어도 됩니다" aria-label="YouTube 검색">
+                                <button type="submit" class="go">검색</button>
+                            </form>
+                            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-[11.5px] text-white/50">
+                                <span class="flex items-center gap-2">종류 <span class="yt-seg mini" data-sgroup="kind"><button data-v="video" class="on">영상</button><button data-v="channel">채널</button><button data-v="playlist">재생목록</button></span></span>
+                                <span class="flex items-center gap-2" data-video-only>정렬 <span class="yt-seg mini" data-sgroup="sort"><button data-v="relevance" class="on">관련도</button><button data-v="views">조회수</button></span></span>
+                                <span class="flex items-center gap-2" data-video-only>업로드 <span class="yt-seg mini" data-sgroup="period"><button data-v="any" class="on">전체</button><button data-v="today">오늘</button><button data-v="week">이번 주</button><button data-v="month">이번 달</button><button data-v="year">올해</button></span></span>
+                            </div>
+                        </div>
+
+                        <div data-panel="links" class="hidden">
+                            <textarea id="ytUrls" rows="4" class="yt-field font-mono resize-y" placeholder="https://www.youtube.com/watch?v=...&#10;https://youtu.be/...&#10;https://www.youtube.com/playlist?list=..."></textarea>
+                            <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+                                <span id="ytCount" class="text-xs text-white/45">링크 0개</span>
+                                <div class="flex gap-2">
+                                    <button type="button" class="yt-btn" onclick="document.getElementById('ytUrls').value=''; updateCount();"><i class="fas fa-eraser"></i> 지우기</button>
+                                    <button type="button" id="ytOpenBtn" class="yt-btn primary" onclick="openOptions()" disabled><i class="fas fa-download"></i> 다운로드 옵션 설정</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div data-panel="channel" class="hidden">
+                            <form id="ytChannelForm" class="yt-search" autocomplete="off">
+                                <i class="fas fa-tv text-white/40 px-4"></i>
+                                <input id="ytChannelUrl" type="text" placeholder="채널 링크 또는 @핸들 · 재생목록 링크" aria-label="채널 또는 재생목록 링크">
+                                <button type="submit" class="go">불러오기</button>
+                            </form>
+                            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-[11.5px] text-white/50">
+                                <span class="flex items-center gap-2">채널에서 가져올 탭
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-white/75"><input type="checkbox" class="yt-check" data-ctab="videos" checked>동영상</label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-white/75"><input type="checkbox" class="yt-check" data-ctab="shorts">Shorts</label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-white/75"><input type="checkbox" class="yt-check" data-ctab="streams">라이브</label>
+                                </span>
+                            </div>
+                            <div id="ytRecent" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+                    </section>
+
+                    <!-- 결과 -->
+                    <section id="ytResults" class="glass rounded-2xl p-4 md:p-5 min-h-[320px]"></section>
+                </div>
+
+                <!-- 다운로드 목록 -->
+                <aside id="ytJobsPanel" class="glass rounded-2xl p-4 xl:sticky xl:top-0 xl:max-h-[calc(100vh-7.5rem)] flex flex-col min-w-0 scroll-mt-4">
+                    <div class="flex items-center justify-between mb-3 flex-shrink-0">
+                        <h3 class="text-sm font-bold text-white/85"><i class="fas fa-download mr-2 text-blue-400"></i>다운로드 목록 <span id="ytJobsCount" class="text-white/40 font-normal text-xs"></span></h3>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" id="ytAllDownload" class="yt-btn sm" onclick="downloadAll()" title="완료된 모든 파일을 ZIP 하나로 받기" disabled><i class="fas fa-file-zipper"></i> 모두 받기</button>
+                            <button type="button" id="ytAllDelete" class="yt-btn sm hover:!text-red-300" onclick="deleteAll()" title="진행 중인 항목을 제외하고 모두 삭제" disabled><i class="fas fa-trash-can"></i> 모두 삭제</button>
+                            <button type="button" class="yt-btn sm" onclick="loadJobs()" title="새로고침" aria-label="새로고침"><i class="fas fa-rotate-right"></i></button>
                         </div>
                     </div>
-                    <div id="ytJobs" class="space-y-2"><p class="text-xs text-white/40">불러오는 중...</p></div>
-                </section>
+                    <div id="ytJobs" class="space-y-2 overflow-y-auto min-h-0 -mr-1 pr-1"><p class="text-xs text-white/40">불러오는 중...</p></div>
+                </aside>
             </div>
         </main>
+
+        <!-- 선택 바 -->
+        <div id="ytSelBar" class="off fixed md:absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-24px)] max-w-xl">
+            <div class="glass-strong rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-red-500/20 text-red-300 flex items-center justify-center flex-shrink-0"><i class="fas fa-check-double"></i></div>
+                <div class="min-w-0 flex-1"><div class="text-sm font-bold"><span id="ytSelCount">0</span>개 선택</div><div id="ytSelMeta" class="text-[11px] text-white/50 truncate"></div></div>
+                <button type="button" class="yt-btn sm" onclick="clearSel()">해제</button>
+                <button type="button" class="yt-btn primary sm" onclick="downloadSelection()"><i class="fas fa-download"></i> 다운로드</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 미리보기 -->
+    <div id="ytPreview" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[115] hidden items-center justify-center p-3">
+        <div class="glass-strong w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden">
+            <div class="aspect-video bg-black"><iframe id="ytPreviewFrame" class="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+            <div class="p-4 flex flex-wrap items-center gap-3">
+                <div class="min-w-0 flex-1"><div id="ytPreviewTitle" class="text-sm font-bold truncate"></div><div id="ytPreviewMeta" class="text-[11px] text-white/50 truncate"></div></div>
+                <a id="ytPreviewOpen" class="yt-btn sm" target="_blank" rel="noopener"><i class="fa-brands fa-youtube"></i> YouTube</a>
+                <button type="button" id="ytPreviewSel" class="yt-btn sm"></button>
+                <button type="button" id="ytPreviewGet" class="yt-btn primary sm"><i class="fas fa-download"></i> 바로 받기</button>
+                <button type="button" class="yt-btn sm" onclick="closePreview()" aria-label="닫기"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
     </div>
 
     <!-- 옵션 모달 -->
@@ -167,15 +287,35 @@
     </div>
 
 <script>
+{% raw %}
 (() => {
     const $ = (id) => document.getElementById(id);
     const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fmtDur = (s) => { if (!s && s !== 0) return ''; s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
     const fmtSize = (n) => n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+    const trim0 = (v) => v.replace(/\.0$/, '');
+    const fmtCount = (n) => n == null ? '' : n >= 1e8 ? trim0((n / 1e8).toFixed(1)) + '억' : n >= 1e4 ? trim0((n / 1e4).toFixed(n >= 1e5 ? 0 : 1)) + '만' : n >= 1e3 ? trim0((n / 1e3).toFixed(1)) + '천' : String(n);
+    const fmtTotal = (s) => { if (!s) return ''; const h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60); return h ? h + '시간 ' + m + '분' : m + '분'; };
     const AUDIO = ['mp3', 'm4a', 'opus', 'wav', 'flac'];
     const LANG_NAMES = { ko: '한국어', en: '영어', ja: '일본어', 'zh-Hans': '중국어(간체)', 'zh-Hant': '중국어(번체)', zh: '중국어', es: '스페인어', fr: '프랑스어', de: '독일어', ru: '러시아어', vi: '베트남어', th: '태국어', id: '인도네시아어', pt: '포르투갈어', it: '이탈리아어', ar: '아랍어', hi: '힌디어' };
-    const PREF_KEY = 'lecai_yt_options';
+    const PREF_KEY = 'lecai_yt_options', UI_KEY = 'lecai_yt_ui';
+    const LIST_LIMIT = 40;          // 옵션 창에서 영상별 체크 목록을 보여 줄 최대 개수 (넘으면 요약)
+    const PROBE_LIMIT = 5;          // 이 개수 이하면 화질·자막 정보를 자세히 조회
+    const COL_CHUNK = 60;           // 채널 목록을 한 번에 그리는 개수
+    const MAX_DOWNLOAD = 5000;
     let urls = [], items = [], selectedLangs = new Set(['ko', 'en']), availableLangs = new Set();
+
+    const api = async (url, body, method) => {
+        const res = await fetch(url, body === undefined && !method ? undefined : { method: method || 'POST', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || ('요청 실패 (' + res.status + ')'));
+        return data;
+    };
+
+    // ---- 화면 상태 (브라우저에 저장) ----
+    let ui = { tab: 'search', kind: 'video', sort: 'relevance', period: 'any', ctabs: ['videos'], recent: [], query: '' };
+    try { ui = Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) {}
+    const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} };
 
     // ---- 사이드바 (모바일) ----
     const sidebar = $('sidebar'), overlay = $('sidebarOverlay');
@@ -184,17 +324,311 @@
     $('closeSidebarBtn')?.addEventListener('click', () => setSidebar(false));
     overlay.addEventListener('click', () => setSidebar(false));
 
+    // ---- 탭 ----
+    const TAB_HINT = { search: '검색 결과에서 영상을 골라 한 번에 받을 수 있어요', links: '여러 개는 줄바꿈·공백으로 구분 · 재생목록·채널 링크도 가능 · 최대 50개', channel: '채널의 모든 영상을 불러와 전체 또는 골라서 받기' };
+    function setTab(t, focus) {
+        ui.tab = t; saveUi();
+        document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+        document.querySelectorAll('[data-panel]').forEach(p => p.classList.toggle('hidden', p.dataset.panel !== t));
+        $('ytTabHint').textContent = TAB_HINT[t] || '';
+        if (focus) ({ search: $('ytQuery'), links: $('ytUrls'), channel: $('ytChannelUrl') })[t]?.focus();
+    }
+    document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab, true)));
+    window.setTab = setTab;
+
+    // ---- 선택 ----
+    const sel = new Map();          // id → item
+    const registry = new Map();     // 화면에 그린 항목 id → item
+    const remember = (it) => { if (it && it.id) registry.set(it.id, it); return it; };
+    function paintCard(id) {
+        document.querySelectorAll('[data-card="' + CSS.escape(id) + '"]').forEach(c => c.classList.toggle('sel', sel.has(id)));
+    }
+    function toggleSel(id, force) {
+        const it = registry.get(id); if (!it) return;
+        const on = force === undefined ? !sel.has(id) : force;
+        if (on) { if (sel.size >= MAX_DOWNLOAD) return; sel.set(id, it); } else sel.delete(id);
+        paintCard(id); updateSelBar();
+    }
+    function updateSelBar() {
+        const n = sel.size, list = [...sel.values()];
+        $('ytSelBar').classList.toggle('off', !n);
+        $('ytSelCount').textContent = n;
+        const dur = list.reduce((a, i) => a + (i.duration || 0), 0);
+        const chans = new Set(list.map(i => i.uploader).filter(Boolean));
+        $('ytSelMeta').textContent = [dur ? '총 ' + fmtTotal(dur) : '', chans.size === 1 ? [...chans][0] : chans.size ? '채널 ' + chans.size + '곳' : ''].filter(Boolean).join(' · ');
+        if (view === 'collection') updateColToolbar();
+    }
+    window.clearSel = () => { const ids = [...sel.keys()]; sel.clear(); ids.forEach(paintCard); updateSelBar(); };
+    window.downloadSelection = () => { if (sel.size) openOptionsWithItems([...sel.values()]); };
+
+    // ---- 카드 ----
+    const IMG = (src, cls) => src ? '<img src="' + esc(src) + '" class="' + cls + '" loading="lazy" referrerpolicy="no-referrer" alt="" onerror="this.style.visibility=\'hidden\'">' : '';
+    function videoCard(it) {
+        remember(it);
+        const badge = it.live ? '<span class="badge live">LIVE</span>' : it.duration ? '<span class="badge">' + fmtDur(it.duration) + '</span>' : it.short ? '<span class="badge"><i class="fas fa-bolt mr-0.5"></i>Shorts</span>' : '';
+        const meta = [it.view_count != null ? '조회수 ' + fmtCount(it.view_count) + '회' : '', it.short && it.duration ? 'Shorts' : ''].filter(Boolean).join(' · ');
+        return '<div class="yt-card' + (sel.has(it.id) ? ' sel' : '') + '" data-card="' + esc(it.id) + '">' +
+            '<div class="thumb" data-act="toggle">' + IMG(it.thumbnail, '') + badge +
+            '<span class="tick"><i class="fas fa-check"></i></span>' +
+            '<div class="acts"><button type="button" data-act="preview" title="미리보기" aria-label="미리보기"><i class="fas fa-play"></i></button><button type="button" data-act="quick" title="이 영상만 바로 받기" aria-label="바로 받기"><i class="fas fa-download"></i></button></div></div>' +
+            '<div class="mt-2 px-0.5"><div class="yt-title text-[13px] font-bold" title="' + esc(it.title) + '">' + esc(it.title || it.url) + '</div>' +
+            '<div class="text-[11.5px] mt-1 truncate">' + (it.uploader ? (it.channel_url ? '<button type="button" class="yt-link" data-act="channel" data-url="' + esc(it.channel_url) + '">' + esc(it.uploader) + '</button>' : '<span class="text-white/55">' + esc(it.uploader) + '</span>') : '') +
+            (meta ? '<span class="text-white/40">' + (it.uploader ? ' · ' : '') + esc(meta) + '</span>' : '') + '</div></div></div>';
+    }
+    function channelCard(it) {
+        return '<div class="glass-soft rounded-2xl p-4 flex items-center gap-4">' +
+            '<div class="w-16 h-16 rounded-full overflow-hidden bg-white/5 flex-shrink-0 flex items-center justify-center">' + (it.thumbnail ? IMG(it.thumbnail, 'w-full h-full object-cover') : '<i class="fas fa-user text-white/30 text-xl"></i>') + '</div>' +
+            '<div class="min-w-0 flex-1"><div class="text-sm font-bold truncate">' + esc(it.title) + '</div><div class="text-[11.5px] text-white/50 truncate">' + [it.handle, it.followers != null ? '구독자 ' + fmtCount(it.followers) + '명' : ''].filter(Boolean).map(esc).join(' · ') + '</div>' +
+            (it.description ? '<div class="text-[11.5px] text-white/40 mt-1 yt-title">' + esc(it.description) + '</div>' : '') + '</div>' +
+            '<button type="button" class="yt-btn sm flex-shrink-0" data-act="collection" data-url="' + esc(it.handle ? 'https://www.youtube.com/' + it.handle : it.url) + '"><i class="fas fa-list"></i> 전체 영상</button></div>';
+    }
+    function playlistCard(it) {
+        return '<div class="yt-card"><div class="thumb" data-act="collection" data-url="' + esc(it.url) + '">' + IMG(it.thumbnail, '') +
+            '<div class="absolute inset-y-0 right-0 w-2/5 bg-black/70 flex flex-col items-center justify-center text-white text-xs font-bold gap-1"><i class="fas fa-list-ul text-base"></i>' + (it.count ? it.count + '개' : '재생목록') + '</div></div>' +
+            '<div class="mt-2 px-0.5"><div class="yt-title text-[13px] font-bold">' + esc(it.title) + '</div><div class="text-[11.5px] text-white/50 truncate mt-1">' + esc(it.uploader || '') + '</div>' +
+            '<button type="button" class="yt-link text-[11.5px] mt-1" data-act="collection" data-url="' + esc(it.url) + '"><i class="fas fa-list mr-1"></i>전체 목록 보기</button></div></div>';
+    }
+    const SKELETON = (n) => '<div class="yt-grid">' + Array.from({ length: n }, () => '<div class="p-1.5"><div class="yt-skel"></div><div class="h-3 rounded bg-white/5 mt-3 w-4/5"></div><div class="h-2.5 rounded bg-white/5 mt-2 w-1/2"></div></div>').join('') + '</div>';
+
+    // 결과 영역 클릭 (이벤트 위임)
+    $('ytResults').addEventListener('click', (e) => {
+        const a = e.target.closest('[data-act]'); if (!a) return;
+        const card = a.closest('[data-card]'), id = card && card.dataset.card;
+        const act = a.dataset.act;
+        if (act === 'toggle' && id) toggleSel(id);
+        else if (act === 'preview' && id) { e.stopPropagation(); openPreview(registry.get(id)); }
+        else if (act === 'quick' && id) { e.stopPropagation(); openOptionsWithItems([registry.get(id)]); }
+        else if (act === 'channel' || act === 'collection') { e.stopPropagation(); openCollection(a.dataset.url, view === 'search'); }
+        else if (act === 'more') doSearch(false);
+        else if (act === 'back') renderSearch();
+        else if (act === 'goto') setTab(a.dataset.v, true);
+        else if (act === 'col-more') appendColChunk();
+        else if (act === 'col-all') colSelectAll(true);
+        else if (act === 'col-none') colSelectAll(false);
+        else if (act === 'col-download') colDownloadAll();
+        else if (act === 'col-tab') { col.tabFilter = a.dataset.v; renderColGrid(); }
+    });
+
+    // ---- 첫 화면 ----
+    let view = 'home';
+    function renderHome() {
+        view = 'home';
+        const tile = (tab, icon, color, title, text) => '<button type="button" data-act="goto" data-v="' + tab + '" class="glass-soft rounded-2xl p-5 text-left hover:bg-white/5 transition"><div class="w-10 h-10 rounded-xl flex items-center justify-center mb-3 ' + color + '"><i class="fas ' + icon + '"></i></div><div class="text-sm font-bold mb-1">' + title + '</div><div class="text-xs text-white/50 leading-relaxed">' + text + '</div></button>';
+        $('ytResults').innerHTML = '<div class="py-6 md:py-10 max-w-3xl mx-auto text-center"><div class="w-14 h-14 rounded-2xl bg-red-500/15 text-red-400 flex items-center justify-center mx-auto mb-4 text-2xl"><i class="fa-brands fa-youtube"></i></div><h3 class="text-lg font-bold mb-1">무엇을 받을까요?</h3><p class="text-xs text-white/50 mb-6">영상·음원·자막을 원하는 형식과 화질로 받아 보세요.</p>' +
+            '<div class="grid sm:grid-cols-3 gap-3">' +
+            tile('search', 'fa-magnifying-glass', 'bg-red-500/15 text-red-300', '검색해서 고르기', '검색 결과를 미리 보고 원하는 영상만 골라 한 번에 받습니다.') +
+            tile('links', 'fa-link', 'bg-blue-500/15 text-blue-300', '링크로 바로 받기', '영상·재생목록 링크를 여러 개 붙여 넣어 받습니다.') +
+            tile('channel', 'fa-tv', 'bg-purple-500/15 text-purple-300', '채널 전체 받기', '채널 링크나 @핸들을 넣으면 모든 영상을 불러와 받습니다.') +
+            '</div></div>';
+    }
+
+    // ---- 검색 ----
+    let search = { q: '', kind: ui.kind, sort: ui.sort, period: ui.period, page: 0, items: [], hasMore: false, loading: false, error: '' };
+    const sgroup = (g) => document.querySelector('[data-sgroup="' + g + '"] button.on')?.dataset.v;
+    function setSgroup(g, v) { document.querySelectorAll('[data-sgroup="' + g + '"] button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); }
+    function syncSearchFilters() { document.querySelectorAll('[data-video-only]').forEach(el => el.classList.toggle('hidden', sgroup('kind') !== 'video')); }
+    document.querySelectorAll('[data-sgroup] button').forEach(b => b.addEventListener('click', () => {
+        const g = b.closest('[data-sgroup]').dataset.sgroup; setSgroup(g, b.dataset.v); syncSearchFilters();
+        ui[g] = b.dataset.v; saveUi();
+        if ($('ytQuery').value.trim() && !looksLikeLink($('ytQuery').value)) doSearch(true);
+    }));
+    const looksLikeLink = (v) => /(youtube\.com|youtu\.be)\//i.test(v) || /^@[\w.\-]+$/.test(v.trim());
+    const isCollectionLink = (v) => /^@[\w.\-]+$/.test(v.trim()) || /youtube\.com\/(@|channel\/|c\/|user\/|playlist\?)/i.test(v);
+
+    $('ytSearchForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = $('ytQuery').value.trim(); if (!q) return;
+        if (looksLikeLink(q)) {
+            if (isCollectionLink(q)) { $('ytChannelUrl').value = q; setTab('channel'); openCollection(q); }
+            else openOptionsFromUrls([q]);
+            return;
+        }
+        doSearch(true);
+    });
+
+    async function doSearch(reset) {
+        if (search.loading) return;
+        if (reset) {
+            search = { q: $('ytQuery').value.trim(), kind: sgroup('kind'), sort: sgroup('sort'), period: sgroup('period'), page: 0, items: [], hasMore: false, loading: false, error: '' };
+            ui.query = search.q; saveUi();
+        }
+        if (!search.q) return;
+        search.loading = true; search.error = '';
+        renderSearch();
+        try {
+            const d = await api('/api/youtube/search', { query: search.q, kind: search.kind, sort: search.sort, period: search.period, page: search.page + 1 });
+            const seen = new Set(search.items.map(i => i.id));
+            search.items.push(...(d.items || []).filter(i => !seen.has(i.id)));
+            search.page = d.page || search.page + 1; search.hasMore = !!d.has_more && search.page < 20;
+        } catch (e) { search.error = e.message; }
+        search.loading = false;
+        renderSearch();
+    }
+
+    function renderSearch() {
+        view = 'search';
+        const s = search, box = $('ytResults');
+        const kindName = { video: '영상', channel: '채널', playlist: '재생목록' }[s.kind];
+        const videos = s.kind === 'video' ? s.items : [];
+        let html = '<div class="flex flex-wrap items-center justify-between gap-2 mb-4"><div class="min-w-0"><h3 class="text-sm font-bold truncate">‘' + esc(s.q) + '’ ' + kindName + ' 검색 결과</h3><div class="text-[11px] text-white/45">' + (s.items.length ? s.items.length + '개' + (s.hasMore ? ' 이상' : '') : '') + '</div></div>' +
+            (videos.length ? '<div class="flex gap-2"><button type="button" class="yt-btn sm" id="ytSearchSelAll"><i class="fas fa-check-double"></i> 모두 선택</button></div>' : '') + '</div>';
+        if (!s.items.length && s.loading) html += SKELETON(8);
+        else if (!s.items.length && s.error) html += '<div class="py-12 text-center text-sm text-red-300"><i class="fas fa-triangle-exclamation mr-1"></i>' + esc(s.error) + '</div>';
+        else if (!s.items.length) html += '<div class="py-12 text-center text-sm text-white/45">검색 결과가 없습니다.</div>';
+        else if (s.kind === 'channel') html += '<div class="grid 2xl:grid-cols-2 gap-3">' + s.items.map(channelCard).join('') + '</div>';
+        else html += '<div class="yt-grid">' + s.items.map(s.kind === 'playlist' ? playlistCard : videoCard).join('') + '</div>';
+        if (s.items.length && (s.hasMore || s.loading)) html += '<div class="mt-5 text-center"><button type="button" class="yt-btn" data-act="more" ' + (s.loading ? 'disabled' : '') + '>' + (s.loading ? '<span class="yt-spin"></span> 불러오는 중' : '<i class="fas fa-chevron-down"></i> 더 보기') + '</button></div>';
+        if (s.items.length && s.error) html += '<p class="text-xs text-red-300 text-center mt-3">' + esc(s.error) + '</p>';
+        box.innerHTML = html;
+        $('ytSearchSelAll')?.addEventListener('click', () => {
+            const all = videos.every(i => sel.has(i.id));
+            videos.forEach(i => toggleSel(i.id, !all));
+            $('ytSearchSelAll').innerHTML = all ? '<i class="fas fa-check-double"></i> 모두 선택' : '<i class="fas fa-xmark"></i> 선택 해제';
+        });
+        if (videos.length && videos.every(i => sel.has(i.id)) && $('ytSearchSelAll')) $('ytSearchSelAll').innerHTML = '<i class="fas fa-xmark"></i> 선택 해제';
+    }
+
+    // ---- 채널 / 재생목록 ----
+    let col = null, colReq = 0;
+    const ctabs = () => [...document.querySelectorAll('[data-ctab]:checked')].map(c => c.dataset.ctab);
+    document.querySelectorAll('[data-ctab]').forEach(c => { c.checked = (ui.ctabs || ['videos']).includes(c.dataset.ctab); c.addEventListener('change', () => { if (!ctabs().length) c.checked = true; ui.ctabs = ctabs(); saveUi(); }); });
+    $('ytChannelForm').addEventListener('submit', (e) => { e.preventDefault(); const v = $('ytChannelUrl').value.trim(); if (v) openCollection(v); });
+
+    function renderRecent() {
+        const r = (ui.recent || []).slice(0, 8);
+        $('ytRecent').innerHTML = r.length ? '<span class="text-[11px] text-white/40 self-center mr-1">최근</span>' + r.map((c, n) => '<button type="button" class="yt-chip !py-1" data-recent="' + n + '">' + (c.avatar ? '<img src="' + esc(c.avatar) + '" class="w-4 h-4 rounded-full object-cover" referrerpolicy="no-referrer" alt="">' : '<i class="fas fa-tv text-[10px]"></i>') + '<span class="max-w-[140px] truncate">' + esc(c.title) + '</span></button>').join('') : '';
+        $('ytRecent').querySelectorAll('[data-recent]').forEach(b => b.addEventListener('click', () => { const c = r[+b.dataset.recent]; $('ytChannelUrl').value = c.url; openCollection(c.url); }));
+    }
+
+    async function openCollection(url, fromSearch) {
+        if (!url) return;
+        const req = ++colReq;
+        view = 'collection';
+        if (ui.tab !== 'channel') setTab('channel');
+        $('ytChannelUrl').value = url;
+        const tabs = ctabs();
+        $('ytResults').innerHTML = '<div class="flex items-center gap-3 mb-5"><div class="w-16 h-16 rounded-full yt-skel !aspect-square"></div><div class="flex-1"><div class="h-4 w-48 rounded bg-white/5"></div><div class="h-3 w-32 rounded bg-white/5 mt-2"></div></div></div><div class="flex items-center gap-2 text-xs text-white/55 mb-4"><span class="yt-spin"></span> 전체 영상 목록을 불러오는 중... 영상이 많은 채널은 30초 이상 걸릴 수 있어요.</div>' + SKELETON(8);
+        $('ytMain').scrollTo({ top: 0, behavior: 'smooth' });
+        try {
+            const d = await api('/api/youtube/collection', { url, tabs });
+            if (req !== colReq) return;
+            d.items.forEach(remember);
+            col = { ...d, url, fromSearch: !!fromSearch && search.items.length > 0, filter: '', sort: 'default', tabFilter: 'all', shown: 0, list: [] };
+            if (d.info.type === 'channel') {
+                ui.recent = [{ url: d.info.url || url, title: d.info.title, avatar: d.info.avatar }, ...(ui.recent || []).filter(c => c.url !== (d.info.url || url))].slice(0, 8);
+                saveUi(); renderRecent();
+            }
+            renderCollection();
+        } catch (e) {
+            if (req !== colReq) return;
+            $('ytResults').innerHTML = (fromSearch && search.items.length ? '<button type="button" class="yt-link text-xs mb-3" data-act="back"><i class="fas fa-arrow-left mr-1"></i>검색 결과로</button>' : '') + '<div class="py-12 text-center text-sm text-red-300"><i class="fas fa-triangle-exclamation mr-1"></i>' + esc(e.message) + '</div>';
+        }
+    }
+
+    function colVisible() {
+        if (!col) return [];
+        const f = col.filter.toLowerCase();
+        let list = col.items.filter(i => (col.tabFilter === 'all' || i.tab === col.tabFilter) && (!f || (i.title || '').toLowerCase().includes(f)));
+        const by = { old: (a, b) => col.items.indexOf(b) - col.items.indexOf(a), views: (a, b) => (b.view_count || 0) - (a.view_count || 0), long: (a, b) => (b.duration || 0) - (a.duration || 0), short: (a, b) => (a.duration || 0) - (b.duration || 0) }[col.sort];
+        if (by) list = [...list].sort(by);
+        return list;
+    }
+
+    function renderCollection() {
+        const c = col, info = c.info, isCh = info.type === 'channel';
+        const TABN = { videos: '동영상', shorts: 'Shorts', streams: '라이브', playlist: '영상' };
+        const tabKeys = Object.keys(c.tabs || {}).filter(k => c.tabs[k] > 0);
+        const totalDur = c.items.reduce((a, i) => a + (i.duration || 0), 0);
+        const stats = [info.handle, info.followers != null ? '구독자 ' + fmtCount(info.followers) + '명' : '', info.uploader && !isCh ? info.uploader : '', '영상 ' + c.items.length.toLocaleString() + '개', totalDur ? '총 ' + fmtTotal(totalDur) + (c.items.some(i => !i.duration) ? '+' : '') : ''].filter(Boolean);
+        $('ytResults').innerHTML =
+            (c.fromSearch ? '<button type="button" class="yt-link text-xs mb-3" data-act="back"><i class="fas fa-arrow-left mr-1"></i>검색 결과로</button>' : '') +
+            '<div class="relative rounded-2xl overflow-hidden mb-4 glass-soft">' +
+            (info.banner ? '<div class="h-20 md:h-28 bg-center bg-cover opacity-70" style="background-image:url(\'' + esc(info.banner) + '\')"></div>' : '<div class="h-14 bg-gradient-to-r from-red-500/20 to-purple-500/20"></div>') +
+            '<div class="px-4 pb-4 flex flex-wrap items-end gap-4 -mt-8">' +
+            '<div class="w-16 h-16 md:w-20 md:h-20 rounded-' + (isCh ? 'full' : '2xl') + ' overflow-hidden ring-4 ring-[#0b0f1c] bg-[#111827] flex items-center justify-center flex-shrink-0">' + (info.avatar ? IMG(info.avatar, 'w-full h-full object-cover') : '<i class="fas ' + (isCh ? 'fa-user' : 'fa-list-ul') + ' text-white/40 text-xl"></i>') + '</div>' +
+            '<div class="min-w-0 flex-1 pt-9"><div class="text-[11px] text-white/45 font-bold uppercase tracking-wider">' + (isCh ? '채널' : '재생목록') + '</div><h3 class="text-base md:text-lg font-bold truncate">' + esc(info.title) + '</h3><div class="text-[11.5px] text-white/50 truncate">' + stats.map(esc).join(' · ') + '</div></div>' +
+            '<div class="flex gap-2 flex-shrink-0"><a href="' + esc(info.url) + '" target="_blank" rel="noopener" class="yt-btn sm" title="YouTube 에서 열기"><i class="fa-brands fa-youtube"></i></a><button type="button" class="yt-btn primary" data-act="col-download" id="ytColDownload"><i class="fas fa-download"></i> 전체 받기</button></div>' +
+            '</div></div>' +
+            (c.truncated ? '<p class="text-[11px] text-amber-300 mb-3"><i class="fas fa-circle-info mr-1"></i>영상이 너무 많아 탭마다 최근 ' + MAX_DOWNLOAD.toLocaleString() + '개까지만 불러왔습니다.</p>' : '') +
+            (c.errors && c.errors.length ? '<p class="text-[11px] text-amber-300 mb-3">일부 탭을 불러오지 못했습니다: ' + esc(c.errors[0]) + '</p>' : '') +
+            '<div class="flex flex-wrap items-center gap-2 mb-4">' +
+            '<div class="relative flex-1 min-w-[180px]"><i class="fas fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-xs"></i><input id="ytColFilter" class="yt-field !pl-8 !py-2" placeholder="제목으로 거르기"></div>' +
+            (tabKeys.length > 1 ? '<span class="yt-seg mini"><button type="button" data-act="col-tab" data-v="all" class="on">전체</button>' + tabKeys.map(k => '<button type="button" data-act="col-tab" data-v="' + k + '">' + TABN[k] + ' ' + c.tabs[k] + '</button>').join('') + '</span>' : '') +
+            '<select id="ytColSort" class="yt-field !w-auto !py-2"><option value="default">' + (isCh ? '최신순' : '목록 순서') + '</option><option value="old">' + (isCh ? '오래된순' : '역순') + '</option><option value="views">조회수순</option><option value="long">긴 영상순</option><option value="short">짧은 영상순</option></select>' +
+            '<button type="button" class="yt-btn sm" data-act="col-all"><i class="fas fa-check-double"></i> 모두 선택</button><button type="button" class="yt-btn sm" data-act="col-none">선택 해제</button>' +
+            '</div><div id="ytColInfo" class="text-[11px] text-white/45 mb-3"></div><div id="ytColGrid" class="yt-grid"></div>';
+        $('ytColFilter').addEventListener('input', (e) => { col.filter = e.target.value; renderColGrid(); });
+        $('ytColSort').addEventListener('change', (e) => { col.sort = e.target.value; renderColGrid(); });
+        renderColGrid();
+    }
+    function renderColGrid() {
+        col.list = colVisible(); col.shown = 0;
+        $('ytColGrid').innerHTML = col.list.length ? '' : '<div class="col-span-full py-10 text-center text-sm text-white/45">해당하는 영상이 없습니다.</div>';
+        document.querySelectorAll('[data-act="col-tab"]').forEach(b => b.classList.toggle('on', b.dataset.v === col.tabFilter));
+        appendColChunk(); updateColToolbar();
+    }
+    function appendColChunk() {
+        if (!col || col.shown >= col.list.length) return;
+        const next = col.list.slice(col.shown, col.shown + COL_CHUNK);
+        $('ytColGrid').insertAdjacentHTML('beforeend', next.map(videoCard).join(''));
+        col.shown += next.length;
+    }
+    function updateColToolbar() {
+        if (!col || !$('ytColInfo')) return;
+        const n = col.list.length, picked = col.list.filter(i => sel.has(i.id)).length;
+        $('ytColInfo').textContent = (n === col.items.length ? '' : '조건에 맞는 영상 ' + n.toLocaleString() + '개 · ') + (picked ? picked.toLocaleString() + '개 선택됨 · 선택한 영상은 아래 선택 바에서 받기' : '썸네일을 눌러 골라 받거나, 오른쪽 위 버튼으로 ' + (n === col.items.length ? '전체' : '보이는 영상 전체') + '를 받으세요.');
+        $('ytColDownload').innerHTML = '<i class="fas fa-download"></i> ' + (n === col.items.length ? '전체' : '보이는') + ' ' + n.toLocaleString() + '개 받기';
+        $('ytColDownload').disabled = !n;
+    }
+    function colSelectAll(on) { if (!col) return; col.list.forEach(i => { if (on) { if (sel.size < MAX_DOWNLOAD) sel.set(i.id, i); } else sel.delete(i.id); }); document.querySelectorAll('#ytColGrid [data-card]').forEach(c => c.classList.toggle('sel', sel.has(c.dataset.card))); updateSelBar(); }
+    function colDownloadAll() {
+        if (!col || !col.list.length) return;
+        const info = col.info, all = col.list.length === col.items.length;
+        openOptionsWithItems(col.list.slice(0, MAX_DOWNLOAD), { source: { type: info.type, title: info.title, url: info.url, avatar: info.avatar || '' }, title: info.title + ' · ' + (all ? '전체 ' : '') + col.list.length + '개' });
+    }
+    // 스크롤하면 다음 묶음을 자동으로
+    // 검색 결과도 끝에 가까워지면 다음 페이지를 자동으로 (선택 바에 '더 보기'가 가려져도 계속 볼 수 있게)
+    $('ytMain').addEventListener('scroll', () => {
+        const m = $('ytMain'), nearEnd = m.scrollTop + m.clientHeight > m.scrollHeight - 700;
+        if (!nearEnd) return;
+        if (view === 'collection') appendColChunk();
+        else if (view === 'search' && search.hasMore && !search.loading && !search.error && search.page < 5) doSearch(false);
+    }, { passive: true });
+
+    // ---- 미리보기 ----
+    let previewItem = null;
+    function openPreview(it) {
+        if (!it) return; previewItem = it;
+        $('ytPreviewFrame').src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(it.id) + '?autoplay=1&rel=0';
+        $('ytPreviewTitle').textContent = it.title || '';
+        $('ytPreviewMeta').textContent = [it.uploader, fmtDur(it.duration), it.view_count != null ? '조회수 ' + fmtCount(it.view_count) + '회' : ''].filter(Boolean).join(' · ');
+        $('ytPreviewOpen').href = it.url;
+        paintPreviewSel();
+        $('ytPreview').classList.remove('hidden'); $('ytPreview').classList.add('flex');
+    }
+    const paintPreviewSel = () => { $('ytPreviewSel').innerHTML = sel.has(previewItem.id) ? '<i class="fas fa-check text-red-400"></i> 선택됨' : '<i class="fas fa-plus"></i> 선택'; };
+    window.closePreview = () => { $('ytPreview').classList.add('hidden'); $('ytPreview').classList.remove('flex'); $('ytPreviewFrame').src = 'about:blank'; };
+    $('ytPreviewSel').addEventListener('click', () => { toggleSel(previewItem.id); paintPreviewSel(); });
+    $('ytPreviewGet').addEventListener('click', () => { const it = previewItem; closePreview(); openOptionsWithItems([it]); });
+    $('ytPreview').addEventListener('click', (e) => { if (e.target === $('ytPreview')) closePreview(); });
+
     // ---- 링크 입력 ----
     function parseUrls(text) {
         const out = [];
         for (const raw of text.split(/[\s,]+/)) {
             let u = raw.trim(); if (!u) continue;
+            if (/^@[\w.\-]+$/.test(u)) u = 'https://www.youtube.com/' + u;
             if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
             if (/(youtube\.com|youtu\.be)/i.test(u) && !out.includes(u)) out.push(u);
         }
         return out.slice(0, 50);
     }
-    window.updateCount = () => { urls = parseUrls($('ytUrls').value); $('ytCount').textContent = '링크 ' + urls.length + '개'; $('ytOpenBtn').disabled = !urls.length; };
+    window.updateCount = () => {
+        urls = parseUrls($('ytUrls').value);
+        const chans = urls.filter(u => /youtube\.com\/(@|channel\/|c\/|user\/)/i.test(u)).length;
+        $('ytCount').textContent = '링크 ' + urls.length + '개' + (chans ? ' · 채널 ' + chans + '개는 전체 영상으로 펼쳐집니다' : '');
+        $('ytOpenBtn').disabled = !urls.length;
+    };
     $('ytUrls').addEventListener('input', updateCount);
     $('ytUrls').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && urls.length) { e.preventDefault(); openOptions(); } });
 
@@ -228,7 +662,7 @@
             const h = +b.dataset.v; b.style.opacity = heights.size && ![...heights].some(x => x >= h - 10 && x <= h + 10) ? '.35' : '';
         });
         const q = groupValue('quality');
-        $('ytSummary').textContent = ($('ytItems').querySelector('[data-item]') ? selectedItems().length : items.filter(i => !i.error).length) + '개 · ' + (subsOnly ? '자막만' : fmt.toUpperCase() + (audio ? ' ' + (['wav', 'flac'].includes(fmt) ? '무손실' : groupValue('audio_quality') + 'k') : ' ' + (q === 'best' ? '최고 화질' : q + 'p'))) + ($('ytSubs').checked ? ' · 자막 ' + [...selectedLangs].join(', ') : '');
+        $('ytSummary').textContent = selectedItems().length.toLocaleString() + '개 · ' + (subsOnly ? '자막만' : fmt.toUpperCase() + (audio ? ' ' + (['wav', 'flac'].includes(fmt) ? '무손실' : groupValue('audio_quality') + 'k') : ' ' + (q === 'best' ? '최고 화질' : q + 'p'))) + ($('ytSubs').checked ? ' · 자막 ' + [...selectedLangs].join(', ') : '');
         savePrefs();
     }
 
@@ -262,111 +696,159 @@
         return { format: groupValue('format'), quality: groupValue('quality'), audio_quality: groupValue('audio_quality'), subtitles: $('ytSubs').checked, sub_langs: [...selectedLangs], auto_subs: $('ytAutoSubs').checked, sub_format: groupValue('sub_format'), embed_subs: $('ytEmbedSubs').checked, embed_thumbnail: $('ytThumb').checked, add_metadata: $('ytMeta').checked };
     }
 
-    // ---- 모달: 링크 조회 → 옵션 ----
-    window.openOptions = async () => {
-        updateCount(); if (!urls.length) return;
-        items = []; availableLangs = new Set(); loadPrefs();
+    // ---- 옵션 창 ----
+    let pending = { source: null, title: '' };
+    function showModal() {
+        loadPrefs();
         $('ytError').classList.add('hidden'); $('ytStartBtn').disabled = true;
-        $('ytItems').innerHTML = '<div class="flex items-center gap-2 text-sm text-white/60 py-3"><span class="yt-spin"></span> 영상 정보를 확인하는 중... (' + urls.length + '개)</div>';
         $('ytProbeInfo').textContent = '';
         renderLangs(); syncUi();
         $('ytModal').classList.remove('hidden'); $('ytModal').classList.add('flex');
-        try {
-            const res = await fetch('/api/youtube/probe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls }) });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.detail || '조회 실패');
-            items = data.items || [];
-            // 직접 올린 자막 + 영상 원어(자동 자막). 자동 번역 자막 수백 개는 목록에 넣지 않고 언어 코드 직접 추가로 받는다
-            items.forEach(i => {
-                (i.subtitles || []).forEach(l => availableLangs.add(l));
-                if (i.language && (i.auto_captions || []).includes(i.language)) availableLangs.add(i.language);
-            });
-            const ok = items.filter(i => !i.error);
-            $('ytProbeInfo').textContent = '· ' + ok.length + '개 확인' + (items.length - ok.length ? ', ' + (items.length - ok.length) + '개 오류' : '');
+    }
+    function setItems(list) {
+        items = list;
+        availableLangs = new Set();
+        // 직접 올린 자막 + 영상 원어(자동 자막). 자동 번역 자막 수백 개는 목록에 넣지 않고 언어 코드 직접 추가로 받는다
+        items.forEach(i => {
+            (i.subtitles || []).forEach(l => availableLangs.add(l));
+            if (i.language && (i.auto_captions || []).includes(i.language)) availableLangs.add(i.language);
+        });
+        const ok = items.filter(i => !i.error);
+        const dur = ok.reduce((a, i) => a + (i.duration || 0), 0);
+        $('ytProbeInfo').textContent = '· ' + ok.length.toLocaleString() + '개' + (dur ? ' · 총 ' + fmtTotal(dur) : '') + (items.length - ok.length ? ', ' + (items.length - ok.length) + '개 오류' : '');
+        if (items.length <= LIST_LIMIT) {
             $('ytItems').innerHTML = items.map((i, n) => i.error
                 ? '<div class="flex items-start gap-3 rounded-xl p-2.5 bg-red-500/10 border border-red-500/30"><i class="fas fa-triangle-exclamation text-red-400 mt-0.5"></i><div class="min-w-0 text-xs"><div class="truncate text-white/70">' + esc(i.url) + '</div><div class="text-red-300 mt-0.5">' + esc(i.error) + '</div></div></div>'
                 : '<label class="flex items-center gap-3 rounded-xl p-2 glass-soft cursor-pointer"><input type="checkbox" class="yt-check" data-item="' + n + '" checked>' +
                   (i.thumbnail ? '<img src="' + esc(i.thumbnail) + '" class="w-24 h-14 object-cover rounded-lg flex-shrink-0 bg-black" loading="lazy" referrerpolicy="no-referrer" alt="">' : '<div class="w-24 h-14 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0"><i class="fa-brands fa-youtube text-red-500"></i></div>') +
-                  '<div class="min-w-0 flex-1"><div class="text-sm font-bold truncate" title="' + esc(i.title) + '">' + esc(i.title || i.url) + '</div><div class="text-[11px] text-white/45 truncate">' + [i.uploader, fmtDur(i.duration), (i.heights || [])[0] ? '최대 ' + i.heights[0] + 'p' : '', (i.subtitles || []).length ? '자막 ' + i.subtitles.length + '개' : '', (i.auto_captions || []).length ? '자동자막' : '', i.playlist ? '재생목록: ' + i.playlist : ''].filter(Boolean).map(esc).join(' · ') + '</div></div></label>').join('');
+                  '<div class="min-w-0 flex-1"><div class="text-sm font-bold truncate" title="' + esc(i.title) + '">' + esc(i.title || i.url) + '</div><div class="text-[11px] text-white/45 truncate">' + [i.uploader, fmtDur(i.duration), (i.heights || [])[0] ? '최대 ' + i.heights[0] + 'p' : '', (i.subtitles || []).length ? '자막 ' + i.subtitles.length + '개' : '', (i.auto_captions || []).length ? '자동자막' : '', i.playlist ? '목록: ' + i.playlist : ''].filter(Boolean).map(esc).join(' · ') + '</div></div></label>').join('');
             $('ytItems').querySelectorAll('[data-item]').forEach(c => c.addEventListener('change', () => { $('ytStartBtn').disabled = !selectedItems().length; syncUi(); }));
-            $('ytStartBtn').disabled = !ok.length;
-            renderLangs(); syncUi();
+        } else {
+            // 영상이 많으면 (채널 전체 등) 썸네일 모음 + 개수만 보여 준다. 고르기는 목록 화면에서
+            const src = pending.source;
+            $('ytItems').innerHTML = '<div class="glass-soft rounded-xl p-3 flex items-center gap-4"><div class="grid grid-cols-4 gap-1 w-48 flex-shrink-0">' + ok.slice(0, 8).map(i => '<div class="aspect-video rounded overflow-hidden bg-black/40">' + IMG(i.thumbnail, 'w-full h-full object-cover') + '</div>').join('') + '</div>' +
+                '<div class="min-w-0"><div class="text-sm font-bold truncate">' + esc(src ? src.title : (ok[0]?.playlist || '여러 영상')) + '</div><div class="text-xs text-white/55 mt-0.5">영상 ' + ok.length.toLocaleString() + '개' + (dur ? ' · 총 ' + fmtTotal(dur) : '') + '</div><div class="text-[11px] text-white/40 mt-1.5">순서대로 받으며, 중간에 멈추거나 실패해도 다운로드 목록에서 이어받을 수 있어요.</div></div></div>';
+        }
+        $('ytStartBtn').disabled = !ok.length;
+        renderLangs(); syncUi();
+    }
+    async function runProbe(list, fallback) {
+        $('ytItems').innerHTML = '<div class="flex items-center gap-2 text-sm text-white/60 py-3"><span class="yt-spin"></span> 영상 정보를 확인하는 중... (' + list.length + '개)</div>';
+        try {
+            const d = await api('/api/youtube/probe', { urls: list });
+            setItems(d.items || []);
         } catch (e) {
+            if (fallback && fallback.length) { setItems(fallback); return; }
             $('ytItems').innerHTML = ''; $('ytError').textContent = '조회 실패: ' + e.message; $('ytError').classList.remove('hidden');
         }
-    };
+    }
+    // 링크 탭
+    window.openOptions = () => { updateCount(); if (urls.length) openOptionsFromUrls(urls); };
+    function openOptionsFromUrls(list) { pending = { source: null, title: '' }; items = []; showModal(); runProbe(list); }
+    // 검색·채널에서 고른 영상
+    function openOptionsWithItems(list, meta) {
+        list = list.filter(Boolean); if (!list.length) return;
+        pending = { source: (meta && meta.source) || null, title: (meta && meta.title) || '' };
+        items = []; showModal();
+        if (list.length <= PROBE_LIMIT) runProbe(list.map(i => i.url), list);   // 몇 개면 화질·자막까지 자세히
+        else setItems(list.map(i => ({ ...i, heights: i.heights || [], subtitles: i.subtitles || [], auto_captions: i.auto_captions || [] })));
+    }
+    window.openOptionsWithItems = openOptionsWithItems;
     window.closeOptions = () => { $('ytModal').classList.add('hidden'); $('ytModal').classList.remove('flex'); };
     $('ytModal').addEventListener('click', (e) => { if (e.target === $('ytModal')) closeOptions(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ytModal').classList.contains('hidden')) closeOptions(); });
-    const selectedItems = () => [...$('ytItems').querySelectorAll('[data-item]:checked')].map(c => items[+c.dataset.item]);
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!$('ytModal').classList.contains('hidden')) closeOptions();
+        else if (!$('ytPreview').classList.contains('hidden')) closePreview();
+    });
+    const selectedItems = () => $('ytItems').querySelector('[data-item]')
+        ? [...$('ytItems').querySelectorAll('[data-item]:checked')].map(c => items[+c.dataset.item])
+        : items.filter(i => !i.error);
 
     window.startDownload = async () => {
         const chosen = selectedItems(); if (!chosen.length) return;
         const options = collectOptions();
         try { localStorage.setItem(PREF_KEY, JSON.stringify(options)); } catch (e) {}
         const btn = $('ytStartBtn'); btn.disabled = true;
+        const title = pending.title && chosen.length === items.filter(i => !i.error).length ? pending.title : (chosen.length === 1 ? chosen[0].title : (chosen[0].title + ' 외 ' + (chosen.length - 1) + '개'));
         try {
-            const res = await fetch('/api/youtube/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: chosen.map(i => i.url), options, title: chosen.length === 1 ? chosen[0].title : (chosen[0].title + ' 외 ' + (chosen.length - 1) + '개'), thumbnail: (chosen.find(i => i.thumbnail) || {}).thumbnail || '' }) });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.detail || '요청 실패');
-            closeOptions(); $('ytUrls').value = ''; updateCount(); loadJobs();
+            await api('/api/youtube/download', { urls: chosen.map(i => i.url), options, title, thumbnail: (chosen.find(i => i.thumbnail) || {}).thumbnail || '', source: pending.source || {} });
+            closeOptions();
+            if (ui.tab === 'links') { $('ytUrls').value = ''; updateCount(); }
+            // 받기 시작한 영상은 선택에서 뺀다
+            chosen.forEach(i => { if (sel.delete(i.id)) paintCard(i.id); }); updateSelBar();
+            loadJobs(true);
         } catch (e) { $('ytError').textContent = '다운로드 요청 실패: ' + e.message; $('ytError').classList.remove('hidden'); btn.disabled = false; }
     };
 
     // ---- 다운로드 목록 ----
     let pollTimer = null;
-    window.loadJobs = async () => {
+    const THUMB_FALLBACK = '<div class="w-[88px] h-[50px] rounded-lg bg-red-500/15 flex items-center justify-center flex-shrink-0"><i class="fa-brands fa-youtube text-red-400 text-xl"></i></div>';
+    window.ytThumbFail = (img) => { img.parentElement.outerHTML = THUMB_FALLBACK; };
+    function thumbHtml(j) {
+        const o = j.yt_options || {}, count = j.yt_count || 0, src = j.yt_source;
+        const badge = o.format === 'subs' ? 'fa-closed-captioning' : AUDIO.includes(o.format) ? 'fa-music' : 'fa-film';
+        if (!j.yt_thumbnail) return THUMB_FALLBACK;
+        return '<div class="relative w-[88px] h-[50px] flex-shrink-0 rounded-lg overflow-hidden bg-black">' +
+            '<img src="' + esc(j.yt_thumbnail) + '" class="w-full h-full object-cover" loading="lazy" referrerpolicy="no-referrer" alt="" onerror="ytThumbFail(this)">' +
+            (src && src.avatar ? '<img src="' + esc(src.avatar) + '" class="absolute top-1 left-1 w-5 h-5 rounded-full ring-2 ring-black/60 object-cover" referrerpolicy="no-referrer" alt="">' : '') +
+            '<span class="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/75 text-white"><i class="fas ' + badge + '"></i>' + (count > 1 ? ' ' + count.toLocaleString() : '') + '</span></div>';
+    }
+    window.loadJobs = async (scrollTop) => {
         let jobs = [];
         try { const r = await fetch('/api/youtube/jobs'); if (r.ok) jobs = await r.json(); } catch (e) {}
         const box = $('ytJobs');
-        if (!jobs.length) { box.innerHTML = '<p class="text-xs text-white/40 py-4 text-center">아직 다운로드한 항목이 없습니다. 위에 링크를 붙여 넣어 보세요.</p>'; }
+        if (!jobs.length) { box.innerHTML = '<div class="py-8 text-center text-xs text-white/40"><i class="fas fa-inbox text-2xl mb-2 block opacity-50"></i>아직 받은 항목이 없습니다.</div>'; }
         else box.innerHTML = jobs.map(j => {
             const last = (j.logs && j.logs.length) ? j.logs[j.logs.length - 1].replace(/^\[[^\]]*\]\s*/, '') : '';
             const running = j.status === 'processing' || j.status === 'pending';
             const o = j.yt_options || {};
             const tag = o.format === 'subs' ? '자막만' : (o.format || '').toUpperCase() + (AUDIO.includes(o.format) ? '' : (o.quality && o.quality !== 'best' ? ' ' + o.quality + 'p' : ' 최고화질')) + (o.subtitles && o.format !== 'subs' ? ' · 자막' : '');
-            const files = (j.files || []).map(f => '<a href="/api/youtube/file/' + j.id + '/' + encodeURIComponent(f.name) + '" class="flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg hover:bg-white/5"><i class="fas ' + (/\.(srt|vtt)$/i.test(f.name) ? 'fa-closed-captioning text-sky-300' : /\.(mp3|m4a|opus|wav|flac)$/i.test(f.name) ? 'fa-music text-purple-300' : 'fa-film text-red-300') + ' w-4 text-center"></i><span class="truncate flex-1">' + esc(f.name) + '</span><span class="text-white/40">' + fmtSize(f.size) + '</span><i class="fas fa-download text-white/40"></i></a>').join('');
-            return '<div class="glass-soft rounded-xl p-3"><div class="flex items-center gap-3">' + thumbHtml(j) +
-                '<div class="min-w-0 flex-1"><div class="text-sm font-bold truncate">' + esc((j.filename || '').replace('[YouTube] ', '')) + '</div><div class="text-[11px] text-white/45 truncate">' + esc(tag) + ' · ' + esc((j.created_at || '').slice(0, 16).replace('T', ' ')) + ' · ' + (j.yt_urls || []).length + '개</div></div>' +
-                (j.status === 'completed' && j.result_url ? '<a href="' + j.result_url + '" class="yt-btn primary !py-1.5 !px-3 !text-xs"><i class="fas fa-download"></i> ' + ((j.files || []).length > 1 ? '전체 ZIP' : '받기') + '</a>' : '') +
-                (running ? '' : '<button class="yt-btn !py-1.5 !px-2.5 !text-xs" title="삭제" onclick="deleteJob(\'' + j.id + '\')"><i class="fas fa-trash-alt"></i></button>') + '</div>' +
-                (running || j.status === 'failed' ? '<div class="mt-2"><div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full ' + (j.status === 'failed' ? 'bg-red-500' : 'bg-gradient-to-r from-red-500 to-purple-500') + ' transition-all" style="width:' + (j.status === 'failed' ? 100 : (j.progress || 0)) + '%"></div></div><div class="text-[11px] mt-1 ' + (j.status === 'failed' ? 'text-red-300' : 'text-white/55') + ' truncate" title="' + esc(j.error || last) + '">' + (running ? '<span class="yt-spin mr-1 align-[-2px]"></span>' + (j.progress || 0) + '% · ' : '') + esc(j.error || last) + '</div></div>' : (last ? '<div class="text-[11px] text-white/45 mt-1.5 truncate">' + esc(last) + '</div>' : '')) +
-                (files && (j.files || []).length > 1 ? '<details class="mt-2"><summary class="text-xs text-white/55 cursor-pointer">파일 ' + j.files.length + '개 개별 받기</summary><div class="mt-1">' + files + '</div></details>' : '') + '</div>';
+            const resumable = !running && (j.status === 'failed' || j.yt_cancelled || (j.yt_failed || 0) > 0);
+            const status = running ? (j.yt_live || last || '대기 중...') : (j.error || last);
+            const files = (j.files || []).map(f => '<a href="/api/youtube/file/' + j.id + '/' + encodeURIComponent(f.name) + '" class="flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg hover:bg-white/5"><i class="fas ' + (/\.(srt|vtt)$/i.test(f.name) ? 'fa-closed-captioning text-sky-300' : /\.(mp3|m4a|opus|wav|flac)$/i.test(f.name) ? 'fa-music text-purple-300' : 'fa-film text-red-300') + ' w-4 text-center"></i><span class="truncate flex-1">' + esc(f.name) + '</span><span class="text-white/40">' + fmtSize(f.size) + '</span></a>').join('');
+            const size = (j.files || []).reduce((a, f) => a + f.size, 0);
+            return '<div class="glass-soft rounded-xl p-2.5"><div class="flex items-start gap-2.5">' + thumbHtml(j) +
+                '<div class="min-w-0 flex-1"><div class="text-[13px] font-bold yt-title" title="' + esc((j.filename || '').replace('[YouTube] ', '')) + '">' + esc((j.filename || '').replace('[YouTube] ', '')) + '</div>' +
+                '<div class="text-[11px] text-white/45 truncate mt-0.5">' + esc(tag) + ' · ' + esc((j.created_at || '').slice(5, 16).replace('T', ' ')) + (size ? ' · ' + fmtSize(size) : '') + '</div></div></div>' +
+                (running || j.status === 'failed' ? '<div class="mt-2"><div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full ' + (j.status === 'failed' ? 'bg-red-500' : 'bg-gradient-to-r from-red-500 to-purple-500') + ' transition-all" style="width:' + (j.status === 'failed' ? 100 : (j.progress || 0)) + '%"></div></div><div class="text-[11px] mt-1 ' + (j.status === 'failed' ? 'text-red-300' : 'text-white/55') + ' truncate" title="' + esc(status) + '">' + (running ? '<span class="yt-spin mr-1 align-[-2px]"></span>' + (j.progress || 0) + '% · ' : '') + esc(status) + '</div></div>'
+                    : (last ? '<div class="text-[11px] mt-1.5 truncate ' + (j.yt_cancelled ? 'text-amber-300' : 'text-white/45') + '" title="' + esc(last) + '">' + esc(last) + '</div>' : '')) +
+                '<div class="flex flex-wrap items-center justify-end gap-1.5 mt-2">' +
+                (j.status === 'completed' && j.result_url ? '<a href="' + j.result_url + '" class="yt-btn primary sm"><i class="fas fa-download"></i> ' + ((j.files || []).length > 1 ? 'ZIP 받기' : '받기') + '</a>' : '') +
+                (resumable ? '<button type="button" class="yt-btn sm" onclick="retryJob(\'' + j.id + '\')" title="이미 받은 영상은 건너뛰고 남은 영상만 받습니다"><i class="fas fa-rotate"></i> 이어받기</button>' : '') +
+                (running ? '<button type="button" class="yt-btn sm hover:!text-red-300" onclick="cancelJob(\'' + j.id + '\')"' + (j.yt_cancel ? ' disabled' : '') + '><i class="fas fa-stop"></i> ' + (j.yt_cancel ? '중지 중' : '중지') + '</button>'
+                    : '<button type="button" class="yt-btn sm hover:!text-red-300" title="삭제" aria-label="삭제" onclick="deleteJob(\'' + j.id + '\')"><i class="fas fa-trash-alt"></i></button>') +
+                '</div>' +
+                (files && (j.files || []).length > 1 ? '<details class="mt-1.5"><summary class="text-[11.5px] text-white/55 cursor-pointer">파일 ' + j.files.length.toLocaleString() + '개 개별 받기</summary><div class="mt-1 max-h-60 overflow-y-auto">' + files + '</div></details>' : '') + '</div>';
         }).join('');
-        const anyRunning = jobs.some(j => j.status === 'processing' || j.status === 'pending');
+        const runningN = jobs.filter(j => j.status === 'processing' || j.status === 'pending').length;
         const doneFiles = jobs.filter(j => j.status === 'completed').reduce((a, j) => a + (j.files || []).length, 0);
         const doneSize = jobs.filter(j => j.status === 'completed').reduce((a, j) => a + (j.files || []).reduce((x, f) => x + f.size, 0), 0);
+        $('ytJobsCount').textContent = jobs.length ? jobs.length + '개' + (runningN ? ' · 진행 ' + runningN : '') : '';
+        $('ytJumpBadge').textContent = runningN; $('ytJumpBadge').classList.toggle('hidden', !runningN);
         $('ytAllDownload').disabled = !doneFiles;
         $('ytAllDownload').title = doneFiles ? '완료된 파일 ' + doneFiles + '개(' + fmtSize(doneSize) + ')를 ZIP 하나로 받기' : '받을 파일이 없습니다';
         $('ytAllDelete').disabled = !jobs.some(j => j.status !== 'processing' && j.status !== 'pending');
-        clearTimeout(pollTimer); pollTimer = setTimeout(loadJobs, anyRunning ? 1500 : 10000);
+        if (scrollTop === true) box.scrollTop = 0;
+        clearTimeout(pollTimer); pollTimer = setTimeout(loadJobs, runningN ? 1500 : 10000);
     };
-    // 목록 썸네일: 영상 썸네일 위에 형식 배지(영상/음원/자막). 불러오지 못하면 YouTube 아이콘
-    const THUMB_FALLBACK = '<div class="w-24 h-14 rounded-lg bg-red-500/15 flex items-center justify-center flex-shrink-0"><i class="fa-brands fa-youtube text-red-400 text-xl"></i></div>';
-    window.ytThumbFail = (img) => { img.parentElement.outerHTML = THUMB_FALLBACK; };
-    function thumbHtml(j) {
-        const o = j.yt_options || {}, count = (j.yt_urls || []).length;
-        const badge = o.format === 'subs' ? 'fa-closed-captioning' : AUDIO.includes(o.format) ? 'fa-music' : 'fa-film';
-        if (!j.yt_thumbnail) return THUMB_FALLBACK;
-        return '<div class="relative w-24 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-black">' +
-            '<img src="' + esc(j.yt_thumbnail) + '" class="w-full h-full object-cover" loading="lazy" referrerpolicy="no-referrer" alt="" onerror="ytThumbFail(this)">' +
-            '<span class="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/70 text-white"><i class="fas ' + badge + '"></i>' + (count > 1 ? ' ' + count : '') + '</span></div>';
-    }
     window.downloadAll = () => { window.location.href = '/api/youtube/all.zip'; };
     window.deleteAll = async () => {
         if (!confirm('진행 중인 항목을 제외한 모든 다운로드와 받은 파일을 삭제할까요? 되돌릴 수 없습니다.')) return;
-        try {
-            const r = await fetch('/api/youtube/jobs', { method: 'DELETE' });
-            const d = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(d.detail || '삭제 실패');
-            if (d.skipped) alert('진행 중인 ' + d.skipped + '개는 남겨 두었습니다.');
-        } catch (e) { alert(e.message); }
+        try { const d = await api('/api/youtube/jobs', undefined, 'DELETE'); if (d.skipped) alert('진행 중인 ' + d.skipped + '개는 남겨 두었습니다.'); } catch (e) { alert(e.message); }
         loadJobs();
     };
-    window.deleteJob = async (id) => { if (!confirm('이 다운로드와 받은 파일을 삭제할까요?')) return; await fetch('/api/youtube/jobs/' + id, { method: 'DELETE' }); loadJobs(); };
+    window.deleteJob = async (id) => { if (!confirm('이 다운로드와 받은 파일을 삭제할까요?')) return; try { await api('/api/youtube/jobs/' + id, undefined, 'DELETE'); } catch (e) { alert(e.message); } loadJobs(); };
+    window.cancelJob = async (id) => { if (!confirm('다운로드를 중지할까요? 지금까지 받은 파일은 남고, 나중에 이어받을 수 있습니다.')) return; try { await api('/api/youtube/jobs/' + id + '/cancel', {}); } catch (e) { alert(e.message); } loadJobs(); };
+    window.retryJob = async (id) => { try { await api('/api/youtube/jobs/' + id + '/retry', {}); } catch (e) { alert(e.message); } loadJobs(); };
 
-    updateCount(); loadJobs();
+    // ---- 시작 ----
+    setSgroup('kind', ui.kind); setSgroup('sort', ui.sort); setSgroup('period', ui.period); syncSearchFilters();
+    if (ui.query) $('ytQuery').value = ui.query;
+    setTab(['search', 'links', 'channel'].includes(ui.tab) ? ui.tab : 'search');
+    renderRecent(); renderHome(); updateCount(); loadJobs();
 })();
+{% endraw %}
 </script>
 <script src="/static/shared/theme.js"></script>
 </body>
