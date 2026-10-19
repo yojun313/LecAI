@@ -27,7 +27,7 @@ client = MongoClient(
     f"@{connect_host}:{connect_port}/?authSource={MONGO_AUTH_DB}"
 )
 
-db = client["lec-ai"]
+db = client["lecai"]
 users_col = db["users"]
 sessions_col = db["sessions"]
 history_col = db["history"]
