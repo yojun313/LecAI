@@ -224,7 +224,7 @@ def _prune(user_dir: Path) -> None:
             continue
 
 
-def _public(meta: dict) -> dict:
+def _public(meta: dict, job: Path | None = None) -> dict:
     keys = (
         "token",
         "name",
@@ -241,7 +241,14 @@ def _public(meta: dict) -> dict:
         "created",
         "note",
     )
-    return {k: meta.get(k) for k in keys}
+    out = {k: meta.get(k) for k in keys}
+    # 원본 파일을 받을 수 있는지 (원본이 남아 있는 작업만)
+    out["has_source"] = (
+        bool(meta.get("source")) and (job / meta["source"]).is_file()
+        if job is not None
+        else bool(meta.get("source"))
+    )
+    return out
 
 
 def list_jobs(username: str) -> list[dict]:
@@ -250,7 +257,7 @@ def list_jobs(username: str) -> list[dict]:
     jobs = []
     for job in user_dir.iterdir():
         try:
-            jobs.append(_public(_meta(job)))
+            jobs.append(_public(_meta(job), job))
         except OSError, ValueError:
             continue
     jobs.sort(key=lambda m: m.get("created") or 0, reverse=True)
@@ -361,6 +368,17 @@ def delete(username: str, token: str) -> None:
 def pdf_path(username: str, token: str) -> tuple[Path, str]:
     job = _job_dir(username, token)
     return job / "out.pdf", _meta(job)["pdf_name"]
+
+
+def source_path(username: str, token: str) -> tuple[Path, str]:
+    """업로드한 원본 파일 (올린 이름 그대로). 원본이 없는 예전 결과는 FileNotFoundError."""
+    job = _job_dir(username, token)
+    meta = _meta(job)
+    source = job / (meta.get("source") or "")
+    if not meta.get("source") or not source.is_file():
+        raise FileNotFoundError(token)
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f\x7f]', "_", meta.get("name") or "").strip(" .")
+    return source, name or f"original{source.suffix}"
 
 
 def page_png(username: str, token: str, number: int, width: int) -> Path:

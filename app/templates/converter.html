@@ -214,6 +214,7 @@
                                 <input type="checkbox" id="cv-p-landscape" class="cv-check">
                                 <span class="font-bold">가로</span>
                             </label>
+                            <button type="button" class="cv-btn hidden" id="cv-p-source" title="변환 전에 올린 원본 파일 받기"><i class="fas fa-file-arrow-down"></i><span>원본</span></button>
                             <button type="button" class="cv-btn primary" id="cv-p-download"><i class="fas fa-download"></i><span>PDF 받기</span></button>
                         </div>
                     </div>
@@ -357,6 +358,7 @@
                         ${j.note ? `<div class="text-[11px] text-amber-300/80 mt-0.5 truncate" title="${esc(j.note)}">${esc(j.note)}</div>` : ''}
                     </button>
                     <div class="flex items-center flex-shrink-0">
+                        ${j.has_source ? `<button type="button" class="cv-act" data-source="${esc(j.token)}" title="원본 받기 (${esc(j.name)})" aria-label="원본 받기"><i class="fas fa-file-arrow-down text-sm"></i></button>` : ''}
                         <button type="button" class="cv-act" data-download="${esc(j.token)}" title="PDF 받기" aria-label="PDF 받기"><i class="fas fa-download text-sm"></i></button>
                         <button type="button" class="cv-act hover:!text-red-300" data-delete="${esc(j.token)}" title="지우기" aria-label="지우기"><i class="fas fa-trash text-sm"></i></button>
                     </div>
@@ -490,9 +492,9 @@
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 30000);
     }
-    function download(token) {
+    function download(token, what = 'pdf') {
         const a = document.createElement('a');
-        a.href = `${API}/jobs/${encodeURIComponent(token)}/pdf`;
+        a.href = `${API}/jobs/${encodeURIComponent(token)}/${what === 'source' ? 'source' : 'pdf'}`;
         a.download = '';
         document.body.appendChild(a); a.click(); a.remove();
     }
@@ -568,6 +570,8 @@
         wrap.classList.toggle('hidden', !job.orientable);
         wrap.classList.toggle('flex', !!job.orientable);
         $('cv-p-landscape').checked = !!job.landscape;
+        $('cv-p-source').classList.toggle('hidden', !job.has_source);
+        $('cv-p-source').title = job.has_source ? `원본 받기 (${job.name})` : '';
     }
     function showPreview(job, byHand) {
         if (byHand) { pickedByHand = true; pickedAt = Date.now(); }
@@ -657,12 +661,13 @@
     });
 
     $('cv-list').addEventListener('click', (e) => {
-        const target = e.target.closest('[data-preview],[data-download],[data-delete],[data-dismiss]');
+        const target = e.target.closest('[data-preview],[data-download],[data-source],[data-delete],[data-dismiss]');
         if (!target) return;
         if (target.dataset.preview) {
             const job = jobs.find((j) => j.token === target.dataset.preview);
             if (job) showPreview(job, true);
         } else if (target.dataset.download) download(target.dataset.download);
+        else if (target.dataset.source) download(target.dataset.source, 'source');
         else if (target.dataset.delete) remove([target.dataset.delete]);
         else if (target.dataset.dismiss) {
             const index = pending.findIndex((p) => String(p.id) === target.dataset.dismiss);
@@ -686,6 +691,7 @@
     $('cv-delete-sel').addEventListener('click', () => remove([...selected]));
 
     $('cv-p-download').addEventListener('click', () => current && download(current.token));
+    $('cv-p-source').addEventListener('click', () => current && download(current.token, 'source'));
     $('cv-p-zoom').addEventListener('change', rerender);
     $('cv-p-minus').addEventListener('click', () => stepZoom(-1));
     $('cv-p-plus').addEventListener('click', () => stepZoom(1));

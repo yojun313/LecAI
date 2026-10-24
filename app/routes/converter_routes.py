@@ -133,6 +133,26 @@ async def download(token: str, user: str = Depends(get_current_user)):
     )
 
 
+@router.get("/jobs/{token}/source")
+async def download_source(token: str, user: str = Depends(get_current_user)):
+    """변환 전에 올린 원본 파일 받기"""
+    try:
+        path, name = converter.source_path(user, token)
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404, detail="원본 파일이 남아 있지 않아요."
+        ) from error
+    except ConverterError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=name,
+        content_disposition_type="attachment",
+        headers={**NO_STORE, "X-Content-Type-Options": "nosniff"},
+    )
+
+
 @router.delete("/jobs/{token}")
 async def delete(token: str, user: str = Depends(get_current_user)):
     try:

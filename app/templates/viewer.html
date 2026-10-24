@@ -1683,36 +1683,7 @@
             } catch (err) { alert('서버 통신 오류'); }
         }
 
-        let lastWheelTime = 0;
-        const WHEEL_COOLDOWN = 800; // 슬라이드 전환 후 0.8초간 대기 (너무 빠른 넘김 방지)
-
-        document.getElementById('presentationView').addEventListener('wheel', (e) => {
-            // 1. 프레젠테이션 모드가 아니면 무시
-            if (viewMode !== 'presentation') return;
-
-            // 2. 수직 스크롤(텍스트 읽기) 중일 때는 무시
-            // (가로 움직임보다 세로 움직임이 크면 슬라이드를 넘기지 않음)
-            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) return;
-
-            // 3. 움직임이 너무 작으면 무시 (민감도 조절)
-            if (Math.abs(e.deltaX) < 15) return;
-
-            const now = Date.now();
-            // 4. 쿨다운 체크: 마지막 전환 후 일정 시간이 지났는지 확인
-            if (now - lastWheelTime < WHEEL_COOLDOWN) return;
-
-            // 5. 방향에 따라 슬라이드 이동
-            if (e.deltaX > 0) {
-                // 오른쪽으로 스크롤 -> 다음 슬라이드
-                nextSlideBtn.click();
-            } else {
-                // 왼쪽으로 스크롤 -> 이전 슬라이드
-                prevSlideBtn.click();
-            }
-
-            // 시간 갱신
-            lastWheelTime = now;
-        }, { passive: true });
+        // 마우스/트랙패드 가로 스크롤로 슬라이드 넘기기는 사용하지 않음 (키보드·버튼으로만 이동)
 
         // ==========================================
         // 10. History Modal & Drag Move
@@ -2051,7 +2022,7 @@
             const bubble = document.createElement('div');
             bubble.className = role === 'user'
                 ? 'max-w-[85%] px-3 py-2 rounded-2xl rounded-br-md bg-sky-600/30 border border-sky-400/30 text-notion-text whitespace-pre-wrap break-words'
-                : 'max-w-[92%] px-3 py-2 rounded-2xl rounded-bl-md bg-notion-hover border border-notion-border text-notion-text prose prose-sm dark:prose-invert max-w-none chat-md';
+                : 'w-full min-w-0 !max-w-none px-3 py-2 rounded-2xl rounded-bl-md bg-notion-hover border border-notion-border text-notion-text prose prose-sm dark:prose-invert chat-md';
             if (role === 'user') bubble.textContent = content; else bubble.innerHTML = renderMarkdownWithMath(content || '');
             wrap.appendChild(bubble); chatMessagesEl.appendChild(wrap);
             return bubble;
@@ -2159,6 +2130,20 @@
             el.addEventListener('change', () => refreshExportPreview());
         });
         document.querySelectorAll('input[name="exportScope"]').forEach(r => r.addEventListener('change', () => refreshExportPreview()));
+        // 내보내기 설정(배율·용지·방향·이미지·새 페이지·다크)은 브라우저에 기억
+        const EXPORT_PREF_KEY = 'lecai_export_prefs', EXPORT_PREF_IDS = ['exportScale', 'exportPaper', 'exportOrient', 'exportImages', 'exportPageBreak', 'exportDark', 'exportMdImages'];
+        try {
+            const saved = JSON.parse(localStorage.getItem(EXPORT_PREF_KEY) || '{}');
+            EXPORT_PREF_IDS.forEach(id => {
+                const el = document.getElementById(id); if (!el || !(id in saved)) return;
+                if (el.type === 'checkbox') el.checked = !!saved[id]; else el.value = saved[id];
+            });
+            document.getElementById('exportScaleLabel').textContent = document.getElementById('exportScale').value + '%';
+        } catch (e) {}
+        EXPORT_PREF_IDS.forEach(id => document.getElementById(id).addEventListener('change', () => {
+            const out = {}; EXPORT_PREF_IDS.forEach(k => { const el = document.getElementById(k); out[k] = el.type === 'checkbox' ? el.checked : el.value; });
+            try { localStorage.setItem(EXPORT_PREF_KEY, JSON.stringify(out)); } catch (e) {}
+        }));
         ['exportFrom', 'exportTo'].forEach(id => document.getElementById(id).addEventListener('focus', () => { document.querySelector('input[name="exportScope"][value="range"]').checked = true; }));
 
         // 선택된 슬라이드 인덱스(0-based) 목록
@@ -2197,8 +2182,10 @@
 @page { size: ${paper} ${orient}; margin: 12mm; }
 html, body { background: ${bg}; color: ${fg}; }
 body { font-family: -apple-system, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Roboto, sans-serif; line-height: 1.65; margin: 0; padding: 16px; zoom: ${scale}; }
-.slide { ${pageBreak ? 'page-break-after: always; break-after: page;' : 'padding-bottom: 24px; border-bottom: 1px solid ' + border + '; margin-bottom: 24px;'} }
-.slide:last-child { page-break-after: auto; break-after: auto; }
+.slide { ${pageBreak ? 'page-break-after: always; break-after: page;' : 'padding-bottom: 20px; border-bottom: 1px solid ' + border + '; margin-bottom: 20px;'} }
+.slide:last-child { page-break-after: auto; break-after: auto; border-bottom: none; }
+/* 미리보기(화면)에서 새 페이지 구분을 눈으로 보이게. 인쇄에는 나오지 않음 */
+@media screen { ${pageBreak ? `.slide:not(:last-child)::after { content: "새 페이지"; display: block; margin: 28px -16px 28px; padding-top: 6px; border-top: 2px dashed ${border}; text-align: center; font-size: 11px; letter-spacing: .08em; color: ${dark ? '#64748b' : '#9ca3af'}; }` : ''} }
 .slide-img { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto 12px; border: 1px solid ${border}; }
 h2 { font-size: 1.3em; border-bottom: 2px solid ${border}; padding-bottom: 4px; margin-top: 0; }
 h3 { font-size: 1.1em; margin-top: 1.2em; } h4 { margin-top: 1em; }
@@ -2208,7 +2195,9 @@ pre { background: ${codeBg}; padding: 10px; border-radius: 6px; overflow-x: auto
 code { background: ${codeBg}; padding: 1px 4px; border-radius: 4px; } pre code { background: none; padding: 0; }
 blockquote { border-left: 4px solid ${border}; margin: 0.8em 0; padding: 0.2em 0.9em; color: ${dark ? '#cbd5e1' : '#374151'}; }
 .katex-display { overflow-x: auto; overflow-y: hidden; margin: 0.8em 0; }
-.slide, table, pre, blockquote, img { page-break-inside: avoid; break-inside: avoid; }
+.katex-display, table, pre, blockquote, img { page-break-inside: avoid; break-inside: avoid; }
+/* 슬라이드마다 새 페이지가 아니면 슬라이드가 페이지를 넘어 이어지게 둔다 (통째로 다음 장으로 밀리지 않게). 제목·슬라이드 이미지는 아래 내용과 붙여 둔다 */
+h2, h3, h4, .slide-img { page-break-after: avoid; break-after: avoid; }
 a { color: inherit; }
 </style></head><body>${sections}</body></html>`;
         }
@@ -2246,15 +2235,25 @@ a { color: inherit; }
             return md.replace(/<!-- \/?transcript:[^ ]+ -->\n?/g, '');
         }
 
+        // 내보내기 파일명: 뷰어의 파일명(폴더·확장자 제외). 일부만 내보내면 괄호에 범위 → "강의 3 (5-12)"
+        function exportFileName(tab, indices) {
+            let name = (tab.name || 'export').split('/').pop().replace(/\.(pdf|pptx?|md|markdown)$/i, '');
+            name = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'export';
+            if (indices.length && indices.length !== tab.slides.length) {
+                const a = slideNumberOf(tab, indices[0]), b = slideNumberOf(tab, indices[indices.length - 1]);
+                name += a === b ? ` (${a})` : ` (${a}-${b})`;
+            }
+            return name;
+        }
+
         function runExport() {
             const tab = getActiveTab(); if (!tab) return;
             const indices = exportSelection(tab);
             if (!indices.length) { alert('범위가 올바르지 않습니다.'); return; }
-            const base = tab.name.replace(/[\\/:*?"<>|]+/g, '_');
-            const suffix = indices.length === tab.slides.length ? '' : (indices.length === 1 ? `_p${slideNumberOf(tab, indices[0])}` : `_p${slideNumberOf(tab, indices[0])}-${slideNumberOf(tab, indices[indices.length - 1])}`);
+            const fileName = exportFileName(tab, indices);
             if (exportFormat === 'md') {
                 const blob = new Blob([buildExportMarkdown(tab, indices)], { type: 'text/markdown;charset=utf-8' });
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${base}${suffix}.md`; document.body.appendChild(a); a.click(); a.remove();
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${fileName}.md`; document.body.appendChild(a); a.click(); a.remove();
                 setTimeout(() => URL.revokeObjectURL(a.href), 5000);
                 showToast('Markdown 파일을 저장했습니다.', 3000);
                 return;
@@ -2262,9 +2261,20 @@ a { color: inherit; }
             // PDF: 미리보기 문서를 그대로 인쇄 (브라우저 인쇄 창에서 "PDF로 저장")
             const win = exportPreview.contentWindow;
             if (!win || !exportPreview.contentDocument || !exportPreview.contentDocument.body || !exportPreview.contentDocument.body.children.length) { alert('미리보기가 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요.'); return; }
-            exportPreview.contentDocument.title = `${base}${suffix}`;
+            // 브라우저 'PDF로 저장' 파일명은 인쇄할 때의 문서 제목을 따른다 → 인쇄하는 동안만 페이지 제목도 파일명으로
+            exportPreview.contentDocument.title = fileName;
             const imgs = Array.from(exportPreview.contentDocument.images).filter(im => !im.complete);
-            const go = () => { win.focus(); win.print(); };
+            let printed = false;
+            const go = () => {
+                if (printed) return; printed = true;
+                const prevTitle = document.title;
+                document.title = fileName;
+                const restore = () => { document.title = prevTitle; };
+                win.addEventListener('afterprint', restore, { once: true });
+                window.addEventListener('afterprint', restore, { once: true });
+                win.focus(); win.print();
+                setTimeout(restore, 1500);   // afterprint 가 안 오는 브라우저 대비
+            };
             if (imgs.length) { let left = imgs.length; imgs.forEach(im => { im.onload = im.onerror = () => { if (--left === 0) go(); }; }); setTimeout(go, 4000); } else go();
         }
 
