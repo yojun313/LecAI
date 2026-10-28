@@ -550,10 +550,23 @@
                                 </select>
                             </div>
                         </div>
+                        <div>
+                            <div class="text-xs font-bold text-white/70 mb-1">한 장에</div>
+                            <div class="flex gap-1 glass-soft rounded-xl p-1">
+                                <button type="button" data-export-per="1" class="export-per flex-1 text-xs py-1.5 rounded-lg transition">1쪽</button>
+                                <button type="button" data-export-per="2" class="export-per flex-1 text-xs py-1.5 rounded-lg transition">2쪽</button>
+                                <button type="button" data-export-per="4" class="export-per flex-1 text-xs py-1.5 rounded-lg transition">4쪽</button>
+                            </div>
+                            <div id="exportOrderRow" class="hidden mt-2 flex items-center justify-between gap-2">
+                                <span class="text-xs font-bold text-white/70">레이아웃 방향</span>
+                                <div id="exportOrderGroup" class="flex gap-1 glass-soft rounded-full p-1"></div>
+                            </div>
+                        </div>
                         <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportImages" class="accent-emerald-500" checked> 슬라이드 이미지 포함</label>
                         <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportPageBreak" class="accent-emerald-500" checked> 슬라이드마다 새 페이지에서 시작</label>
                         <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportDark" class="accent-emerald-500"> 어두운 배경으로 저장</label>
-                        <p class="text-[11px] text-white/40 leading-relaxed">"PDF 저장"을 누르면 브라우저 인쇄 창이 열립니다. 대상을 <b>PDF로 저장</b>으로 선택하세요. 배율·용지·방향은 여기서 정한 값이 적용됩니다.</p>
+                        <p id="exportPrintNote" class="text-[11px] text-white/40 leading-relaxed">"PDF 저장"을 누르면 브라우저 인쇄 창이 열립니다. 대상을 <b>PDF로 저장</b>으로 선택하세요. 배율·용지·방향은 여기서 정한 값이 적용됩니다.</p>
+                        <p id="exportNupNote" class="hidden text-[11px] text-white/40 leading-relaxed">한 장에 여러 쪽을 모으면 서버가 PDF 를 만들어 바로 내려받아요 (인쇄 창 없이). 2쪽은 종이를 돌려 나란히, 4쪽은 2×2 로 배치합니다. 미리보기가 실제 PDF 입니다.</p>
                     </div>
                     <div id="exportMdOptions" class="hidden space-y-2">
                         <label class="flex items-center gap-2 text-sm text-white/80 cursor-pointer"><input type="checkbox" id="exportMdImages" class="accent-emerald-500" checked> 이미지 링크 포함 (서버 주소)</label>
@@ -566,6 +579,7 @@
                         <span id="exportPreviewHint" class="hidden sm:inline">실제 PDF 페이지 나눔은 인쇄 창에서 확인됩니다.</span>
                     </div>
                     <iframe id="exportPreview" class="flex-1 w-full bg-white" title="내보내기 미리보기"></iframe>
+                    <div id="exportNupPreview" class="hidden flex-1 min-h-0 overflow-auto custom-scrollbar p-3 flex flex-col items-center gap-3"></div>
                 </div>
             </div>
             <div class="p-4 border-t border-white/10 flex justify-end space-x-2 glass-soft">
@@ -928,10 +942,24 @@
 
         let isResizing = false;
 
-        // 저장된 사이드바 너비 불러오기
-        const savedWidth = localStorage.getItem('sidebarWidth');
+        // 사이드바 최소 폭: 상단 도구 아이콘이 한 줄에 다 들어가는 폭 (최소 240px). 더 좁히면 아이콘이 밖으로 튀어나간다
+        const SIDEBAR_MAX = 600;
+        function sidebarMinWidth() {
+            const tools = sidebarContent.querySelector('.sb-tools');
+            let need = 0;
+            if (tools) {
+                const icons = [...tools.children].filter(el => el.offsetParent !== null);
+                const gap = parseFloat(getComputedStyle(tools).columnGap) || 0;
+                need = icons.reduce((a, el) => a + el.offsetWidth, 0) + gap * Math.max(0, icons.length - 1);
+                const pad = tools.parentElement ? parseFloat(getComputedStyle(tools.parentElement).paddingLeft) + parseFloat(getComputedStyle(tools.parentElement).paddingRight) : 24;
+                need += pad + 16;   // 여유
+            }
+            return Math.max(240, Math.ceil(need));
+        }
+        // 저장된 사이드바 너비 불러오기 (예전에 너무 좁게 저장된 값은 최소 폭으로)
+        const savedWidth = parseInt(localStorage.getItem('sidebarWidth') || '', 10);
         if (savedWidth && window.innerWidth >= 768) {
-            sidebarContent.style.width = `${savedWidth}px`;
+            sidebarContent.style.width = `${Math.min(SIDEBAR_MAX, Math.max(sidebarMinWidth(), savedWidth))}px`;
         }
 
         // 사이드바 기본 폭(260px)으로 되돌리기
@@ -955,17 +983,19 @@
         }
 
         // 사이드바 너비 조절: pointer 캡처로 손잡이를 벗어나도 끊기지 않게
+        let resizeMin = 240;
         resizer.addEventListener('pointerdown', (e) => {
             if (e.button !== 0) return;
             e.preventDefault();
             isResizing = true;
+            resizeMin = sidebarMinWidth();
             resizer.setPointerCapture(e.pointerId);
             body.classList.add('sidebar-resizing');
         });
         resizer.addEventListener('pointermove', (e) => {
             if (!isResizing) return;
             const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 1;
-            const newWidth = Math.min(600, Math.max(200, e.clientX / zoom));
+            const newWidth = Math.min(SIDEBAR_MAX, Math.max(resizeMin, e.clientX / zoom));
             sidebarContent.style.width = `${newWidth}px`;
         });
         const endResize = (e) => {
@@ -2111,6 +2141,98 @@
         function closeExportModal() { exportModal.classList.add('hidden'); exportModal.classList.remove('flex'); exportPreview.srcdoc = ''; }
         exportModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeExportModal(); });
 
+        // ── 모아찍기 (한 장에 2 · 4쪽): 서버가 PDF 를 만들어 쪽을 배치한다 (export_service.py) ──
+        const EXPORT_NUP_KEY = 'lecai_export_nup';
+        const EXPORT_ORDERS = [
+            { id: 'z', label: '왼쪽에서 오른쪽, 위에서 아래 (Z)', cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+            { id: 's', label: '오른쪽에서 왼쪽, 위에서 아래', cells: [[1, 0], [0, 0], [1, 1], [0, 1]] },
+            { id: 'n', label: '위에서 아래, 왼쪽 열부터', cells: [[0, 0], [0, 1], [1, 0], [1, 1]] },
+            { id: 'rn', label: '위에서 아래, 오른쪽 열부터', cells: [[1, 0], [1, 1], [0, 0], [0, 1]] },
+        ];
+        let exportPer = 1, exportOrder = 'z';
+        try {
+            const saved = JSON.parse(localStorage.getItem(EXPORT_NUP_KEY) || '{}');
+            if ([1, 2, 4].includes(saved.per)) exportPer = saved.per;
+            if (EXPORT_ORDERS.some(o => o.id === saved.order)) exportOrder = saved.order;
+        } catch (e) {}
+        // 순서 아이콘: 2×2 칸 위로 1→4 순서대로 지나가는 화살표
+        function exportOrderIcon(cells) {
+            const pts = cells.map(([c, r]) => [5.5 + c * 11, 5.5 + r * 11]);
+            const [x1, y1] = pts[2], [x2, y2] = pts[3];
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const head = [angle + 2.6, angle - 2.6].map(a => `${(x2 + 4 * Math.cos(a)).toFixed(1)},${(y2 + 4 * Math.sin(a)).toFixed(1)}`);
+            return `<svg viewBox="0 0 22 22" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1" opacity=".35"><rect x=".5" y=".5" width="10" height="10" rx="1.5"/><rect x="11.5" y=".5" width="10" height="10" rx="1.5"/><rect x=".5" y="11.5" width="10" height="10" rx="1.5"/><rect x="11.5" y="11.5" width="10" height="10" rx="1.5"/></g><polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${head[0]} ${x2},${y2} ${head[1]}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        }
+        document.getElementById('exportOrderGroup').innerHTML = EXPORT_ORDERS.map(o => `<button type="button" data-export-order="${o.id}" title="${o.label}" aria-label="${o.label}" class="export-order w-8 h-7 rounded-full flex items-center justify-center transition">${exportOrderIcon(o.cells)}</button>`).join('');
+        const exportLayout = () => exportPer === 4 ? `4${exportOrder}` : String(exportPer);
+        function syncExportNupButtons() {
+            document.querySelectorAll('.export-per').forEach(b => {
+                const active = Number(b.dataset.exportPer) === exportPer;
+                b.className = 'export-per flex-1 text-xs py-1.5 rounded-lg transition ' + (active ? 'bg-emerald-600/40 text-white border border-emerald-400/40' : 'text-white/60 hover:text-white hover:bg-white/5');
+            });
+            document.querySelectorAll('.export-order').forEach(b => {
+                const active = b.dataset.exportOrder === exportOrder;
+                b.className = 'export-order w-8 h-7 rounded-full flex items-center justify-center transition ' + (active ? 'bg-emerald-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10');
+            });
+            const nup = exportFormat === 'pdf' && exportPer > 1;
+            document.getElementById('exportOrderRow').classList.toggle('hidden', exportPer !== 4);
+            document.getElementById('exportPrintNote').classList.toggle('hidden', nup);
+            document.getElementById('exportNupNote').classList.toggle('hidden', !nup);
+            document.getElementById('exportPreview').classList.toggle('hidden', nup);
+            document.getElementById('exportNupPreview').classList.toggle('hidden', !nup);
+            document.getElementById('exportPreviewHint').classList.toggle('hidden', exportFormat !== 'pdf' || nup);
+            document.getElementById('exportRunLabel').textContent = exportFormat !== 'pdf' ? 'Markdown 다운로드' : nup ? 'PDF 다운로드' : 'PDF 저장';
+        }
+        function saveExportNup() { try { localStorage.setItem(EXPORT_NUP_KEY, JSON.stringify({ per: exportPer, order: exportOrder })); } catch (e) {} }
+        document.querySelectorAll('.export-per').forEach(b => b.addEventListener('click', () => {
+            exportPer = Number(b.dataset.exportPer); saveExportNup(); syncExportNupButtons(); refreshExportPreview();
+        }));
+        document.getElementById('exportOrderGroup').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-export-order]'); if (!b) return;
+            exportOrder = b.dataset.exportOrder; saveExportNup(); syncExportNupButtons(); showExportNup();
+        });
+
+        // 서버 PDF 작업: 같은 내보내기 문서면 다시 만들지 않고, 레이아웃만 바꿔 보여 준다
+        let exportJob = null, exportJobHtml = '', exportJobPromise = null, exportNupSeq = 0;
+        async function ensureExportJob(html) {
+            if (exportJob && exportJobHtml === html) return exportJob;
+            if (exportJobPromise && exportJobPromise.html === html) return exportJobPromise;
+            const p = (async () => {
+                const res = await fetch('/api/export/pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ html }) });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || 'PDF 를 만들지 못했습니다.');
+                exportJob = data; exportJobHtml = html;
+                return data;
+            })();
+            p.html = html; exportJobPromise = p;
+            try { return await p; } finally { if (exportJobPromise === p) exportJobPromise = null; }
+        }
+        async function showExportNup(html) {
+            const box = document.getElementById('exportNupPreview');
+            const info = document.getElementById('exportPreviewInfo');
+            const tab = getActiveTab(); if (!tab) return;
+            const mine = ++exportNupSeq;
+            html = html || buildExportHtml(tab, exportSelection(tab));
+            const layout = exportLayout();
+            box.style.opacity = '.5';
+            if (!box.children.length) box.innerHTML = '<p class="text-xs text-white/50 m-auto"><i class="fas fa-spinner fa-spin mr-1"></i> PDF 만드는 중…</p>';
+            try {
+                const job = await ensureExportJob(html);
+                const res = await fetch(`/api/export/pdf/${job.token}/layout?layout=${layout}`);
+                const lay = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(lay.detail || 'PDF 를 배치하지 못했습니다.');
+                if (mine !== exportNupSeq) return;
+                const width = Math.min(1600, Math.round((box.clientWidth - 24) * Math.min(window.devicePixelRatio || 1, 2)));
+                box.innerHTML = Array.from({ length: lay.pages }, (_, i) => `<img src="/api/export/pdf/${job.token}/page/${i + 1}?w=${Math.max(200, width)}&layout=${layout}" alt="${i + 1}장" loading="lazy" class="w-full max-w-3xl bg-white shadow-lg">`).join('');
+                info.textContent = info.textContent.replace(/ · 원본 \d+쪽.*$/, '') + ` · 원본 ${job.pages}쪽 → 종이 ${lay.pages}장`;
+            } catch (error) {
+                if (mine !== exportNupSeq) return;
+                box.innerHTML = `<p class="text-xs text-red-400 m-auto"><i class="fas fa-triangle-exclamation mr-1"></i> ${escapeHtml(error.message)}</p>`;
+            } finally {
+                if (mine === exportNupSeq) box.style.opacity = '';
+            }
+        }
+
         function setExportFormat(fmt) {
             exportFormat = fmt;
             document.querySelectorAll('.export-format').forEach(b => {
@@ -2121,6 +2243,7 @@
             document.getElementById('exportMdOptions').classList.toggle('hidden', fmt !== 'md');
             document.getElementById('exportRunLabel').textContent = fmt === 'pdf' ? 'PDF 저장' : 'Markdown 다운로드';
             document.getElementById('exportPreviewHint').classList.toggle('hidden', fmt !== 'pdf');
+            syncExportNupButtons();
             refreshExportPreview();
         }
         document.querySelectorAll('.export-format').forEach(b => b.addEventListener('click', () => setExportFormat(b.dataset.exportFormat)));
@@ -2210,7 +2333,9 @@ a { color: inherit; }
                 const info = document.getElementById('exportPreviewInfo');
                 if (!indices.length) { info.textContent = '· 범위가 올바르지 않습니다'; exportPreview.srcdoc = '<p style="font-family:sans-serif;padding:20px;color:#b91c1c">범위가 올바르지 않습니다.</p>'; return; }
                 info.textContent = `· 슬라이드 ${indices.length}장` + (exportFormat === 'pdf' ? ` · ${document.getElementById('exportScale').value}% · ${document.getElementById('exportPaper').value} ${document.getElementById('exportOrient').value === 'portrait' ? '세로' : '가로'}` : ' · Markdown');
-                if (exportFormat === 'pdf') {
+                if (exportFormat === 'pdf' && exportPer > 1) {
+                    showExportNup(buildExportHtml(tab, indices));
+                } else if (exportFormat === 'pdf') {
                     exportPreview.srcdoc = buildExportHtml(tab, indices);
                 } else {
                     const md = buildExportMarkdown(tab, indices);
@@ -2219,6 +2344,7 @@ a { color: inherit; }
             }, 120);
         }
         function applyExportScaleLive() {
+            if (exportFormat === 'pdf' && exportPer > 1) { refreshExportPreview(); return; }   // 서버 PDF 는 다시 만든다
             const doc = exportPreview.contentDocument;
             if (exportFormat === 'pdf' && doc && doc.body) doc.body.style.zoom = parseInt(document.getElementById('exportScale').value, 10) / 100;
             const info = document.getElementById('exportPreviewInfo');
@@ -2256,6 +2382,17 @@ a { color: inherit; }
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${fileName}.md`; document.body.appendChild(a); a.click(); a.remove();
                 setTimeout(() => URL.revokeObjectURL(a.href), 5000);
                 showToast('Markdown 파일을 저장했습니다.', 3000);
+                return;
+            }
+            // 한 장에 여러 쪽: 서버가 만든 PDF 를 바로 내려받는다
+            if (exportPer > 1) {
+                const btn = document.getElementById('exportRunBtn'); btn.disabled = true;
+                showToast('PDF 를 만드는 중...', 2500);
+                ensureExportJob(buildExportHtml(tab, indices)).then(job => {
+                    const a = document.createElement('a');
+                    a.href = `/api/export/pdf/${job.token}/download?layout=${exportLayout()}&name=${encodeURIComponent(fileName + '.pdf')}`;
+                    a.download = `${fileName}.pdf`; document.body.appendChild(a); a.click(); a.remove();
+                }).catch(error => alert(error.message)).finally(() => { btn.disabled = false; });
                 return;
             }
             // PDF: 미리보기 문서를 그대로 인쇄 (브라우저 인쇄 창에서 "PDF로 저장")
