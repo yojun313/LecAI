@@ -116,6 +116,27 @@
         html[data-ui-theme-mode="light"] .cv-zoom { border-color: rgba(15,23,42,.12); }
         html[data-ui-theme-mode="light"] .cv-zoom button { color: #334155; }
         html[data-ui-theme-mode="light"] .cv-zoom select { border-color: rgba(15,23,42,.12); }
+        /* 모아찍기 패널 */
+        .cv-btn.on { border-color: rgba(96,165,250,.55); background: rgba(59,130,246,.16); color: #bfdbfe; }
+        html[data-ui-theme-mode="light"] .cv-btn.on { border-color: rgba(37,99,235,.45); background: rgba(59,130,246,.10); color: #1d4ed8; }
+        .cv-lay { background: rgba(0,0,0,.14); }
+        html[data-ui-theme-mode="light"] .cv-lay { background: rgba(15,23,42,.03); }
+        .cv-lay-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5); width: 64px; flex-shrink: 0; }
+        html[data-ui-theme-mode="light"] .cv-lay-label { color: #64748b; }
+        .cv-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+        .cv-seg button { min-width: 32px; height: 28px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); color: rgba(255,255,255,.7); transition: background 120ms, border-color 120ms, transform 100ms; }
+        .cv-seg button:hover { background: rgba(255,255,255,.1); }
+        .cv-seg button:active { transform: scale(.95); }
+        .cv-seg button[aria-pressed="true"] { background: rgba(59,130,246,.22); border-color: rgba(96,165,250,.6); color: #fff; }
+        .cv-seg button:disabled { opacity: .35; pointer-events: none; }
+        html[data-ui-theme-mode="light"] .cv-seg button { background: rgba(15,23,42,.03); border-color: rgba(15,23,42,.1); color: #334155; }
+        html[data-ui-theme-mode="light"] .cv-seg button:hover { background: rgba(15,23,42,.07); }
+        html[data-ui-theme-mode="light"] .cv-seg button[aria-pressed="true"] { background: rgba(59,130,246,.12); border-color: rgba(37,99,235,.55); color: #1d4ed8; }
+        .cv-sheet { background: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.35); border-radius: 2px; display: grid; transition: width 160ms, height 160ms; }
+        .cv-sheet > div { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; }
+        .cv-sheet > div > span { background: #e0e7ff; border: 1px solid #a5b4fc; color: #3730a3; font-weight: 800; font-size: 11px; display: flex; align-items: center; justify-content: center; border-radius: 1px; }
+        .cv-sheet.bordered > div > span { border-color: #64748b; }
         @media (min-width: 1024px) {
             .cv-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); grid-template-rows: auto minmax(0, 1fr); height: 100%; }
             .cv-drop-card { grid-column: 1; grid-row: 1; }
@@ -175,6 +196,18 @@
                                 <input type="checkbox" id="cv-landscape" class="cv-check">
                                 <span class="font-bold">가로 방향</span>
                             </label>
+                            <label class="flex items-center justify-between gap-2 text-white/60" title="새로 올리는 파일을 한 장에 몇 쪽씩 모을지 (순서 · 종이 등은 미리보기의 모아찍기 설정을 따라요)">
+                                <span class="font-bold">모아찍기</span>
+                                <select id="cv-up-n" class="glass-soft border border-white/10 text-white text-xs rounded-lg px-2 py-1.5 outline-none cursor-pointer">
+                                    <option class="bg-[#0f1424]" value="1">끔</option>
+                                    <option class="bg-[#0f1424]" value="2">2쪽</option>
+                                    <option class="bg-[#0f1424]" value="4">4쪽</option>
+                                    <option class="bg-[#0f1424]" value="6">6쪽</option>
+                                    <option class="bg-[#0f1424]" value="8">8쪽</option>
+                                    <option class="bg-[#0f1424]" value="9">9쪽</option>
+                                    <option class="bg-[#0f1424]" value="16">16쪽</option>
+                                </select>
+                            </label>
                             <button type="button" id="cv-formats-toggle" class="text-left text-white/50 hover:text-white/80 font-bold">
                                 <i class="fas fa-circle-info mr-1"></i>지원 형식 <i class="fas fa-chevron-down text-[10px] ml-0.5 transition-transform" id="cv-formats-caret"></i>
                             </button>
@@ -214,8 +247,40 @@
                                 <input type="checkbox" id="cv-p-landscape" class="cv-check">
                                 <span class="font-bold">가로</span>
                             </label>
+                            <button type="button" class="cv-btn" id="cv-p-layout" aria-expanded="false" aria-controls="cv-lay" title="한 장에 여러 쪽 모아 찍기"><i class="fas fa-table-cells-large"></i><span>모아찍기</span></button>
                             <button type="button" class="cv-btn hidden" id="cv-p-source" title="변환 전에 올린 원본 파일 받기"><i class="fas fa-file-arrow-down"></i><span>원본</span></button>
                             <button type="button" class="cv-btn primary" id="cv-p-download"><i class="fas fa-download"></i><span>PDF 받기</span></button>
+                        </div>
+                    </div>
+                    <div id="cv-lay" class="cv-lay hidden border-b border-white/10 px-3 md:px-4 py-3 flex-shrink-0">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div class="flex flex-col items-center justify-center gap-1.5 sm:w-36 flex-shrink-0">
+                                <div class="h-32 w-32 flex items-center justify-center"><div class="cv-sheet" id="cv-lay-sheet" aria-hidden="true"></div></div>
+                                <div class="text-[11px] text-white/50 text-center" id="cv-lay-caption"></div>
+                            </div>
+                            <div class="flex-1 min-w-0 space-y-2">
+                                <div class="flex items-center gap-2"><span class="cv-lay-label">한 장에</span><div class="cv-seg" data-k="n">
+                                    <button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="4">4</button><button type="button" data-v="6">6</button><button type="button" data-v="8">8</button><button type="button" data-v="9">9</button><button type="button" data-v="16">16</button>
+                                </div></div>
+                                <div class="flex items-center gap-2"><span class="cv-lay-label">순서</span><div class="cv-seg" data-k="order">
+                                    <button type="button" data-v="z" title="왼쪽에서 오른쪽으로, 다음 줄"><i class="fas fa-arrow-right text-[10px]"></i>가로</button>
+                                    <button type="button" data-v="rz" title="오른쪽에서 왼쪽으로, 다음 줄"><i class="fas fa-arrow-left text-[10px]"></i>가로</button>
+                                    <button type="button" data-v="n" title="위에서 아래로, 왼쪽 열부터"><i class="fas fa-arrow-down text-[10px]"></i>세로</button>
+                                    <button type="button" data-v="rn" title="위에서 아래로, 오른쪽 열부터"><i class="fas fa-arrow-down text-[10px]"></i>세로 (오른쪽부터)</button>
+                                </div></div>
+                                <div class="flex items-center gap-2"><span class="cv-lay-label">종이 방향</span><div class="cv-seg" data-k="sheet">
+                                    <button type="button" data-v="auto" title="쪽이 가장 크게 들어가는 방향">자동</button><button type="button" data-v="portrait">세로</button><button type="button" data-v="landscape">가로</button>
+                                </div></div>
+                                <div class="flex items-center gap-2"><span class="cv-lay-label">종이 크기</span><div class="cv-seg" data-k="paper">
+                                    <button type="button" data-v="a4">A4</button><button type="button" data-v="letter">Letter</button><button type="button" data-v="source" title="원본 첫 쪽과 같은 크기">원본 크기</button>
+                                </div></div>
+                                <div class="flex items-center gap-2"><span class="cv-lay-label">여백</span><div class="cv-seg" data-k="spacing">
+                                    <button type="button" data-v="none">없음</button><button type="button" data-v="narrow">좁게</button><button type="button" data-v="wide">넓게</button>
+                                </div></div>
+                                <div class="flex items-center gap-2"><span class="cv-lay-label">테두리</span><div class="cv-seg" data-k="border">
+                                    <button type="button" data-v="false">없음</button><button type="button" data-v="true">쪽마다 선</button>
+                                </div></div>
+                            </div>
                         </div>
                     </div>
                     <div class="flex-1 min-h-0 overflow-y-auto" id="cv-p-scroll">
@@ -307,6 +372,48 @@
     $('cv-zoom').value = '1';
     $('cv-p-zoom').innerHTML = zoomOptions;
 
+    /* ── 모아찍기 설정 (순서 · 종이 등은 마지막에 쓴 값을 기억) ── */
+    const LAYOUT_DEFAULT = { n: 1, order: 'z', sheet: 'auto', paper: 'a4', spacing: 'narrow', border: false };
+    const LAYOUT_KEYS = ['order', 'sheet', 'paper', 'spacing', 'border'];
+    const PAPER = { a4: [595.28, 841.89], letter: [612, 792] };
+    const PAPER_NAME = { a4: 'A4', letter: 'Letter', source: '원본 크기' };
+    const SPACE = { none: [0, 0], narrow: [14, 8], wide: [28, 16] };
+    const GRIDS = { 2: [[2, 1], [1, 2]], 4: [[2, 2]], 6: [[3, 2], [2, 3]], 8: [[4, 2], [2, 4]], 9: [[3, 3]], 16: [[4, 4]] };
+    const PREF_KEY = 'lecai_cv_layout';
+    const prefs = { ...LAYOUT_DEFAULT, upN: 1, open: false };
+    try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch (e) { /* 기본값 */ }
+    const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* 저장 못 해도 동작 */ } };
+    const layoutOf = (job) => ({ ...LAYOUT_DEFAULT, ...((job && job.layout) || {}) });
+    const sameLayout = (a, b) => JSON.stringify(layoutOf({ layout: a })) === JSON.stringify(layoutOf({ layout: b }));
+    $('cv-up-n').value = String(prefs.upN);
+    if (!$('cv-up-n').value) $('cv-up-n').value = '1';
+
+    // 서버(pdf_layout.plan)와 같은 방법으로 종이 · 격자를 고른다 (그림을 바로 그리려고)
+    function planLayout(layout, ratio) {
+        ratio = ratio > 0 ? ratio : 210 / 297;
+        const pw = 595, ph = 595 / ratio;
+        if (layout.n === 1) return { sw: pw, sh: ph, cols: 1, rows: 1, m: 0, g: 0, scale: 1, pw, ph };
+        const paper = PAPER[layout.paper] || [pw, ph];
+        const short = Math.min(...paper), long = Math.max(...paper);
+        const [m, g] = SPACE[layout.spacing] || SPACE.narrow;
+        const sheets = layout.sheet === 'portrait' ? [[short, long]] : layout.sheet === 'landscape' ? [[long, short]] : [[short, long], [long, short]];
+        let best = null;
+        for (const [sw, sh] of sheets) {
+            for (const [cols, rows] of GRIDS[layout.n]) {
+                const cw = (sw - 2 * m - (cols - 1) * g) / cols, ch = (sh - 2 * m - (rows - 1) * g) / rows;
+                const scale = Math.min(cw / pw, ch / ph);
+                if (!best || scale > best.scale + 1e-6) best = { sw, sh, cols, rows, m, g, scale, pw, ph };
+            }
+        }
+        return best;
+    }
+    function slotOrder(order, cols, rows) {
+        const cells = [];
+        if (order === 'z' || order === 'rz') { for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push([c, r]); }
+        else { for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) cells.push([c, r]); }
+        return order === 'rz' || order === 'rn' ? cells.map(([c, r]) => [cols - 1 - c, r]) : cells;
+    }
+
     /* ── 상태 ── */
     let jobs = [];                 // 서버의 결과 목록
     const pending = [];            // { id, file, name, size, state: 'queued'|'uploading'|'converting'|'error', progress, error }
@@ -353,7 +460,7 @@
                     <button type="button" class="min-w-0 flex-1 text-left" data-preview="${esc(j.token)}" title="${esc(j.name)} 미리보기">
                         <div class="text-sm font-bold text-white truncate">${esc(j.name)}</div>
                         <div class="text-[11px] text-white/50 mt-0.5 truncate">
-                            <span class="uppercase">${esc(j.ext)}</span> → PDF · ${j.pages}쪽 · ${fmtSize(j.size)} · ${fmtTime(j.created)}${j.zoom && j.zoom !== 1 ? ` · ${pct(j.zoom)}` : ''}${j.landscape ? ' · 가로' : ''}
+                            <span class="uppercase">${esc(j.ext)}</span> → PDF · ${j.pages}쪽${layoutOf(j).n > 1 ? ` · 한 장에 ${layoutOf(j).n}쪽 (${j.sheets}장)` : ''} · ${fmtSize(j.result_size || j.size)} · ${fmtTime(j.created)}${j.zoom && j.zoom !== 1 ? ` · ${pct(j.zoom)}` : ''}${j.landscape ? ' · 가로' : ''}
                         </div>
                         ${j.note ? `<div class="text-[11px] text-amber-300/80 mt-0.5 truncate" title="${esc(j.note)}">${esc(j.note)}</div>` : ''}
                     </button>
@@ -449,6 +556,9 @@
             form.append('file', p.file, p.name);
             form.append('zoom', $('cv-zoom').value);
             form.append('landscape', $('cv-landscape').checked ? 'true' : 'false');
+            const layout = { n: Number($('cv-up-n').value) || 1 };
+            for (const k of LAYOUT_KEYS) layout[k] = prefs[k];
+            form.append('layout', JSON.stringify(layout));
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `${API}/jobs`);
             p.state = 'uploading';
@@ -536,8 +646,12 @@
         const pages = $('cv-p-pages');
         observer?.disconnect();
         const width = pageWidth();
-        const ratio = job.landscape ? 297 / 210 : 210 / 297;
-        pages.innerHTML = Array.from({ length: job.pages }, (_, i) =>
+        const layout = layoutOf(job);
+        let ratio = job.landscape ? 297 / 210 : 210 / 297;
+        if (layout.n > 1) { const p = planLayout(layout, job.page_ratio); ratio = p.sw / p.sh; }
+        else if (job.page_ratio) ratio = job.page_ratio;
+        const count = layout.n > 1 ? (job.sheets || job.pages) : job.pages;
+        pages.innerHTML = Array.from({ length: count }, (_, i) =>
             `<div class="cv-page" style="aspect-ratio:${ratio};max-width:900px" data-n="${i + 1}"></div>`).join('');
         // 쪽 그림은 화면에 가까워질 때 불러온다 (쪽이 많아도 가볍게)
         observer = new IntersectionObserver((entries) => {
@@ -549,7 +663,7 @@
                 img.alt = `${el.dataset.n}쪽`;
                 img.decoding = 'async';
                 img.onload = () => { el.style.aspectRatio = 'auto'; el.style.minHeight = '0'; };
-                img.src = `${API}/jobs/${encodeURIComponent(job.token)}/page/${el.dataset.n}?w=${width}&v=${encodeURIComponent(`${job.pages}-${job.zoom}-${job.landscape}-${job.size}`)}`;
+                img.src = `${API}/jobs/${encodeURIComponent(job.token)}/page/${el.dataset.n}?w=${width}&v=${encodeURIComponent(`${job.pages}-${job.zoom}-${job.landscape}-${job.size}-${JSON.stringify(layout)}-${job.sheets}`)}`;
                 el.appendChild(img);
             }
         }, { root: $('cv-p-scroll'), rootMargin: '800px 0px' });
@@ -558,7 +672,12 @@
     function fillPreviewHead(job) {
         $('cv-p-title').textContent = job.pdf_name;
         $('cv-p-title').title = job.pdf_name;
-        $('cv-p-meta').textContent = `${job.name} · ${job.pages}쪽 · ${fmtSize(job.size)}${job.note ? ` · ${job.note}` : ''}`;
+        const layout = layoutOf(job);
+        const nupText = layout.n > 1 ? ` → 한 장에 ${layout.n}쪽 · ${job.sheets}장` : '';
+        $('cv-p-meta').textContent = `${job.name} · ${job.pages}쪽${nupText} · ${fmtSize(job.result_size || job.size)}${job.note ? ` · ${job.note}` : ''}`;
+        const layBtn = $('cv-p-layout');
+        layBtn.classList.toggle('on', layout.n > 1);
+        layBtn.querySelector('span').textContent = layout.n > 1 ? `한 장에 ${layout.n}쪽` : '모아찍기';
         const opts = $('cv-p-opts');
         opts.classList.remove('hidden'); opts.classList.add('flex');
         const zoom = job.zoom || 1;
@@ -575,8 +694,12 @@
     }
     function showPreview(job, byHand) {
         if (byHand) { pickedByHand = true; pickedAt = Date.now(); }
-        const same = current && current.token === job.token && current.size === job.size && current.zoom === job.zoom;
+        const same = current && current.token === job.token && current.size === job.size && current.zoom === job.zoom
+            && sameLayout(current.layout, job.layout) && current.sheets === job.sheets;
+        if (!current || current.token !== job.token) { draft = layoutOf(job); }
         current = job;
+        setLayoutPanel(prefs.open);
+        syncLayoutPanel();
         fillPreviewHead(job);
         $('cv-p-empty').classList.add('hidden');
         $('cv-p-pages').style.display = '';
@@ -594,6 +717,86 @@
         $('cv-p-opts').classList.add('hidden'); $('cv-p-opts').classList.remove('flex');
         $('cv-p-title').textContent = '미리보기';
         $('cv-p-meta').textContent = '변환한 파일을 고르면 여기에 PDF 가 보여요';
+        draft = null;
+        setLayoutPanel(false, true);
+    }
+
+    /* ── 모아찍기 패널 ── */
+    let draft = null;              // 미리보기 중인 결과의 모아찍기 (고르는 즉시 바뀌고, 잠깐 뒤 서버에 적용)
+    let layoutTimer = 0;
+    function setLayoutPanel(open, keepPref) {
+        open = !!open && !!current;
+        $('cv-lay').classList.toggle('hidden', !open);
+        $('cv-p-layout').setAttribute('aria-expanded', String(open));
+        if (!keepPref && current) { prefs.open = open; savePrefs(); }
+    }
+    function syncLayoutPanel() {
+        if (!draft) return;
+        document.querySelectorAll('#cv-lay .cv-seg').forEach((seg) => {
+            const value = String(draft[seg.dataset.k]);
+            seg.querySelectorAll('button').forEach((b) => {
+                b.setAttribute('aria-pressed', String(b.dataset.v === value));
+                if (seg.dataset.k !== 'n') b.disabled = draft.n === 1;   // 끔이면 나머지는 쓸 일이 없다
+            });
+        });
+        drawSheet();
+    }
+    function drawSheet() {
+        const p = planLayout(draft, current && current.page_ratio);
+        const box = 120, k = box / Math.max(p.sw, p.sh);
+        const sheet = $('cv-lay-sheet');
+        sheet.classList.toggle('bordered', !!draft.border && draft.n > 1);
+        Object.assign(sheet.style, {
+            width: `${p.sw * k}px`, height: `${p.sh * k}px`, padding: `${p.m * k}px`, gap: `${p.g * k}px`,
+            gridTemplateColumns: `repeat(${p.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${p.rows}, minmax(0, 1fr))`,
+        });
+        const numbers = new Array(p.cols * p.rows);
+        slotOrder(draft.order, p.cols, p.rows).forEach(([c, r], i) => { numbers[r * p.cols + c] = i + 1; });
+        const w = Math.max(4, p.pw * p.scale * k - 1), h = Math.max(4, p.ph * p.scale * k - 1);
+        const font = Math.max(8, Math.min(13, Math.min(w, h) * 0.45));
+        sheet.innerHTML = numbers.map((n) => `<div><span style="width:${w}px;height:${h}px;font-size:${font}px">${n}</span></div>`).join('');
+        const pages = current ? current.pages : 0;
+        $('cv-lay-caption').textContent = draft.n === 1
+            ? '모아찍기 끔 (한 장에 1쪽)'
+            : `${p.sw > p.sh ? '가로' : '세로'} ${PAPER_NAME[draft.paper]} · ${p.cols}×${p.rows}${pages ? ` · ${Math.ceil(pages / draft.n)}장` : ''}`;
+    }
+    function pickLayout(key, value) {
+        if (!draft || !current) return;
+        draft = { ...draft, [key]: key === 'n' ? Number(value) : key === 'border' ? value === 'true' : value };
+        if (key !== 'n') { prefs[key] = draft[key]; savePrefs(); }
+        syncLayoutPanel();
+        clearTimeout(layoutTimer);
+        layoutTimer = setTimeout(applyLayout, 300);
+    }
+    async function applyLayout() {
+        if (!current || !draft || sameLayout(current.layout, draft)) return;
+        const job = current, mine = ++renderSeq, want = { ...draft };
+        const busy = $('cv-p-busy');
+        busy.classList.remove('hidden'); busy.classList.add('flex');
+        $('cv-p-pages').style.opacity = '.55';
+        try {
+            const res = await api(`/jobs/${encodeURIComponent(job.token)}/layout`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(want),
+            });
+            const data = await res.json();
+            const index = jobs.findIndex((j) => j.token === data.token);
+            if (index >= 0) jobs[index] = data;
+            if (mine === renderSeq && current && current.token === data.token) {
+                current = data;
+                fillPreviewHead(data);
+                renderPages(data);
+                $('cv-p-scroll').scrollTop = 0;
+            }
+            render();
+        } catch (e) {
+            alert(e.message);
+            if (current && current.token === job.token) { draft = layoutOf(current); syncLayoutPanel(); fillPreviewHead(current); }
+        } finally {
+            if (mine === renderSeq) {
+                busy.classList.add('hidden'); busy.classList.remove('flex');
+                $('cv-p-pages').style.opacity = '';
+            }
+        }
     }
 
     let renderSeq = 0;
@@ -693,6 +896,12 @@
     $('cv-p-download').addEventListener('click', () => current && download(current.token));
     $('cv-p-source').addEventListener('click', () => current && download(current.token, 'source'));
     $('cv-p-zoom').addEventListener('change', rerender);
+    $('cv-p-layout').addEventListener('click', () => setLayoutPanel($('cv-lay').classList.contains('hidden')));
+    $('cv-lay').addEventListener('click', (e) => {
+        const b = e.target.closest('.cv-seg button');
+        if (b) pickLayout(b.closest('.cv-seg').dataset.k, b.dataset.v);
+    });
+    $('cv-up-n').addEventListener('change', () => { prefs.upN = Number($('cv-up-n').value) || 1; savePrefs(); });
     $('cv-p-minus').addEventListener('click', () => stepZoom(-1));
     $('cv-p-plus').addEventListener('click', () => stepZoom(1));
     $('cv-p-landscape').addEventListener('change', rerender);

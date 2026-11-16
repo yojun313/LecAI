@@ -36,6 +36,7 @@ import img2pdf
 from PIL import Image, ImageOps, ImageSequence
 
 from app.core.config import settings
+from app.services import pdf_layout
 from app.services.hwp5_text import Hwp5Error, hwp5_to_html
 from app.services.hwpx_render import HwpxError, hwpx_to_html
 
@@ -242,6 +243,18 @@ def _public(meta: dict, job: Path | None = None) -> dict:
         "note",
     )
     out = {k: meta.get(k) for k in keys}
+    # 모아찍기: 미리보기 · 받기는 모은 장(sheets) 기준
+    out["layout"] = pdf_layout.normalize(meta.get("layout"))
+    out["sheets"] = (
+        meta.get("sheets") or meta.get("pages")
+        if out["layout"]["n"] > 1
+        else meta.get("pages")
+    )
+    out["result_size"] = (
+        meta.get("nup_size") if out["layout"]["n"] > 1 else meta.get("size")
+    )
+    out["grid"] = meta.get("grid") if out["layout"]["n"] > 1 else None
+    out["page_ratio"] = meta.get("page_ratio")
     # 원본 파일을 받을 수 있는지 (원본이 남아 있는 작업만)
     out["has_source"] = (
         bool(meta.get("source")) and (job / meta["source"]).is_file()
@@ -318,17 +331,70 @@ def discard(job: Path) -> None:
     shutil.rmtree(job, ignore_errors=True)
 
 
-def finish_job(job: Path, meta: dict, zoom: float, landscape: bool) -> dict:
+def _result(job: Path, meta: dict) -> Path:
+    """받기 · 미리보기 · 합치기에 쓰는 PDF (모아찍기를 했으면 모은 것)."""
+    nup = job / "nup.pdf"
+    if pdf_layout.normalize(meta.get("layout"))["n"] > 1 and nup.is_file():
+        return nup
+    return job / "out.pdf"
+
+
+def _apply_layout(job: Path, meta: dict, strict: bool = False) -> None:
+    """out.pdf 를 meta['layout'] 대로 모아 nup.pdf 로 (한 장에 1쪽이면 지운다).
+    strict 가 아니면 모으지 못했을 때 한 장에 1쪽으로 되돌린다 (변환 결과는 살린다)."""
+    layout = pdf_layout.normalize(meta.get("layout"))
+    meta["layout"] = layout
+    meta["page_ratio"] = pdf_layout.page_ratio(job / "out.pdf")
+    nup = job / "nup.pdf"
+    if layout["n"] == 1:
+        nup.unlink(missing_ok=True)
+        meta.pop("sheets", None)
+        meta.pop("grid", None)
+        meta.pop("nup_size", None)
+        return
+    try:
+        made = pdf_layout.nup(job / "out.pdf", nup, layout)
+    except Exception as error:  # 손상 · 특이한 PDF
+        if strict:
+            raise ConverterError("이 PDF 는 모아찍기를 하지 못했어요.") from error
+        meta["layout"] = pdf_layout.normalize(None)
+        nup.unlink(missing_ok=True)
+        meta.pop("sheets", None)
+        meta.pop("grid", None)
+        meta.pop("nup_size", None)
+        return
+    meta["sheets"] = made["sheets"]
+    meta["grid"] = [made["cols"], made["rows"], made["landscape"]]
+    meta["nup_size"] = nup.stat().st_size
+
+
+def set_layout(username: str, token: str, layout: dict) -> dict:
+    """모아찍기만 바꾼다 (다시 변환하지 않는다)."""
+    job = _job_dir(username, token)
+    meta = _meta(job)
+    meta["layout"] = pdf_layout.normalize(layout)
+    _apply_layout(job, meta, strict=True)
+    meta["version"] = int(meta.get("version", 0)) + 1
+    shutil.rmtree(job / "pages", ignore_errors=True)
+    _write_meta(job, meta)
+    return _public(meta, job)
+
+
+def finish_job(
+    job: Path, meta: dict, zoom: float, landscape: bool, layout: dict | None = None
+) -> dict:
     """원본(job/source.*)이 저장된 뒤 변환한다. 실패하면 작업 폴더를 지운다."""
     source = job / meta["source"]
     meta["source_size"] = source.stat().st_size
+    meta["layout"] = pdf_layout.normalize(layout)
     try:
         _convert(job, meta, zoom, landscape)
+        _apply_layout(job, meta)
     except BaseException:
         discard(job)
         raise
     _write_meta(job, meta)
-    return _public(meta)
+    return _public(meta, job)
 
 
 def rerender(username: str, token: str, zoom: float, landscape: bool) -> dict:
@@ -357,8 +423,9 @@ def rerender(username: str, token: str, zoom: float, landscape: bool) -> dict:
         )
     else:
         _convert(job, meta, zoom, landscape)
+    _apply_layout(job, meta)
     _write_meta(job, meta)
-    return _public(meta)
+    return _public(meta, job)
 
 
 def delete(username: str, token: str) -> None:
@@ -367,7 +434,12 @@ def delete(username: str, token: str) -> None:
 
 def pdf_path(username: str, token: str) -> tuple[Path, str]:
     job = _job_dir(username, token)
-    return job / "out.pdf", _meta(job)["pdf_name"]
+    meta = _meta(job)
+    name = meta["pdf_name"]
+    n = pdf_layout.normalize(meta.get("layout"))["n"]
+    if n > 1:
+        name = f"{Path(name).stem} (한 장에 {n}쪽).pdf"
+    return _result(job, meta), name
 
 
 def source_path(username: str, token: str) -> tuple[Path, str]:
@@ -384,7 +456,9 @@ def source_path(username: str, token: str) -> tuple[Path, str]:
 def page_png(username: str, token: str, number: int, width: int) -> Path:
     job = _job_dir(username, token)
     meta = _meta(job)
-    if not 1 <= number <= int(meta.get("pages") or 1):
+    pdf = _result(job, meta)
+    total = meta.get("sheets") if pdf.name == "nup.pdf" else meta.get("pages")
+    if not 1 <= number <= int(total or 1):
         raise FileNotFoundError(number)
     width = max(200, min(2000, int(width)))
     version = meta.get("version", 0)
@@ -405,7 +479,7 @@ def page_png(username: str, token: str, number: int, width: int) -> Path:
                 str(width),
                 "-scale-to-y",
                 "-1",
-                str(job / "out.pdf"),
+                str(pdf),
                 str(prefix),
             ],
             capture_output=True,
@@ -424,8 +498,7 @@ def bundle(username: str, tokens: list[str], mode: str) -> tuple[Path, str]:
         raise ConverterError("합칠 파일을 골라 주세요 (최대 100개).")
     items = []
     for token in dict.fromkeys(tokens):
-        job = _job_dir(username, token)
-        items.append((job / "out.pdf", _meta(job)["pdf_name"]))
+        items.append(pdf_path(username, token))
     tmp_dir = _user_dir(username) / f".bundle-{secrets.token_hex(6)}"
     tmp_dir.mkdir(mode=0o700)
     if mode == "zip":

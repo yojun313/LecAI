@@ -1,6 +1,7 @@
 # app/routes/converter_routes.py
 # Converter API — 여러 형식의 파일을 PDF 로. 결과는 본인 것만 보고 받을 수 있다 (사용자별 폴더).
 
+import json
 import os
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -30,6 +31,15 @@ class RenderOptions(BaseModel):
     landscape: bool = False
 
 
+class LayoutOptions(BaseModel):
+    n: int = 1
+    order: str = "z"
+    sheet: str = "auto"
+    paper: str = "a4"
+    spacing: str = "narrow"
+    border: bool = False
+
+
 class BundleRequest(BaseModel):
     tokens: list[str] = Field(..., min_length=1, max_length=100)
     mode: str = Field("merge", pattern="^(merge|zip)$")
@@ -51,6 +61,7 @@ async def create_job(
     file: UploadFile = File(...),
     zoom: float = Form(1.0),
     landscape: bool = Form(False),
+    layout: str = Form(""),
     user: str = Depends(get_current_user),
 ):
     length = request.headers.get("content-length")
@@ -84,7 +95,13 @@ async def create_job(
     finally:
         await file.close()
     try:
-        return await run_in_threadpool(converter.finish_job, job, meta, zoom, landscape)
+        try:
+            options = json.loads(layout) if layout else None
+        except ValueError:
+            options = None
+        return await run_in_threadpool(
+            converter.finish_job, job, meta, zoom, landscape, options
+        )
     except ConverterError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -96,6 +113,21 @@ async def rerender(
     try:
         return await run_in_threadpool(
             converter.rerender, user, token, body.zoom, body.landscape
+        )
+    except FileNotFoundError as error:
+        raise _not_found() from error
+    except ConverterError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/jobs/{token}/layout")
+async def set_layout(
+    token: str, body: LayoutOptions, user: str = Depends(get_current_user)
+):
+    """모아찍기 (한 장에 여러 쪽) — 다시 변환하지 않고 배치만 바꾼다"""
+    try:
+        return await run_in_threadpool(
+            converter.set_layout, user, token, body.model_dump()
         )
     except FileNotFoundError as error:
         raise _not_found() from error
