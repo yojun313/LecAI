@@ -30,7 +30,7 @@ router = APIRouter()
 
 
 @router.post("/upload")
-async def upload_file(
+def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     transcript: str = Form(""),
@@ -200,7 +200,7 @@ def _store_transcript_input(
 
 
 @router.post("/transcript/{target_type}/{target_id}")
-async def add_transcript(
+def add_transcript(
     target_type: str,
     target_id: str,
     background_tasks: BackgroundTasks,
@@ -288,7 +288,7 @@ BOARD_IMAGE_EXTS = (
 
 
 @router.post("/boards/doc/{doc_id}")
-async def add_board_photos(
+def add_board_photos(
     doc_id: str,
     background_tasks: BackgroundTasks,
     photos: List[UploadFile] = File(...),
@@ -346,12 +346,13 @@ async def add_board_photos(
 
 
 @router.get("/jobs")
-async def get_my_jobs(user: str = Depends(get_current_user)):
-    return JobManager.get_jobs_by_user(user)
+def get_my_jobs(user: str = Depends(get_current_user)):
+    # 대시보드 · 뷰어가 몇 초마다 부른다 → 가볍게 (전체 로그는 /status/{id})
+    return JobManager.get_jobs_light(user)
 
 
 @router.get("/status/{job_id}")
-async def get_status(job_id: str, user: str = Depends(get_current_user)):
+def get_status(job_id: str, user: str = Depends(get_current_user)):
     job = JobManager.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404)
@@ -361,7 +362,7 @@ async def get_status(job_id: str, user: str = Depends(get_current_user)):
 
 
 @router.delete("/jobs/{job_id}")
-async def delete_job(job_id: str, user: str = Depends(get_current_user)):
+def delete_job(job_id: str, user: str = Depends(get_current_user)):
     success = JobManager.delete_job(job_id, user)
     if not success:
         raise HTTPException(

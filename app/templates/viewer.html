@@ -290,7 +290,11 @@
         .tree-arrow.expanded { transform: rotate(90deg); }
         .tree-children { display: none; margin-left: 0.5rem; border-left: 1px solid var(--border-color); }
         .tree-children.show { display: block; }
-        .tree-content.drop-target { background: rgba(59,130,246,0.2); outline: 1px dashed rgba(59,130,246,0.6); }
+        .tree-drag-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--text-primary); background: var(--bg-secondary, #1e2433);
+            border: 1px solid rgba(59,130,246,0.55); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+        body.tree-dragging, body.tree-dragging * { cursor: grabbing !important; user-select: none !important; }
+        .tree-content.drop-target { background: rgba(59,130,246,0.2); outline: 1px dashed rgba(59,130,246,0.6); transition: none; }
         #nodeList.root-drop-target { background: rgba(59,130,246,0.08); outline: 2px dashed rgba(59,130,246,0.5); outline-offset: -4px; border-radius: 0.75rem; }
         #nodeList.root-drop-target::after { content: '여기에 놓으면 최상위로 이동'; display: block; text-align: center; font-size: 0.7rem; color: #60a5fa; padding: 0.75rem 0; }
         .invisible { visibility: hidden; }
@@ -803,6 +807,7 @@
         let viewMode = 'presentation'; 
         let openedTabs = []; 
         let activeTabId = null;
+        let treeLoadSeq = 0;   // 트리 새로고침 순번 (늦게 끝난 옛 새로고침이 덮어쓰지 않게)
         let expandedFolderIds = new Set(); 
         let activeFileId = null;           
 
@@ -1015,34 +1020,64 @@
         // ==========================================
         // 4. Tree View Logic
         // ==========================================
+        // 트리: 서버가 전체 항목을 한 번에 준다 (/api/docs/tree, 요청 1번). 화면은 그 데이터로 바로 그린다.
+        // 폴더를 펼치거나 항목을 옮길 때는 서버에 다시 묻지 않고 이 데이터에서 다시 그린다.
+        let treeByParent = new Map();   // 'root' | 폴더 id → 하위 항목 (정렬됨)
+        let treeById = new Map();       // id → 항목
+        function sortTreeNodes(list) {
+            list.sort((a, b) => a.type === b.type
+                ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+                : (a.type === 'folder' ? -1 : 1));
+        }
+        function setTreeData(nodes) {
+            treeByParent = new Map(); treeById = new Map();
+            for (const node of nodes) {
+                const key = node.parent_id || 'root';
+                treeById.set(node.id, node);
+                if (!treeByParent.has(key)) treeByParent.set(key, []);
+                treeByParent.get(key).push(node);
+            }
+            treeByParent.forEach(sortTreeNodes);
+        }
         async function loadTreeRoot() {
-            nodeList.innerHTML = ''; 
+            const mine = ++treeLoadSeq;
             try {
-                const res = await fetch(`/api/docs/nodes?parent_id=root`);
+                const res = await fetch('/api/docs/tree');
                 if (!res.ok) throw new Error("Fetch failed");
-                const nodes = await res.json();
-                await renderTreeNodes(nodes, nodeList, 0, 'root');
+                const data = await res.json();
+                if (mine !== treeLoadSeq) return;   // 더 나중에 시작한 새로고침이 있으면 그걸 쓴다
+                setTreeData(data.nodes || []);
+                drawTree();
             } catch (err) {
-                nodeList.innerHTML = '<div class="text-xs text-red-400 p-4">로드 실패</div>';
+                if (mine === treeLoadSeq) nodeList.innerHTML = '<div class="text-xs text-red-400 p-4">로드 실패</div>';
             }
         }
-
-        async function renderTreeNodes(nodes, container, depth, parentName) {
-            nodes.sort((a, b) => {
-                if (a.type === b.type) {
-                    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-                }
-                return a.type === 'folder' ? -1 : 1;
-            });
+        // 화면 밖에서 다 만든 뒤 한 번에 바꾼다 (깜빡임 · 스크롤 튐 없음)
+        function drawTree() {
+            const top = nodeList.scrollTop;
+            const frag = document.createDocumentFragment();
+            renderTreeLevel('root', frag, 0, 'root');
+            nodeList.replaceChildren(frag);
+            nodeList.scrollTop = top;
+        }
+        function renderTreeLevel(parentId, container, depth, parentName) {
+            const nodes = treeByParent.get(parentId) || [];
+            if (!nodes.length && parentId !== 'root') {
+                const div = document.createElement('div');
+                div.className = 'text-xs text-notion-muted py-1 select-none opacity-50';
+                div.style.paddingLeft = `${0.5 + depth * 0.8}rem`;
+                div.textContent = '(비어 있음)';
+                container.appendChild(div);
+                return;
+            }
             for (const node of nodes) {
                 const nodeEl = createTreeNodeElement(node, depth, parentName);
                 container.appendChild(nodeEl);
                 if (node.type === 'folder' && expandedFolderIds.has(node.id)) {
-                    const arrow = nodeEl.querySelector('.tree-arrow');
+                    nodeEl.querySelector('.tree-arrow').classList.add('expanded');
                     const childrenContainer = nodeEl.querySelector('.tree-children');
-                    arrow.classList.add('expanded');
                     childrenContainer.classList.add('show');
-                    await loadFolderChildren(node.id, childrenContainer, depth + 1, node.name);
+                    renderTreeLevel(node.id, childrenContainer, depth + 1, node.name);
                 }
             }
         }
@@ -1055,15 +1090,11 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = `tree-content group ${node.id === activeFileId ? 'active' : ''}`;
             contentDiv.setAttribute('data-node-id', node.id);
+            contentDiv.dataset.type = node.type;
+            contentDiv.dataset.name = node.name;
             contentDiv.style.paddingLeft = `${0.5 + (depth * 0.8)}rem`;
             
-            contentDiv.draggable = true;
-            contentDiv.ondragstart = (e) => handleDragStart(e, node.id);
-            contentDiv.ondragend = (e) => handleDragEnd(e);
-            contentDiv.ondragover = (e) => handleDragOver(e);
-            contentDiv.ondragleave = (e) => handleDragLeave(e);
-            // 폴더에 놓으면 그 폴더 안으로, 파일에 놓으면 그 파일이 속한 폴더(최상위 포함)로 이동
-            contentDiv.ondrop = (e) => handleDrop(e, isFolder ? node.id : getParentFolderId(contentDiv));
+            contentDiv.draggable = false;   // 이동은 포인터로 직접 처리한다 (아래 '트리 끌어서 옮기기')
         
             contentDiv.onclick = () => handleNodeClick(contentDiv, node.id, node.type, node.name.replace(/'/g, "\\'"), parentName);
             
@@ -1120,31 +1151,13 @@
                     if (childrenContainer.children.length === 0) {
                         const currentPadding = parseFloat(el.style.paddingLeft);
                         const currentDepth = Math.round((currentPadding - 0.5) / 0.8);
-                        childrenContainer.innerHTML = '<div class="text-xs text-notion-muted py-1 pl-8">로딩 중...</div>';
-                        await loadFolderChildren(id, childrenContainer, currentDepth + 1, name);
+                        renderTreeLevel(id, childrenContainer, currentDepth + 1, name);
                     }
                 }
                 localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds]));
             } else {
                 activeFileId = id;
                 openDoc({ id, name }, 0, parentName);
-            }
-        }
-
-        async function loadFolderChildren(parentId, container, depth, parentName) {
-            try {
-                const res = await fetch(`/api/docs/nodes?parent_id=${parentId}`);
-                if (!res.ok) throw new Error("Fetch failed");
-                const nodes = await res.json();
-                container.innerHTML = '';
-                if (nodes.length === 0) {
-                    const paddingLeft = 0.5 + (depth * 0.8);
-                    container.innerHTML = `<div class="text-xs text-notion-muted py-1 select-none opacity-50" style="padding-left:${paddingLeft}rem">(비어 있음)</div>`;
-                    return;
-                }
-                await renderTreeNodes(nodes, container, depth, parentName);
-            } catch (err) {
-                container.innerHTML = `<div class="text-xs text-red-400 py-1 pl-4">Error</div>`;
             }
         }
 
@@ -1816,9 +1829,17 @@
         }
 
         let toastTimer = null;
-        function showToast(message, ms = 4000) {
+        function showToast(message, ms = 4000, action = null) {
             const el = document.getElementById('viewerToast');
             el.textContent = message;
+            if (action) {   // 예: { label: '되돌리기', run: () => ... }
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ml-3 font-bold text-blue-400 hover:text-blue-300';
+                btn.textContent = action.label;
+                btn.onclick = () => { clearTimeout(toastTimer); el.classList.add('hidden'); action.run(); };
+                el.appendChild(btn);
+            }
             el.classList.remove('hidden');
             clearTimeout(toastTimer);
             if (ms > 0) toastTimer = setTimeout(() => el.classList.add('hidden'), ms);
@@ -1826,6 +1847,7 @@
 
         // 녹음본 반영 작업 진행 상황을 폴링하고, 끝나면 열려 있는 탭을 새로 불러온다
         function onTranscriptJobStarted(jobId, target) {
+            setTimeout(pollJobsLoop, 300);   // 진행 패널을 바로 띄운다 (쉬는 주기였어도)
             showToast(`녹음본 반영 시작: ${target.name} (대시보드에서도 진행 상황을 볼 수 있습니다)`, 0);
             const timer = setInterval(async () => {
                 try {
@@ -1936,8 +1958,14 @@
             applyActiveJobsCollapsed();
             activeJobsPanel.classList.remove('hidden');
         }
-        setInterval(pollActiveJobs, 4000);
-        pollActiveJobs();
+        // 진행 중인 작업이 있으면 4초, 없으면 15초마다
+        let jobsPollTimer = 0;
+        async function pollJobsLoop() {
+            await pollActiveJobs();
+            clearTimeout(jobsPollTimer);
+            jobsPollTimer = setTimeout(pollJobsLoop, (knownActiveJobIds && knownActiveJobIds.size) ? 4000 : 15000);
+        }
+        pollJobsLoop();
         document.addEventListener('visibilitychange', () => { if (!document.hidden) pollActiveJobs(); });
 
         // ==========================================
@@ -2703,6 +2731,7 @@ a { color: inherit; }
 
         // 분석 작업 진행 상황을 폴링하고, 완료되면 트리를 새로 고쳐 자동 저장된 문서를 보여준다
         function watchAnalysisJob(jobId, name, folderId) {
+            setTimeout(pollJobsLoop, 300);   // 진행 패널을 바로 띄운다 (쉬는 주기였어도)
             const timer = setInterval(async () => {
                 try {
                     const res = await fetch(`/api/status/${jobId}`);
@@ -2742,85 +2771,174 @@ a { color: inherit; }
             handleViewerUploads(e.dataTransfer.files);
         });
 
-        // Tree Drag & Drop (이동)
-        const rootDropZone = document.getElementById('nodeList');
+        // ==========================================
+        // 트리 끌어서 옮기기 — 브라우저 기본 드래그(HTML5 DnD) 대신 포인터 이벤트로 직접 처리한다.
+        // (기본 드래그는 줄 안의 아이콘 · 버튼을 지날 때마다 강조가 깜빡이고, 놓은 게 가끔 무시된다)
+        // 폴더 위에 놓으면 그 폴더 안으로, 파일 위에 놓으면 그 파일이 있는 폴더로, 빈 곳이면 최상위로.
+        // ==========================================
+        const rootDropZone = nodeList;
 
         // 트리 요소가 속한 폴더 id ('root' = 최상위)
         function getParentFolderId(el) {
             const children = el.closest('.tree-children');
             return (children && children.id.startsWith('children-')) ? children.id.replace('children-', '') : 'root';
         }
-        function clearDropHighlights() {
-            document.querySelectorAll('.tree-content.drop-target').forEach(el => el.classList.remove('drop-target'));
-            rootDropZone.classList.remove('root-drop-target');
+        function isInsideNode(folderId, nodeId) {   // folderId 가 nodeId 자신이거나 그 하위인지
+            let cur = folderId, guard = 0;
+            while (cur && cur !== 'root' && guard++ < 100) {
+                if (cur === nodeId) return true;
+                cur = treeById.get(cur)?.parent_id || 'root';
+            }
+            return false;
         }
-        function handleDragStart(e, id) { e.stopPropagation(); draggedNodeId = id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.style.opacity = '0.5'; }
-        function handleDragEnd(e) {
-            // 트리 밖에 놓았거나 취소된 경우 상태 복구
-            document.querySelectorAll('.tree-content').forEach(el => el.style.opacity = '1');
-            clearDropHighlights();
-            draggedNodeId = null;
+        let treeDrag = null;        // { id, row, x, y, active, ghost, targetId, targetEl, hoverTimer, scrollRaf }
+        let suppressTreeClick = false;
+        function dropTargetAt(clientX, clientY) {
+            const el = document.elementFromPoint(clientX, clientY);
+            if (!el || !nodeList.contains(el)) return null;
+            const row = el.closest('.tree-content');
+            if (row) {
+                return row.dataset.type === 'folder'
+                    ? { id: row.dataset.nodeId, el: row }
+                    : (() => { const pid = getParentFolderId(row); return { id: pid, el: pid === 'root' ? nodeList : document.querySelector(`.tree-content[data-node-id="${CSS.escape(pid)}"]`) }; })();
+            }
+            const children = el.closest('.tree-children');
+            if (children && children.id.startsWith('children-')) {
+                const id = children.id.replace('children-', '');
+                return { id, el: children.previousElementSibling };
+            }
+            return { id: 'root', el: nodeList };
         }
-        function handleDragOver(e) {
-            if (!draggedNodeId) return;
-            e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
-            rootDropZone.classList.remove('root-drop-target');
-            e.currentTarget.classList.add('drop-target');
+        function setDropHighlight(target) {
+            const prev = treeDrag.targetEl;
+            if (prev === (target && target.el)) return;
+            if (prev) prev.classList.remove(prev === nodeList ? 'root-drop-target' : 'drop-target');
+            treeDrag.targetEl = target ? target.el : null;
+            if (target && target.el) target.el.classList.add(target.el === nodeList ? 'root-drop-target' : 'drop-target');
         }
-        function handleDragLeave(e) { e.stopPropagation(); e.currentTarget.classList.remove('drop-target'); }
-        async function handleDrop(e, targetFolderId) {
-            e.preventDefault(); e.stopPropagation();
-            const nodeId = draggedNodeId;
-            document.querySelectorAll('.tree-content').forEach(el => el.style.opacity = '1');
-            clearDropHighlights();
-            draggedNodeId = null;
-            if (!nodeId || nodeId === targetFolderId) return;
-            await moveNode(nodeId, targetFolderId, true);
+        function endTreeDrag(commit) {
+            const d = treeDrag;
+            if (!d) return;
+            treeDrag = null;
+            clearTimeout(d.hoverTimer);
+            cancelAnimationFrame(d.scrollRaf);
+            if (!d.active) return;
+            d.ghost.remove();
+            d.row.style.opacity = '';
+            document.body.classList.remove('tree-dragging');
+            if (d.targetEl) d.targetEl.classList.remove('drop-target', 'root-drop-target');
+            suppressTreeClick = true;                       // 끌고 난 뒤 따라오는 클릭(열기 · 펼치기)은 무시
+            setTimeout(() => { suppressTreeClick = false; }, 0);
+            if (commit && d.targetId) moveNode(d.id, d.targetId);
         }
-
-        // 트리의 빈 공간: 최상위로 이동. 빈 폴더의 "(비어 있음)" 자리: 그 폴더로 이동.
-        rootDropZone.addEventListener('dragover', (e) => {
-            if (!draggedNodeId) return;
-            e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-            const children = e.target.closest ? e.target.closest('.tree-children') : null;
-            if (children) {
-                rootDropZone.classList.remove('root-drop-target');
-                const folderRow = children.previousElementSibling;
-                if (folderRow) folderRow.classList.add('drop-target');
-            } else {
-                rootDropZone.classList.add('root-drop-target');
+        nodeList.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0 || e.pointerType === 'touch') return;   // 터치는 스크롤 · 호버 버튼으로
+            const row = e.target.closest('.tree-content');
+            if (!row || e.target.closest('button')) return;
+            treeDrag = { id: row.dataset.nodeId, row, x: e.clientX, y: e.clientY, active: false, targetId: null, targetEl: null };
+        });
+        document.addEventListener('pointermove', (e) => {
+            const d = treeDrag;
+            if (!d) return;
+            if (!d.active) {
+                if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;   // 살짝 움직인 건 클릭으로
+                d.active = true;
+                d.ghost = document.createElement('div');
+                d.ghost.className = 'tree-drag-ghost';
+                d.ghost.innerHTML = `<i class="${d.row.dataset.type === 'folder' ? 'fas fa-folder text-yellow-500' : 'fas fa-file-lines text-blue-400'} mr-2"></i>`;
+                d.ghost.appendChild(document.createTextNode(d.row.dataset.name || ''));
+                document.body.appendChild(d.ghost);
+                d.row.style.opacity = '0.45';
+                document.body.classList.add('tree-dragging');
+                window.getSelection()?.removeAllRanges();
+            }
+            e.preventDefault();
+            const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 1;
+            d.ghost.style.transform = `translate(${e.clientX / zoom + 12}px, ${e.clientY / zoom + 8}px)`;
+            const target = dropTargetAt(e.clientX, e.clientY);
+            // 놓을 수 없는 곳: 지금 있는 폴더 · 자기 자신 · 자기 하위
+            const node = treeById.get(d.id);
+            const current = (node && node.parent_id) || 'root';
+            const ok = target && target.id !== current && !isInsideNode(target.id, d.id);
+            d.targetId = ok ? target.id : null;
+            setDropHighlight(ok ? target : null);
+            // 접힌 폴더 위에 잠깐 머물면 펼친다
+            const folderRow = ok && target.el && target.el !== nodeList ? target.el : null;
+            if (d.hoverFolder !== (folderRow && target.id)) {
+                d.hoverFolder = folderRow && target.id;
+                clearTimeout(d.hoverTimer);
+                if (folderRow && !expandedFolderIds.has(target.id)) {
+                    d.hoverTimer = setTimeout(() => {
+                        if (treeDrag !== d) return;
+                        expandedFolderIds.add(target.id);
+                        localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds]));
+                        drawTree();
+                        d.row = document.querySelector(`.tree-content[data-node-id="${CSS.escape(d.id)}"]`) || d.row;
+                        d.row.style.opacity = '0.45';
+                        d.targetEl = null; d.hoverFolder = null;
+                    }, 650);
+                }
+            }
+            // 위 · 아래 끝 가까이 가면 목록을 굴린다
+            cancelAnimationFrame(d.scrollRaf);
+            const rect = nodeList.getBoundingClientRect();
+            const edge = 36 * zoom;
+            const speed = e.clientY < rect.top + edge ? -8 : e.clientY > rect.bottom - edge ? 8 : 0;
+            if (speed && e.clientX >= rect.left && e.clientX <= rect.right) {
+                const step = () => { if (treeDrag !== d) return; nodeList.scrollTop += speed; d.scrollRaf = requestAnimationFrame(step); };
+                d.scrollRaf = requestAnimationFrame(step);
             }
         });
-        rootDropZone.addEventListener('dragleave', (e) => {
-            if (!draggedNodeId) return;
-            if (!rootDropZone.contains(e.relatedTarget)) clearDropHighlights();
-        });
-        rootDropZone.addEventListener('drop', (e) => {
-            if (!draggedNodeId) return;
-            const children = e.target.closest ? e.target.closest('.tree-children') : null;
-            const targetId = (children && children.id.startsWith('children-')) ? children.id.replace('children-', '') : 'root';
-            handleDrop(e, targetId);
-        });
+        document.addEventListener('pointerup', () => endTreeDrag(true));
+        document.addEventListener('pointercancel', () => endTreeDrag(false));
+        window.addEventListener('blur', () => endTreeDrag(false));
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && treeDrag && treeDrag.active) endTreeDrag(false); });
+        nodeList.addEventListener('click', (e) => { if (suppressTreeClick) { e.stopPropagation(); e.preventDefault(); } }, true);
 
         // 호버 버튼: 최상위로 이동 (드래그가 어려운 모바일 대응)
         async function moveNodeTo(event, nodeId, targetFolderId) {
             event.stopPropagation();
-            await moveNode(nodeId, targetFolderId, true);
+            await moveNode(nodeId, targetFolderId);
         }
 
-        async function moveNode(nodeId, targetFolderId, askConfirm) {
-            const label = targetFolderId === 'root' ? '최상위로' : '선택한 폴더로';
-            if (askConfirm && !confirm(`${label} 이동하시겠습니까?`)) return;
+        // 이동: 화면(트리 데이터)에서 먼저 옮겨 바로 다시 그리고, 서버에 저장한다. 실패하면 서버 기준으로 되돌린다.
+        // 확인 창 대신 '되돌리기'.
+        async function moveNode(nodeId, targetFolderId, undoable = true) {
+            const node = treeById.get(nodeId);
+            if (!node) return;
+            const fromFolderId = node.parent_id || 'root';
+            if (fromFolderId === targetFolderId || nodeId === targetFolderId) return;   // 이미 그 폴더에 있다
+            if (isInsideNode(targetFolderId, nodeId)) { showToast('폴더를 자기 안으로 옮길 수 없어요.', 2500); return; }
+
+            const oldList = treeByParent.get(fromFolderId) || [];
+            treeByParent.set(fromFolderId, oldList.filter(n => n.id !== nodeId));
+            node.parent_id = targetFolderId === 'root' ? null : targetFolderId;
+            if (!treeByParent.has(targetFolderId)) treeByParent.set(targetFolderId, []);
+            treeByParent.get(targetFolderId).push(node);
+            sortTreeNodes(treeByParent.get(targetFolderId));
+            if (targetFolderId !== 'root') { expandedFolderIds.add(targetFolderId); localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds])); }
+            drawTree();
+            const moved = document.querySelector(`.tree-content[data-node-id="${CSS.escape(nodeId)}"]`);
+            moved?.scrollIntoView({ block: 'nearest' });
+
             try {
                 const res = await fetch('/api/docs/move', {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ node_id: nodeId, target_parent_id: targetFolderId })
                 });
-                if (res.ok) {
-                    if (targetFolderId !== 'root') { expandedFolderIds.add(targetFolderId); localStorage.setItem('viewer_expanded_folders', JSON.stringify([...expandedFolderIds])); }
-                    loadTreeRoot();
-                } else { const err = await res.json(); alert('이동 실패: ' + (err.detail || '오류')); }
-            } catch (err) { alert('서버 통신 오류'); }
+                if (!res.ok) {
+                    let detail = '오류';
+                    try { detail = (await res.json()).detail || detail; } catch (e) { /* 그대로 */ }
+                    showToast('이동 실패: ' + detail, 4000);
+                    loadTreeRoot();   // 서버 기준으로 되돌림
+                    return;
+                }
+            } catch (err) { showToast('서버 통신 오류로 옮기지 못했습니다.', 4000); loadTreeRoot(); return; }
+            if (undoable) {
+                const target = treeById.get(targetFolderId);
+                const where = targetFolderId === 'root' ? '최상위로' : `'${target ? target.name : '폴더'}'(으)로`;
+                showToast(`'${node.name}'을(를) ${where} 옮겼습니다.`, 5000, { label: '되돌리기', run: () => moveNode(nodeId, fromFolderId, false) });
+            }
         }
     
         document.addEventListener('copy', (event) => {

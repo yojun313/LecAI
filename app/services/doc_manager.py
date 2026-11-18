@@ -71,6 +71,29 @@ class DocManager:
         return True
 
     @staticmethod
+    def get_tree(owner: str):
+        """Explorer 전체 트리를 한 번에 (쿼리 1번). 최상위에서 닿는 항목만 — 보관된 폴더의 하위 · 고아 항목은 빠진다.
+        평평한 목록 [{id, type, name, parent_id}] 으로 돌려주고, 화면은 parent_id 로 묶어 그린다."""
+        rows = docs_col.find(
+            {"owner": owner, "archived": {"$ne": True}},
+            {"_id": 0, "id": 1, "type": 1, "name": 1, "parent_id": 1},
+        )
+        children: dict = {}
+        for row in rows:
+            children.setdefault(row.get("parent_id"), []).append(row)
+        out, stack, seen = [], [None], set()
+        while stack:
+            parent = stack.pop()
+            for node in children.get(parent, []):
+                if node["id"] in seen:
+                    continue
+                seen.add(node["id"])
+                out.append(node)
+                if node.get("type") == "folder":
+                    stack.append(node["id"])
+        return out
+
+    @staticmethod
     def get_nodes(owner: str, parent_id: str = None):
         # 보관된 항목은 Explorer 에 보이지 않는다 (보관된 폴더의 하위 항목은 폴더가 숨겨지므로 함께 숨겨짐)
         query = {"owner": owner, "parent_id": parent_id, "archived": {"$ne": True}}

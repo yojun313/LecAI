@@ -14,10 +14,16 @@ from app.routes import (
     export_routes,
     youtube_routes,
 )
+from app.core.compression import TextGzipMiddleware
+from app.db.indexes import ensure_indexes
 from app.services.whisper_notes import requeue_interrupted
 import os
 
 app = FastAPI(title="LecAI", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+# 텍스트 응답 압축 (nginx 는 프록시 응답을 압축하지 않는다)
+app.add_middleware(TextGzipMiddleware)
 
 
 @app.middleware("http")
@@ -35,6 +41,7 @@ async def no_cache_html(request, call_next):
 
 @app.on_event("startup")
 async def on_startup():
+    ensure_indexes()
     # 서버 재시작으로 끊긴 Whisper 전사 작업을 자동으로 이어서 돌린다
     requeue_interrupted()
 

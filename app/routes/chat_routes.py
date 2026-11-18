@@ -61,7 +61,7 @@ def _sse(payload: dict) -> str:
 
 
 @router.post("/chat/doc/{doc_id}")
-async def chat_about_slide(
+def chat_about_slide(
     doc_id: str, req: ChatRequest, user: str = Depends(get_current_user)
 ):
     target = docs_col.find_one({"id": doc_id, "owner": user, "type": "file"})

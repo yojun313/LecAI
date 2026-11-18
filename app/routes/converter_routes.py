@@ -46,7 +46,7 @@ class BundleRequest(BaseModel):
 
 
 @router.get("/formats")
-async def formats(user: str = Depends(get_current_user)):
+def formats(user: str = Depends(get_current_user)):
     return {"formats": converter.formats(), "max_bytes": converter.MAX_UPLOAD_BYTES}
 
 
@@ -149,7 +149,7 @@ async def page(
 
 
 @router.get("/jobs/{token}/pdf")
-async def download(token: str, user: str = Depends(get_current_user)):
+def download(token: str, user: str = Depends(get_current_user)):
     try:
         path, name = converter.pdf_path(user, token)
     except FileNotFoundError as error:
@@ -166,7 +166,7 @@ async def download(token: str, user: str = Depends(get_current_user)):
 
 
 @router.get("/jobs/{token}/source")
-async def download_source(token: str, user: str = Depends(get_current_user)):
+def download_source(token: str, user: str = Depends(get_current_user)):
     """변환 전에 올린 원본 파일 받기"""
     try:
         path, name = converter.source_path(user, token)

@@ -87,7 +87,7 @@ async def youtube_probe(req: ProbeRequest, user: str = Depends(get_current_user)
 
 
 @router.post("/youtube/download")
-async def youtube_download(
+def youtube_download(
     req: DownloadRequest,
     background_tasks: BackgroundTasks,
     user: str = Depends(get_current_user),
@@ -129,7 +129,7 @@ async def youtube_download(
 
 
 @router.get("/youtube/jobs")
-async def youtube_jobs(user: str = Depends(get_current_user)):
+def youtube_jobs(user: str = Depends(get_current_user)):
     # 목록 폴링은 가볍게: 로그는 마지막 몇 줄만, 영상 링크 목록 대신 개수만
     jobs = list(
         history_col.find(
@@ -165,7 +165,7 @@ def _remove_job_files(user: str, job_id: str):
 
 
 @router.get("/youtube/all.zip")
-async def youtube_all_zip(user: str = Depends(get_current_user)):
+def youtube_all_zip(user: str = Depends(get_current_user)):
     """완료된 모든 다운로드 파일을 ZIP 하나로 (항목별 폴더, 같은 이름은 번호를 붙여 구분)"""
     jobs = list(
         history_col.find(
@@ -188,7 +188,7 @@ async def youtube_all_zip(user: str = Depends(get_current_user)):
 
 
 @router.delete("/youtube/jobs")
-async def youtube_delete_all(user: str = Depends(get_current_user)):
+def youtube_delete_all(user: str = Depends(get_current_user)):
     """진행 중인 작업을 제외한 모든 다운로드 항목과 파일 삭제"""
     jobs = list(
         history_col.find(
@@ -207,7 +207,7 @@ async def youtube_delete_all(user: str = Depends(get_current_user)):
 
 
 @router.get("/youtube/file/{job_id}/{name}")
-async def youtube_file(job_id: str, name: str, user: str = Depends(get_current_user)):
+def youtube_file(job_id: str, name: str, user: str = Depends(get_current_user)):
     _owned_job(job_id, user)
     d = yt.job_dir(user, job_id)
     path = os.path.realpath(os.path.join(d, name))
@@ -217,7 +217,7 @@ async def youtube_file(job_id: str, name: str, user: str = Depends(get_current_u
 
 
 @router.get("/youtube/zip/{job_id}")
-async def youtube_zip(job_id: str, user: str = Depends(get_current_user)):
+def youtube_zip(job_id: str, user: str = Depends(get_current_user)):
     job = _owned_job(job_id, user)
     d = yt.job_dir(user, job_id)
     entries = [(os.path.join(d, n), n) for n in yt.list_job_files(d)]
@@ -228,7 +228,7 @@ async def youtube_zip(job_id: str, user: str = Depends(get_current_user)):
 
 
 @router.post("/youtube/jobs/{job_id}/cancel")
-async def youtube_cancel(job_id: str, user: str = Depends(get_current_user)):
+def youtube_cancel(job_id: str, user: str = Depends(get_current_user)):
     """진행/대기 중인 작업 중지. 지금 받는 영상을 멈추고, 그때까지 받은 파일은 남긴다."""
     job = _owned_job(job_id, user)
     if job.get("status") not in ("pending", "processing"):
@@ -238,7 +238,7 @@ async def youtube_cancel(job_id: str, user: str = Depends(get_current_user)):
 
 
 @router.post("/youtube/jobs/{job_id}/retry")
-async def youtube_retry(
+def youtube_retry(
     job_id: str,
     background_tasks: BackgroundTasks,
     user: str = Depends(get_current_user),
@@ -263,7 +263,7 @@ async def youtube_retry(
 
 
 @router.delete("/youtube/jobs/{job_id}")
-async def youtube_delete(job_id: str, user: str = Depends(get_current_user)):
+def youtube_delete(job_id: str, user: str = Depends(get_current_user)):
     _owned_job(job_id, user)
     shutil.rmtree(yt.job_dir(user, job_id), ignore_errors=True)
     z = os.path.join(settings.RESULT_DIR, user, f"youtube_{job_id}.zip")

@@ -12,7 +12,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/")
-async def index(request: Request):
+def index(request: Request):
     session_id = request.cookies.get("session_id")
     user = AuthManager.get_user_by_session(session_id)
 
@@ -34,7 +34,7 @@ async def index(request: Request):
 
 
 @router.get("/logout")
-async def logout(request: Request):
+def logout(request: Request):
     """세션 삭제 + 쿠키 제거 후 랜딩 페이지로"""
     session_id = request.cookies.get("session_id")
     if session_id:
@@ -45,17 +45,17 @@ async def logout(request: Request):
 
 
 @router.get("/login")
-async def login_page(request: Request):
+def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html")
 
 
 @router.get("/signup")
-async def signup_page(request: Request):
+def signup_page(request: Request):
     return templates.TemplateResponse(request, "signup.html")
 
 
 @router.get("/settings")
-async def settings_page(request: Request):
+def settings_page(request: Request):
     session_id = request.cookies.get("session_id")
     user = AuthManager.get_user_by_session(session_id)
     if not user:
@@ -82,7 +82,7 @@ async def settings_page(request: Request):
 
 
 @router.get("/viewer")
-async def viewer_page(request: Request):
+def viewer_page(request: Request):
     session_id = request.cookies.get("session_id")
     user = AuthManager.get_user_by_session(session_id)
     if not user:
@@ -92,7 +92,7 @@ async def viewer_page(request: Request):
 
 
 @router.get("/whisper")
-async def whisper_page(request: Request):
+def whisper_page(request: Request):
     session_id = request.cookies.get("session_id")
     user = AuthManager.get_user_by_session(session_id)
     if not user:
@@ -113,7 +113,7 @@ async def whisper_page(request: Request):
 
 
 @router.get("/converter")
-async def converter_page(request: Request):
+def converter_page(request: Request):
     session_id = request.cookies.get("session_id")
     user = AuthManager.get_user_by_session(session_id)
     if not user:
@@ -134,12 +134,12 @@ async def converter_page(request: Request):
 
 
 @router.get("/guide/openai", response_class=HTMLResponse)
-async def get_openai_guide(request: Request):
+def get_openai_guide(request: Request):
     return templates.TemplateResponse(request, "guide_openai.html")
 
 
 @router.get("/youtube")
-async def youtube_page(request: Request):
+def youtube_page(request: Request):
     session_id = request.cookies.get("session_id")
     user = AuthManager.get_user_by_session(session_id)
     if not user:
@@ -152,5 +152,5 @@ async def youtube_page(request: Request):
 
 
 @router.get("/forgot-password")
-async def forgot_password_page(request: Request):
+def forgot_password_page(request: Request):
     return templates.TemplateResponse(request, "forgot_password.html")

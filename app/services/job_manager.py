@@ -74,6 +74,34 @@ class JobManager:
         return jobs
 
     @staticmethod
+    def get_jobs_light(username: str):
+        """목록 · 폴링용: 로그는 마지막 줄만(+ 개수), 유튜브 링크 목록 같은 큰 필드는 뺀다.
+        전체 로그는 /status/{id} 로 따로 받는다."""
+        return list(
+            history_col.aggregate(
+                [
+                    {"$match": {"owner": username}},
+                    {"$sort": {"created_at": -1}},
+                    {
+                        "$project": {
+                            "_id": 0,
+                            "yt_urls": 0,
+                            "yt_files": 0,
+                            "yt_failed": 0,
+                            "yt_options": 0,
+                        }
+                    },
+                    {
+                        "$addFields": {
+                            "log_count": {"$size": {"$ifNull": ["$logs", []]}},
+                            "logs": {"$slice": [{"$ifNull": ["$logs", []]}, -1]},
+                        }
+                    },
+                ]
+            )
+        )
+
+    @staticmethod
     def get_job(job_id: str):
         return history_col.find_one({"id": job_id}, {"_id": 0})
 

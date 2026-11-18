@@ -21,14 +21,14 @@ class NoticeRequest(BaseModel):
 
 
 @router.post("/settings/api-key-notice")
-async def set_api_key_notice(req: NoticeRequest, user: str = Depends(get_current_user)):
+def set_api_key_notice(req: NoticeRequest, user: str = Depends(get_current_user)):
     """OpenAI API Key 미등록 안내 팝업 '다시 보지 않기'"""
     AuthManager.set_hide_api_key_notice(user, req.hide)
     return {"status": "success", "hide": req.hide}
 
 
 @router.post("/settings")
-async def save_settings(
+def save_settings(
     model: str = Form(...),
     api_key: str = Form(""),
     audio_lang: str = Form("auto"),
@@ -81,18 +81,18 @@ async def save_settings(
 
 
 @router.get("/settings/usage")
-async def get_usage_info(user: str = Depends(get_current_user)):
+def get_usage_info(user: str = Depends(get_current_user)):
     total_usd = AuthManager.get_user_usage(user)
     return {"total_spent_usd": round(total_usd, 4)}
 
 
 @router.get("/settings/default_prompts")
-async def get_default_prompts(user: str = Depends(get_current_user)):
+def get_default_prompts(user: str = Depends(get_current_user)):
     return {"system_prompt": default_system_prompt, "user_prompt": default_user_prompt}
 
 
 @router.post("/user/profile-image")
-async def upload_profile_image(
+def upload_profile_image(
     file: UploadFile = File(...), user: str = Depends(get_current_user)
 ):
     os.makedirs("static/profiles", exist_ok=True)
@@ -112,7 +112,7 @@ async def upload_profile_image(
 
 
 @router.post("/settings/model")
-async def update_model_setting(
+def update_model_setting(
     req: ModelUpdateRequest, user: str = Depends(get_current_user)
 ):
     if req.preferred_model == "local" and not settings.ENABLE_LOCAL_LLM:

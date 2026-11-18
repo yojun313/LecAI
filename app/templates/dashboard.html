@@ -411,11 +411,21 @@
         }
 
         // --- 4. Job Management Logic (FIXED & ROBUST) ---
+        // 진행 중인 작업이 있으면 2초, 없으면 15초마다. 탭이 안 보이면 쉬고, 다시 보이면 바로 갱신.
+        let pollTimer = 0, hasActiveJobs = true;
         function startPolling() {
-            if (!isPolling) {
-                isPolling = true;
-                setInterval(fetchJobs, 2000);
-            }
+            if (isPolling) return;
+            isPolling = true;
+            schedulePoll();
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(pollTimer); pollTick(); } });
+        }
+        function schedulePoll() {
+            clearTimeout(pollTimer);
+            pollTimer = setTimeout(pollTick, hasActiveJobs ? 2000 : 15000);
+        }
+        async function pollTick() {
+            if (!document.hidden) await fetchJobs();
+            schedulePoll();
         }
 
         async function fetchJobs() {
@@ -423,8 +433,28 @@
                 const res = await fetch('/api/jobs');
                 if (!res.ok) return;
                 const jobs = await res.json();
+                const was = hasActiveJobs;
+                hasActiveJobs = jobs.some(j => j.status === 'pending' || j.status === 'processing');
                 updateDashboard(jobs);
+                if (hasActiveJobs && !was && isPolling) schedulePoll();   // 새 작업이 생기면 바로 빠르게
             } catch (err) { console.error(err); }
+        }
+
+        const escapeLog = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        // 전체 로그는 로그 창을 펼쳤을 때만 받는다 (목록에는 마지막 줄만 온다)
+        async function loadFullLogs(card, jobId) {
+            const area = card.querySelector('.log-area');
+            if (!area || area.classList.contains('hidden') || card._logsLoading) return;
+            card._logsLoading = true;
+            try {
+                const res = await fetch(`/api/status/${encodeURIComponent(jobId)}`);
+                if (!res.ok) return;
+                const logs = (await res.json()).logs || [];
+                area.innerHTML = logs.map(l => `<p>${escapeLog(l)}</p>`).join('');
+                area.dataset.count = String(logs.length);
+                area.scrollTop = area.scrollHeight;
+            } catch (e) { /* 다음 갱신 때 다시 */ }
+            finally { card._logsLoading = false; }
         }
 
         function updateDashboard(jobs) {
@@ -498,7 +528,9 @@
 
             cardDiv.querySelector('.toggle-log-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                cardDiv.querySelector('.log-area').classList.toggle('hidden');
+                const area = cardDiv.querySelector('.log-area');
+                area.classList.toggle('hidden');
+                if (!area.classList.contains('hidden') && job.log_count != null) loadFullLogs(cardDiv, job.id);
             });
 
             const deleteBtn = cardDiv.querySelector('.delete-btn');
@@ -578,9 +610,12 @@
                 const lastLog = job.logs[job.logs.length - 1];
                 progressText.textContent = lastLog.includes(']') ? lastLog.substring(lastLog.indexOf(']') + 1).trim() : lastLog;
 
-                if (logArea && logArea.childElementCount !== job.logs.length) {
-                    logArea.innerHTML = job.logs.map(l => `<p>${l}</p>`).join('');
+                if (logArea && job.log_count == null && logArea.childElementCount !== job.logs.length) {
+                    // 업로드 중인 임시 카드 (로그를 화면에서 만든다)
+                    logArea.innerHTML = job.logs.map(l => `<p>${escapeLog(l)}</p>`).join('');
                     logArea.scrollTop = logArea.scrollHeight;
+                } else if (logArea && job.log_count != null && String(job.log_count) !== logArea.dataset.count) {
+                    loadFullLogs(card, job.id);   // 펼쳐 둔 로그 창만 새로 받는다
                 }
             }
         }

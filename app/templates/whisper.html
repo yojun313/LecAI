@@ -938,6 +938,7 @@
     function fmtGB(mib) { return (mib / 1024).toFixed(1); }
 
     async function pollGpuStats() {
+        if (document.hidden) return;   // 안 보는 탭에서는 GPU 서버에 묻지 않는다
         try {
             const res = await fetch('/api/whisper/gpu-stats');
             if (!res.ok) return;

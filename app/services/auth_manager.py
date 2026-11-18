@@ -1,5 +1,6 @@
 # app/services/auth_manager.py
 
+from datetime import datetime, timezone
 import uuid
 import hashlib
 import bcrypt
@@ -227,7 +228,13 @@ class AuthManager:
             session_id = str(uuid.uuid4())
 
             # 세션 DB에 저장
-            sessions_col.insert_one({"session_id": session_id, "username": username})
+            sessions_col.insert_one(
+                {
+                    "session_id": session_id,
+                    "username": username,
+                    "created_at": datetime.now(timezone.utc),
+                }
+            )
             return session_id
         return None
 

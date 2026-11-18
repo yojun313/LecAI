@@ -13,7 +13,7 @@ class VerifyRequest(BaseModel):
 
 
 @router.post("/auth/signup/request")
-async def api_signup_request(
+def api_signup_request(
     username: str = Form(...), password: str = Form(...), email: str = Form(...)
 ):
     result = AuthManager.request_signup(username, password, email)
@@ -28,21 +28,21 @@ async def api_signup_request(
 
 
 @router.post("/auth/signup/verify")
-async def api_signup_verify(req: VerifyRequest):
+def api_signup_verify(req: VerifyRequest):
     if AuthManager.verify_and_create_user(req.email, req.code):
         return {"message": "User created successfully"}
     raise HTTPException(status_code=400, detail="Invalid verification code")
 
 
 @router.post("/auth/signup")
-async def api_signup(username: str = Form(...), password: str = Form(...)):
+def api_signup(username: str = Form(...), password: str = Form(...)):
     if AuthManager.create_user(username, password):
         return {"message": "User created"}
     raise HTTPException(status_code=400, detail="User already exists")
 
 
 @router.post("/auth/login")
-async def api_login(username: str = Form(...), password: str = Form(...)):
+def api_login(username: str = Form(...), password: str = Form(...)):
     session_id = AuthManager.authenticate_user(username, password)
     if session_id:
         response = JSONResponse(content={"message": "Login successful"})
@@ -75,7 +75,7 @@ class ResetConfirm(BaseModel):
 
 
 @router.post("/auth/password-reset/request")
-async def api_password_reset_request(req: ResetRequest):
+def api_password_reset_request(req: ResetRequest):
     if "@" not in (req.email or ""):
         raise HTTPException(status_code=400, detail="이메일 주소를 확인해 주세요.")
     result = AuthManager.request_password_reset(req.email)
@@ -93,7 +93,7 @@ async def api_password_reset_request(req: ResetRequest):
 
 
 @router.post("/auth/password-reset/verify")
-async def api_password_reset_verify(req: ResetVerify):
+def api_password_reset_verify(req: ResetVerify):
     result, error = AuthManager.verify_password_reset_code(req.email, req.code)
     if error:
         raise HTTPException(status_code=400, detail=error)
@@ -101,7 +101,7 @@ async def api_password_reset_verify(req: ResetVerify):
 
 
 @router.post("/auth/password-reset/confirm")
-async def api_password_reset_confirm(req: ResetConfirm):
+def api_password_reset_confirm(req: ResetConfirm):
     ok, error = AuthManager.reset_password(
         req.email, req.token, req.username, req.password
     )
