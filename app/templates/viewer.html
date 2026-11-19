@@ -282,6 +282,12 @@
             transition: background-color 0.2s; border-radius: 8px;
         }
         .tree-content:hover { background-color: var(--bg-hover); }
+        /* 호버 버튼: 평소엔 자리를 차지하지 않고(이름이 전체 폭을 쓴다), 호버할 때 오른쪽에 떠서 나타난다 */
+        .tree-content { position: relative; }
+        .tree-actions { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 1px;
+            padding: 1px 3px; border-radius: 7px; background: var(--bg-secondary); border: 1px solid var(--border-color); box-shadow: -10px 0 10px -4px var(--bg-hover); }
+        .tree-content:hover .tree-actions, .tree-content:focus-within .tree-actions { display: flex; }
+        body.tree-dragging .tree-actions { display: none !important; }
         .tree-content.active { background: rgba(59,130,246,0.14); color: #60a5fa; }
         .tree-arrow {
             width: 1rem; height: 1rem; display: flex; align-items: center; justify-content: center;
@@ -1107,7 +1113,7 @@
                 <i class="${iconClass} mr-2 w-4 text-center opacity-80 node-icon"></i>
                 <span class="truncate text-sm select-none flex-1 pointer-events-none" title="${node.name}">${node.name}</span>
                 
-                <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 ml-2" onclick="event.stopPropagation()">
+                <div class="tree-actions" onclick="event.stopPropagation()">
                     ${isFolder ? `<button onclick="createFolder(event, '${node.id}')" class="text-notion-muted hover:text-yellow-400 p-1" title="하위 폴더 만들기"><i class="fas fa-folder-plus text-xs"></i></button>` : ''}
                     ${depth > 0 ? `<button onclick="moveNodeTo(event, '${node.id}', 'root')" class="text-notion-muted hover:text-purple-400 p-1" title="최상위로 이동"><i class="fas fa-level-up-alt text-xs"></i></button>` : ''}
                     <button onclick="renameNode(event, '${node.id}', '${node.name.replace(/'/g, "\\'")}')" class="text-notion-muted hover:text-blue-400 p-1" title="이름 변경"><i class="fas fa-pen text-xs"></i></button>

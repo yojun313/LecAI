@@ -668,6 +668,8 @@ def process_audio_task(job_id: str, file_path: str):
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
+        # 업로드 폴더 (uploads/<작업 id>/)
+        shutil.rmtree(os.path.join(settings.UPLOAD_DIR, job_id), ignore_errors=True)
         result_dir = os.path.join(settings.RESULT_DIR, job_id)
         if os.path.exists(result_dir):
             shutil.rmtree(result_dir)

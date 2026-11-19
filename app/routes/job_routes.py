@@ -25,8 +25,27 @@ from app.core.config import settings
 from app.routes.deps import get_current_user
 import shutil
 import os
+import re
 
 router = APIRouter()
+
+
+def _safe_filename(name: str, fallback: str = "file") -> str:
+    """업로드 파일명 → 경로로 써도 안전한 이름 (폴더 · 제어 문자 제거, 길이 제한, 확장자 유지)"""
+    name = (name or "").replace("\\", "/").split("/")[-1]
+    name = re.sub(r"[\x00-\x1f\x7f]", "", name).strip().strip(".")
+    if not name:
+        return fallback
+    stem, ext = os.path.splitext(name)
+    return stem[:150] + ext[:20]
+
+
+def _job_upload_path(job_id: str, filename: str) -> str:
+    """작업마다 따로 둔다: uploads/<작업 id>/in/<파일명>
+    (같은 이름의 파일을 동시에 올려도 서로 덮어쓰지 않고, 작업 삭제 · 처리 끝에 폴더째 정리된다)"""
+    folder = os.path.join(settings.UPLOAD_DIR, job_id, "in")
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, filename)
 
 
 @router.post("/upload")
@@ -42,7 +61,8 @@ def upload_file(
     use_batch: str = Form(""),
     user: str = Depends(get_current_user),
 ):
-    ext = os.path.splitext(file.filename)[1].lower()
+    filename = _safe_filename(file.filename, "upload")
+    ext = os.path.splitext(filename)[1].lower()
     # 뷰어에서 업로드한 경우: 완료 후 문서함의 지정 폴더로 자동 저장
     auto_import_parent_id = (auto_import_parent_id or "").strip()
     if auto_import_parent_id and auto_import_parent_id != "root":
@@ -63,11 +83,14 @@ def upload_file(
         if problem:
             raise HTTPException(status_code=400, detail=problem)
 
-    file_path = os.path.join(settings.UPLOAD_DIR, file.filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    job_id = JobManager.create_job(file.filename, user)
+    job_id = JobManager.create_job(filename, user)
+    file_path = _job_upload_path(job_id, filename)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except BaseException:
+        JobManager.delete_job(job_id, user)  # 업로드 폴더도 같이 지운다
+        raise
 
     if ext in AUDIO_EXTS:
         if audio_language.strip():
@@ -97,8 +120,6 @@ def upload_file(
             )
         except ValueError as e:
             JobManager.delete_job(job_id, user)
-            if os.path.exists(file_path):
-                os.remove(file_path)
             raise HTTPException(status_code=400, detail=str(e))
         background_tasks.add_task(process_file_task, job_id, file_path)
 
@@ -326,7 +347,8 @@ def add_board_photos(
     paths = []
     for i, p in enumerate(photos, 1):
         path = os.path.join(
-            settings.UPLOAD_DIR, f"{job_id}_board_{i:02d}_board_{p.filename}"
+            settings.UPLOAD_DIR,
+            f"{job_id}_board_{i:02d}_board_{_safe_filename(p.filename, 'photo')}",
         )
         with open(path, "wb") as buffer:
             shutil.copyfileobj(p.file, buffer)
